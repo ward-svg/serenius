@@ -1,16 +1,37 @@
 import { supabase } from '@/lib/supabase'
+import { getTenantBySlug } from '@/lib/tenant'
 import PartnersClient from '@/components/partners/PartnersClient'
 import type { Partner, PartnerContact } from '@/types/partners'
 
 export const revalidate = 0
 
-export default async function PartnersPage() {
+export default async function PartnersPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
+  // Get tenant to find org id
+  const tenant = await getTenantBySlug(slug)
+  const orgId = tenant?.org.id ?? null
+
   const [
     { data: allPartners },
     { data: staffData },
   ] = await Promise.all([
-    supabase.from('partners').select('*').order('display_name'),
-    supabase.from('partner_contacts').select('*').is('partner_id', null).eq('email_segment', 'Staff').order('name_last'),
+    supabase
+      .from('partners')
+      .select('*')
+      .eq('tenant_id', orgId)
+      .order('display_name'),
+    supabase
+      .from('partner_contacts')
+      .select('*')
+      .eq('tenant_id', orgId)
+      .is('partner_id', null)
+      .eq('email_segment', 'Staff')
+      .order('name_last'),
   ])
 
   const partners = (allPartners ?? []) as Partner[]
@@ -28,5 +49,14 @@ export default async function PartnersPage() {
     giving2026: partners.reduce((s, p) => s + (p.giving_2026 ?? 0), 0),
   }
 
-  return <PartnersClient stats={stats} activeDonors={activeDonors} prospects={prospects} pastPartners={pastPartners} staff={staff} />
+  return (
+    <PartnersClient
+      slug={slug}
+      stats={stats}
+      activeDonors={activeDonors}
+      prospects={prospects}
+      pastPartners={pastPartners}
+      staff={staff}
+    />
+  )
 }

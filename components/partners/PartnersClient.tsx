@@ -24,6 +24,7 @@ const MONTHLY_PARTNERS = [
 ]
 
 interface Props {
+  slug: string
   stats: { total: number; activeDonors: number; prospects: number; totalGiving: number; giving2026: number }
   activeDonors: Partner[]
   prospects: Partner[]
@@ -31,7 +32,7 @@ interface Props {
   staff: PartnerContact[]
 }
 
-export default function PartnersClient({ stats, activeDonors, prospects, pastPartners, staff }: Props) {
+export default function PartnersClient({ slug, stats, activeDonors, prospects, pastPartners, staff }: Props) {
   const [activeTab, setActiveTab] = useState<PartnerTab>('active')
   const [search, setSearch] = useState('')
   const [showPanel, setShowPanel] = useState(false)
@@ -220,10 +221,10 @@ export default function PartnersClient({ stats, activeDonors, prospects, pastPar
                 {filtered.map(p => (
                   <tr key={p.id}>
                     <td>
-                      <Link href={`/partners/${p.id}`} className="action-link">View/Edit</Link>
+                      <Link href={`/${slug}/partners/${p.id}`} className="action-link">View/Edit</Link>
                     </td>
                     <td>
-                      <Link href={`/partners/${p.id}`} className="partner-link">{p.display_name}</Link>
+                      <Link href={`/${slug}/partners/${p.id}`} className="partner-link">{p.display_name}</Link>
                     </td>
                     <td>{p.correspondence_greeting}</td>
                     <td>
@@ -273,8 +274,8 @@ export default function PartnersClient({ stats, activeDonors, prospects, pastPar
               <tbody>
                 {prospects.map(p => (
                   <tr key={p.id}>
-                    <td><Link href={`/partners/${p.id}`} className="action-link">View/Edit</Link></td>
-                    <td><Link href={`/partners/${p.id}`} className="partner-link">{p.display_name}</Link></td>
+                    <td><Link href={`/${slug}/partners/${p.id}`} className="action-link">View/Edit</Link></td>
+                    <td><Link href={`/${slug}/partners/${p.id}`} className="partner-link">{p.display_name}</Link></td>
                     <td>{p.correspondence_greeting}</td>
                     <td><span className="badge badge-family">{p.partner_type}</span></td>
                     <td>{p.city}</td>
@@ -333,8 +334,8 @@ export default function PartnersClient({ stats, activeDonors, prospects, pastPar
             <tbody>
               {pastPartners.map(p => (
                 <tr key={p.id}>
-                  <td><Link href={`/partners/${p.id}`} className="action-link">View/Edit</Link></td>
-                  <td><Link href={`/partners/${p.id}`} className="partner-link">{p.display_name}</Link></td>
+                  <td><Link href={`/${slug}/partners/${p.id}`} className="action-link">View/Edit</Link></td>
+                  <td><Link href={`/${slug}/partners/${p.id}`} className="partner-link">{p.display_name}</Link></td>
                   <td>{p.correspondence_greeting}</td>
                   <td><span className={`badge ${p.partner_type === 'Church' ? 'badge-church' : 'badge-family'}`}>{p.partner_type}</span></td>
                   <td><span className="badge badge-donor">{p.relationship_type}</span></td>
