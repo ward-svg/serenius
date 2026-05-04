@@ -1,64 +1,37 @@
-'use client'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { logout } from '@/lib/actions'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-const labels: Record<string, string> = {
-  partners: 'Partners',
-  pledges: 'Pledges',
-  gifts: 'Gifts',
-  inkind: 'In-Kind Gifts',
-  communications: 'Communications',
-  banking: 'Banking',
-  'quick-entry': 'Quick Entry',
-  add: 'Add Partner',
-}
-
-interface Props {
+interface TopBarProps {
   orgName: string
   slug: string
 }
 
-export default function TopBar({ orgName, slug }: Props) {
-  const pathname = usePathname()
+export default async function TopBar({ orgName, slug }: TopBarProps) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Strip the slug from segments for breadcrumb display
-  const segments = pathname.split('/').filter(Boolean).filter(s => s !== slug)
-
-  const crumbs = segments.map((seg, i) => ({
-    label: labels[seg] || seg.charAt(0).toUpperCase() + seg.slice(1),
-    href: '/' + slug + '/' + segments.slice(0, i + 1).join('/'),
-  }))
+  const displayEmail = user?.email ?? ''
 
   return (
-    <div style={{
-      height: 52,
-      background: '#fff',
-      borderBottom: '1px solid #e4e4e0',
-      display: 'flex',
-      alignItems: 'center',
-      padding: '0 24px',
-      flexShrink: 0,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-        <Link
-          href={`/${slug}/partners`}
-          style={{ color: '#9ca3af', textDecoration: 'none' }}
-        >
-          Home
-        </Link>
-        {crumbs.map((c, i) => (
-          <span key={c.href} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#d1d5db' }}>/</span>
-            {i === crumbs.length - 1
-              ? <span style={{ fontWeight: 500, color: '#374151' }}>{c.label}</span>
-              : <Link href={c.href} style={{ color: '#9ca3af', textDecoration: 'none' }}>{c.label}</Link>
-            }
-          </span>
-        ))}
+    <header className="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-6 shrink-0">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-gray-800">{orgName}</span>
+        <span className="text-gray-300">·</span>
+        <span className="text-sm text-gray-500">{slug}</span>
       </div>
-      <div style={{ marginLeft: 'auto', fontSize: 12, color: '#9ca3af' }}>
-        {orgName}&nbsp;·&nbsp;Logged in as <strong style={{ color: '#4b5563' }}>Ward McMillen</strong>
+
+      <div className="flex items-center gap-4">
+        <span className="text-sm text-gray-500 hidden sm:block">{displayEmail}</span>
+        <form action={logout}>
+          <button
+            type="submit"
+            className="text-sm text-gray-500 hover:text-gray-800 transition-colors px-3 py-1.5
+                       rounded-lg hover:bg-gray-100 border border-transparent hover:border-gray-200"
+          >
+            Sign out
+          </button>
+        </form>
       </div>
-    </div>
+    </header>
   )
 }
