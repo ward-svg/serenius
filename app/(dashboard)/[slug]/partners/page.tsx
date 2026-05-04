@@ -49,9 +49,10 @@ export default async function PartnersPage({
     giving2026: partners.reduce((s, p) => s + (p.giving_2026 ?? 0), 0),
   }
 
-  return (
+   return (
     <PartnersClient
       slug={slug}
+      orgId={tenant?.org.id ?? null}
       stats={stats}
       activeDonors={activeDonors}
       prospects={prospects}

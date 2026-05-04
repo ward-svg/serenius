@@ -25,6 +25,7 @@ const MONTHLY_PARTNERS = [
 
 interface Props {
   slug: string
+  orgId: string | null
   stats: { total: number; activeDonors: number; prospects: number; totalGiving: number; giving2026: number }
   activeDonors: Partner[]
   prospects: Partner[]
@@ -32,7 +33,7 @@ interface Props {
   staff: PartnerContact[]
 }
 
-export default function PartnersClient({ slug, stats, activeDonors, prospects, pastPartners, staff }: Props) {
+export default function PartnersClient({ slug, orgId, stats, activeDonors, prospects, pastPartners, staff }: Props) {
   const [activeTab, setActiveTab] = useState<PartnerTab>('active')
   const [search, setSearch] = useState('')
   const [showPanel, setShowPanel] = useState(false)
@@ -351,12 +352,13 @@ export default function PartnersClient({ slug, stats, activeDonors, prospects, p
       </div>
 
       {/* Add Partner Panel */}
-      {showPanel && <AddPartnerPanel onClose={() => setShowPanel(false)} />}
+      {showPanel && <AddPartnerPanel orgId={orgId} onClose={() => setShowPanel(false)} />}
     </div>
   )
 }
 
-function AddPartnerPanel({ onClose }: { onClose: () => void }) {
+function AddPartnerPanel({ onClose, orgId }: { onClose: () => void; orgId: string | null }) {
+
   const [partnerType, setPartnerType] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -382,6 +384,7 @@ function AddPartnerPanel({ onClose }: { onClose: () => void }) {
       state: data.get('state') as string || null,
       zip: data.get('zip') as string || null,
       mailing_list: data.get('mailing_list') as string || null,
+     tenant_id: orgId,
       total_giving: 0, giving_2023: 0, giving_2024: 0, giving_2025: 0, giving_2026: 0,
     })
     setSaving(false)
