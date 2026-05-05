@@ -64,10 +64,13 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
 
   async function handleStep1Submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    const formElement = e.currentTarget
     setError(null)
     setSaving(true)
 
-    const fd = new FormData(e.currentTarget)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const fd = new FormData(formElement)
     const str = (key: string) => (fd.get(key) as string ?? '').trim()
     const strOrNull = (key: string) => str(key) || null
 
@@ -92,7 +95,10 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
         relationship_type: strOrNull('relationship_type'),
         primary_email: email || null,
         primary_phone: phone || null,
+        primary_phone_type: strOrNull('primary_phone_type'),
         secondary_phone: strOrNull('secondary_phone'),
+        secondary_phone_type: strOrNull('secondary_phone_type'),
+        created_by: user?.id ?? null,
         address_street: strOrNull('street1'),
         address_street2: strOrNull('street2'),
         address_city: strOrNull('city'),
@@ -267,14 +273,35 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                 </div>
               </div>
 
-              <div className="form-row">
+              <div className="form-row full">
                 <div className="form-group">
                   <label className="form-label">Primary Phone</label>
-                  <input name="primary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
+                  <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 8 }}>
+                    <input name="primary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
+                    <select name="primary_phone_type" className="form-input">
+                      <option value="">Select type...</option>
+                      <option>Mobile</option>
+                      <option>Home</option>
+                      <option>Work</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
                 </div>
+              </div>
+
+              <div className="form-row full">
                 <div className="form-group">
                   <label className="form-label">Secondary Phone</label>
-                  <input name="secondary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
+                  <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 8 }}>
+                    <input name="secondary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
+                    <select name="secondary_phone_type" className="form-input">
+                      <option value="">Select type...</option>
+                      <option>Mobile</option>
+                      <option>Home</option>
+                      <option>Work</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

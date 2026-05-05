@@ -1,9 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import type { Partner, PartnerContact } from '@/types/partners'
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
+import AddContactPanel from './AddContactPanel'
+import ContactDetailModal from './ContactDetailModal'
+import EditContactPanel from './EditContactPanel'
 
 type DetailTab = 'general' | 'financial' | 'inkind' | 'communications'
 
@@ -11,6 +16,10 @@ interface Props {
   slug: string
   partner: Partner
   contacts: PartnerContact[]
+  createdByName: string | null
+  totalGiving: number
+  givingYTD: number
+  firstGiftDate: string | null
 }
 
 function getInitials(name: string): string {
@@ -28,8 +37,36 @@ function fmtCurrency(n: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
 }
 
-export default function PartnerDetailClient({ slug, partner, contacts }: Props) {
+export default function PartnerDetailClient({ slug, partner, contacts: initialContacts, createdByName, totalGiving, givingYTD, firstGiftDate }: Props) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<DetailTab>('general')
+  const [contacts, setContacts] = useState<PartnerContact[]>(initialContacts)
+  const [showAddContact, setShowAddContact] = useState(false)
+  const [selectedContact, setSelectedContact] = useState<PartnerContact | null>(null)
+  const [editingContact, setEditingContact] = useState<PartnerContact | null>(null)
+
+  function handleContactUpdated(updated: PartnerContact) {
+    setContacts(prev => prev.map(c => c.id === updated.id ? updated : c))
+  }
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesValue, setNotesValue] = useState(partner.notes ?? '')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (editingNotes) textareaRef.current?.focus()
+  }, [editingNotes])
+
+  async function saveNotes() {
+    setSavingNotes(true)
+    const supabase = createSupabaseBrowserClient()
+    await supabase
+      .from('partners')
+      .update({ notes: notesValue || null })
+      .eq('id', partner.id)
+    setSavingNotes(false)
+    setEditingNotes(false)
+  }
 
   const tabs: { key: DetailTab; label: string }[] = [
     { key: 'general', label: 'General Information' },
@@ -105,12 +142,20 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 12 }}>
             <div className="stat-card">
               <div className="stat-label">Lifetime Giving</div>
-              <div className="stat-value" style={{ fontSize: 22, color: '#9ca3af' }}>—</div>
-              <div className="stat-sub">Since first gift</div>
+              <div className="stat-value" style={{ fontSize: 22, color: totalGiving > 0 ? '#3B6D11' : '#9ca3af' }}>
+                {fmtCurrency(totalGiving)}
+              </div>
+              <div className="stat-sub">
+                {firstGiftDate
+                  ? `Since ${new Date(firstGiftDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+                  : 'No gifts recorded'}
+              </div>
             </div>
             <div className="stat-card">
               <div className="stat-label">Giving YTD</div>
-              <div className="stat-value" style={{ fontSize: 22, color: '#9ca3af' }}>—</div>
+              <div className="stat-value" style={{ fontSize: 22, color: givingYTD > 0 ? '#3B6D11' : '#9ca3af' }}>
+                {fmtCurrency(givingYTD)}
+              </div>
               <div className="stat-sub">2026 · current year</div>
             </div>
             <div className="stat-card">
@@ -146,6 +191,7 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
                   value={partner.primary_phone
                     ? <span>
                         <a href={`tel:${partner.primary_phone}`} style={{ color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none' }}>{partner.primary_phone}</a>
+                        {partner.primary_phone_type && <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af' }}>({partner.primary_phone_type})</span>}
                       </span>
                     : null}
                 />
@@ -154,6 +200,7 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
                   value={partner.secondary_phone
                     ? <span>
                         <a href={`tel:${partner.secondary_phone}`} style={{ color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none' }}>{partner.secondary_phone}</a>
+                        {partner.secondary_phone_type && <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af' }}>({partner.secondary_phone_type})</span>}
                       </span>
                     : null}
                 />
@@ -164,8 +211,8 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
                 />
                 <DetailRow
                   label="Added By"
-                  value={partner.created_by
-                    ? <span style={{ fontSize: 12, color: '#6b7280' }}>{partner.created_by}</span>
+                  value={createdByName
+                    ? <span style={{ fontSize: 12, color: '#6b7280' }}>{createdByName}</span>
                     : null}
                 />
               </div>
@@ -216,17 +263,54 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
           <div className="section-card" style={{ marginBottom: 12 }}>
             <div className="section-header">
               <span className="section-title">Notes</span>
-              <div className="section-actions">
-                <Link href={`/${slug}/partners/${partner.id}/edit`} className="btn-icon">
-                  ✎ Edit
-                </Link>
-              </div>
+              {!editingNotes && (
+                <div className="section-actions">
+                  <button
+                    className="btn-icon"
+                    onClick={() => setEditingNotes(true)}
+                    aria-label="Edit notes"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M9 1.5l2.5 2.5L4 11.5H1.5V9L9 1.5z" strokeLinejoin="round"/>
+                    </svg>
+                    Edit
+                  </button>
+                </div>
+              )}
             </div>
             <div style={{ padding: '14px 18px' }}>
-              {partner.notes
-                ? <p style={{ fontSize: 13, lineHeight: 1.6, color: '#1a1a1a', whiteSpace: 'pre-wrap' }}>{partner.notes}</p>
-                : <p style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>No notes yet. Click Edit to add a note.</p>
-              }
+              {editingNotes ? (
+                <>
+                  <textarea
+                    ref={textareaRef}
+                    rows={5}
+                    value={notesValue}
+                    onChange={e => setNotesValue(e.target.value)}
+                    className="form-input"
+                    style={{ width: '100%', resize: 'vertical', fontSize: 13, lineHeight: 1.6 }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={saveNotes}
+                      disabled={savingNotes}
+                    >
+                      {savingNotes ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => { setNotesValue(partner.notes ?? ''); setEditingNotes(false) }}
+                      disabled={savingNotes}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : notesValue ? (
+                <p style={{ fontSize: 13, lineHeight: 1.6, color: '#1a1a1a', whiteSpace: 'pre-wrap' }}>{notesValue}</p>
+              ) : (
+                <p style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>No notes added yet</p>
+              )}
             </div>
           </div>
 
@@ -236,9 +320,9 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
               <span className="section-title">Contacts</span>
               <span className="section-count">{contacts.length}</span>
               <div className="section-actions">
-                <Link href={`/${slug}/partners/${partner.id}/contacts/add`} className="btn btn-primary btn-sm">
+                <button className="btn btn-primary btn-sm" onClick={() => setShowAddContact(true)}>
                   + Add Contact
-                </Link>
+                </button>
               </div>
             </div>
             {contacts.length === 0 ? (
@@ -252,9 +336,11 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
                     <tr>
                       <th style={{ width: 80 }}>View/Edit</th>
                       <th>Name</th>
+                      <th>Nickname</th>
                       <th>Primary Phone</th>
                       <th>Email</th>
                       <th>Email Segment</th>
+                      <th>Campaign</th>
                       <th>Relationship</th>
                     </tr>
                   </thead>
@@ -262,13 +348,18 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
                     {contacts.map(c => (
                       <tr key={c.id}>
                         <td>
-                          <Link href={`/${slug}/partners/${partner.id}/contacts/${c.id}`} className="action-link">
+                          <button
+                            onClick={() => setSelectedContact(c)}
+                            className="action-link"
+                            style={{ background: 'none', border: 'none', padding: 0 }}
+                          >
                             View/Edit
-                          </Link>
+                          </button>
                         </td>
                         <td style={{ fontWeight: 500 }}>
                           {[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}
                         </td>
+                        <td>{c.nickname || '—'}</td>
                         <td>
                           {c.primary_phone
                             ? <a href={`tel:${c.primary_phone}`} style={{ color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none' }}>{c.primary_phone}</a>
@@ -279,7 +370,8 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
                             ? <a href={`mailto:${c.primary_email}`} className="email-link">{c.primary_email}</a>
                             : '—'}
                         </td>
-                        <td>{c.email_segment ?? '—'}</td>
+                        <td>{c.email_segment?.length ? c.email_segment.join(', ') : '—'}</td>
+                        <td>{c.campaign_version || '—'}</td>
                         <td>{c.relationship ?? '—'}</td>
                       </tr>
                     ))}
@@ -330,6 +422,38 @@ export default function PartnerDetailClient({ slug, partner, contacts }: Props) 
           ← Back to Partners
         </Link>
       </div>
+
+      {/* Contact Detail Modal */}
+      {selectedContact && (
+        <ContactDetailModal
+          contact={selectedContact}
+          onClose={() => setSelectedContact(null)}
+          onEdit={(c) => {
+            setSelectedContact(null)
+            setEditingContact(c)
+          }}
+        />
+      )}
+
+      {/* Edit Contact Panel */}
+      {editingContact && (
+        <EditContactPanel
+          contact={editingContact}
+          partner={partner}
+          onClose={() => setEditingContact(null)}
+          onSuccess={handleContactUpdated}
+        />
+      )}
+
+      {/* Add Contact Panel */}
+      {showAddContact && (
+        <AddContactPanel
+          partnerId={partner.id}
+          partner={partner}
+          onClose={() => setShowAddContact(false)}
+          onSuccess={() => router.refresh()}
+        />
+      )}
     </div>
   )
 }

@@ -13,18 +13,39 @@ export default async function PartnerDetailPage({
   const { slug, id } = await params
   const supabase = await createSupabaseServerClient()
 
-  const [{ data: partner }, { data: contacts }] = await Promise.all([
+  const [{ data: partnerData }, { data: contacts }, { data: lifetimeGiving }, { data: ytdGiving }, { data: firstGift }] = await Promise.all([
     supabase.from('partners').select('*').eq('id', id).single(),
     supabase.from('partner_contacts').select('*').eq('partner_id', id).order('relationship'),
+    supabase.from('financial_gifts').select('amount').eq('partner_id', id),
+    supabase.from('financial_gifts').select('amount').eq('partner_id', id).eq('giving_year', 2026),
+    supabase.from('financial_gifts').select('date_given').eq('partner_id', id).order('date_given', { ascending: true }).limit(1).single(),
   ])
 
-  if (!partner) notFound()
+  if (!partnerData) notFound()
+
+  const totalGiving = lifetimeGiving?.reduce((sum, g) => sum + (g.amount ?? 0), 0) ?? 0
+  const givingYTD = ytdGiving?.reduce((sum, g) => sum + (g.amount ?? 0), 0) ?? 0
+  const firstGiftDate = firstGift?.date_given ?? null
+
+  let createdByName: string | null = null
+  if (partnerData.created_by) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('full_name, email')
+      .eq('user_id', partnerData.created_by)
+      .single()
+    createdByName = profile?.full_name ?? profile?.email ?? null
+  }
 
   return (
     <PartnerDetailClient
       slug={slug}
-      partner={partner as Partner}
+      partner={partnerData as Partner}
       contacts={(contacts ?? []) as PartnerContact[]}
+      createdByName={createdByName}
+      totalGiving={totalGiving}
+      givingYTD={givingYTD}
+      firstGiftDate={firstGiftDate}
     />
   )
 }
