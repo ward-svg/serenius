@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
 import type { Partner, PartnerContact, PartnerTab } from '@/types/partners'
+import AddPartnerPanel from './AddPartnerPanel'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export default function PartnersClient({ slug, orgId, stats, activeDonors, prospects, pastPartners, staff }: Props) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<PartnerTab>('active')
   const [search, setSearch] = useState('')
   const [showPanel, setShowPanel] = useState(false)
@@ -352,196 +354,14 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
       </div>
 
       {/* Add Partner Panel */}
-      {showPanel && <AddPartnerPanel orgId={orgId} onClose={() => setShowPanel(false)} />}
+      {showPanel && (
+        <AddPartnerPanel
+          orgId={orgId}
+          slug={slug}
+          onClose={() => setShowPanel(false)}
+          onSuccess={() => { setShowPanel(false); router.refresh() }}
+        />
+      )}
     </div>
-  )
-}
-
-function AddPartnerPanel({ onClose, orgId }: { onClose: () => void; orgId: string | null }) {
-
-  const [partnerType, setPartnerType] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setSaving(true)
-    const data = new FormData(e.currentTarget)
-    const { error } = await supabase.from('partners').insert({
-      display_name: `${data.get('name_first')} ${data.get('name_last')}`.trim(),
-      correspondence_greeting: data.get('correspondence_greeting') as string || null,
-      entity_name: data.get('entity_name') as string || null,
-      partner_type: data.get('partner_type') as string || null,
-      partner_status: data.get('partner_status') as string || null,
-      relationship_type: data.get('relationship_type') as string || null,
-      primary_email: data.get('primary_email') as string || null,
-      primary_phone: data.get('primary_phone') as string || null,
-      primary_phone_type: data.get('primary_phone_type') as string || null,
-      secondary_phone: data.get('secondary_phone') as string || null,
-      secondary_phone_type: data.get('secondary_phone_type') as string || null,
-      street1: data.get('street1') as string || null,
-      street2: data.get('street2') as string || null,
-      city: data.get('city') as string || null,
-      state: data.get('state') as string || null,
-      zip: data.get('zip') as string || null,
-      mailing_list: data.get('mailing_list') as string || null,
-     tenant_id: orgId,
-      total_giving: 0, giving_2023: 0, giving_2024: 0, giving_2025: 0, giving_2026: 0,
-    })
-    setSaving(false)
-    if (!error) { onClose(); window.location.reload() }
-    else alert('Error: ' + error.message)
-  }
-
-  return (
-    <>
-      <div className="panel-overlay" onClick={onClose} />
-      <div className="panel">
-        <div className="panel-header">
-          <h2>Add New Partner</h2>
-          <button className="panel-close" onClick={onClose}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M1 1l12 12M13 1L1 13"/>
-            </svg>
-          </button>
-        </div>
-
-        <form id="add-partner-form" onSubmit={handleSubmit} className="panel-body">
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Partner Type *</label>
-              <select name="partner_type" required className="form-input" value={partnerType} onChange={e => setPartnerType(e.target.value)}>
-                <option value="">Select...</option>
-                <option>Family</option>
-                <option>Church</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Partner Status *</label>
-              <select name="partner_status" required className="form-input">
-                <option value="">Select...</option>
-                <option>Active</option>
-                <option>Past</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Relationship Type *</label>
-              <select name="relationship_type" required className="form-input">
-                <option value="">Select...</option>
-                <option>Donor</option>
-                <option>Prospect</option>
-              </select>
-            </div>
-            {partnerType && partnerType !== 'Family' && (
-              <div className="form-group">
-                <label className="form-label">Entity Name</label>
-                <input name="entity_name" type="text" placeholder="Organization name" className="form-input" />
-              </div>
-            )}
-          </div>
-
-          <div className="form-section-title">Primary Contact</div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">First Name</label>
-              <input name="name_first" type="text" placeholder="First" className="form-input" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Last Name</label>
-              <input name="name_last" type="text" placeholder="Last" className="form-input" />
-            </div>
-          </div>
-          <div className="form-row full">
-            <div className="form-group">
-              <label className="form-label">Correspondence Greeting</label>
-              <input name="correspondence_greeting" type="text" placeholder="e.g. Matt and Amber" className="form-input" />
-              <span className="form-hint">Used in letters and email salutations</span>
-            </div>
-          </div>
-
-          <div className="form-section-title">Contact Info</div>
-          <div className="form-row full">
-            <div className="form-group">
-              <label className="form-label">Primary Email</label>
-              <input name="primary_email" type="email" placeholder="email@example.com" className="form-input" />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Primary Phone</label>
-              <input name="primary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Phone Type</label>
-              <select name="primary_phone_type" className="form-input">
-                <option value="">Select...</option>
-                <option>Mobile</option><option>Home</option><option>Work</option>
-              </select>
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Secondary Phone</label>
-              <input name="secondary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Phone Type</label>
-              <select name="secondary_phone_type" className="form-input">
-                <option value="">Select...</option>
-                <option>Mobile</option><option>Home</option><option>Work</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-section-title">Address</div>
-          <div className="form-row full">
-            <div className="form-group">
-              <label className="form-label">Street Address</label>
-              <input name="street1" type="text" placeholder="123 Main St" className="form-input" />
-            </div>
-          </div>
-          <div className="form-row full">
-            <div className="form-group">
-              <label className="form-label">Street Address 2</label>
-              <input name="street2" type="text" placeholder="Apt, Suite, etc." className="form-input" />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">City</label>
-              <input name="city" type="text" className="form-input" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">State</label>
-              <input name="state" type="text" className="form-input" />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Zip Code</label>
-              <input name="zip" type="text" className="form-input" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Mailing List</label>
-              <select name="mailing_list" className="form-input">
-                <option value="">Select...</option>
-                <option>Newsletter</option>
-                <option>House Updates</option>
-                <option value="Newsletter, House Updates">Newsletter, House Updates</option>
-              </select>
-            </div>
-          </div>
-        </form>
-
-        <div className="panel-footer">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" form="add-partner-form" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Saving...' : 'Save Partner'}
-          </button>
-        </div>
-      </div>
-    </>
   )
 }
