@@ -32,9 +32,10 @@ interface Props {
   prospects: Partner[]
   pastPartners: Partner[]
   staff: PartnerContact[]
+  givingByPartner: Record<string, { total: number; ytd: number }>
 }
 
-export default function PartnersClient({ slug, orgId, stats, activeDonors, prospects, pastPartners, staff }: Props) {
+export default function PartnersClient({ slug, orgId, stats, activeDonors, prospects, pastPartners, staff, givingByPartner }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<PartnerTab>('active')
   const [search, setSearch] = useState('')
@@ -215,6 +216,7 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                   <th>Primary Email</th>
                   <th>Primary Phone</th>
                   <th>Total Giving</th>
+                  <th>YTD 2026</th>
                 </tr>
               </thead>
               <tbody>
@@ -242,7 +244,8 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                     <td>{p.primary_phone &&
                       <a href={`tel:${p.primary_phone}`} style={{ textDecoration: 'none', color: 'inherit' }}>{p.primary_phone}</a>
                     }</td>
-                    <td className="money money-zero">—</td>
+                    <td className="money">{fmt(givingByPartner[p.id]?.total ?? 0)}</td>
+                    <td className="money">{fmt(givingByPartner[p.id]?.ytd ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>
