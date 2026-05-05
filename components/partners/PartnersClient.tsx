@@ -45,7 +45,7 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
     const q = search.toLowerCase()
     return activeDonors.filter(p =>
       p.display_name.toLowerCase().includes(q) ||
-      (p.city ?? '').toLowerCase().includes(q) ||
+      (p.address_city ?? '').toLowerCase().includes(q) ||
       (p.primary_email ?? '').toLowerCase().includes(q)
     )
   }, [activeDonors, search])
@@ -215,9 +215,6 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                   <th>Primary Email</th>
                   <th>Primary Phone</th>
                   <th>Total Giving</th>
-                  <th>2026</th>
-                  <th>2025</th>
-                  <th>2024</th>
                 </tr>
               </thead>
               <tbody>
@@ -235,8 +232,8 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                         {p.partner_type}
                       </span>
                     </td>
-                    <td>{p.city}</td>
-                    <td>{p.state}</td>
+                    <td>{p.address_city}</td>
+                    <td>{p.address_state}</td>
                     <td>
                       {p.primary_email &&
                         <a href={`mailto:${p.primary_email}`} className="email-link">{p.primary_email}</a>
@@ -245,10 +242,7 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                     <td>{p.primary_phone &&
                       <a href={`tel:${p.primary_phone}`} style={{ textDecoration: 'none', color: 'inherit' }}>{p.primary_phone}</a>
                     }</td>
-                    <td className="money">{fmt(p.total_giving)}</td>
-                    <td className={`money${p.giving_2026 === 0 ? ' money-zero' : ''}`}>{fmt(p.giving_2026)}</td>
-                    <td className={`money${p.giving_2025 === 0 ? ' money-zero' : ''}`}>{fmt(p.giving_2025)}</td>
-                    <td className={`money${p.giving_2024 === 0 ? ' money-zero' : ''}`}>{fmt(p.giving_2024)}</td>
+                    <td className="money money-zero">—</td>
                   </tr>
                 ))}
               </tbody>
@@ -281,12 +275,12 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                     <td><Link href={`/${slug}/partners/${p.id}`} className="partner-link">{p.display_name}</Link></td>
                     <td>{p.correspondence_greeting}</td>
                     <td><span className="badge badge-family">{p.partner_type}</span></td>
-                    <td>{p.city}</td>
-                    <td>{p.state}</td>
+                    <td>{p.address_city}</td>
+                    <td>{p.address_state}</td>
                     <td>{p.primary_email && <a href={`mailto:${p.primary_email}`} className="email-link">{p.primary_email}</a>}</td>
                     <td>{p.primary_phone}</td>
-                    <td className={`money${p.total_giving === 0 ? ' money-zero' : ''}`}>{fmt(p.total_giving)}</td>
-                    <td style={{ color: '#9ca3af', fontSize: 12 }}>{p.created_date}</td>
+                    <td className="money money-zero">—</td>
+                    <td style={{ color: '#9ca3af', fontSize: 12 }}>{p.created_at.split('T')[0]}</td>
                   </tr>
                 ))}
               </tbody>
@@ -308,8 +302,8 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
             <tbody>
               {staff.map(s => (
                 <tr key={s.id}>
-                  <td style={{ fontWeight: 500 }}>{[s.name_first, s.name_last].filter(Boolean).join(' ')}</td>
-                  <td>{s.email && <a href={`mailto:${s.email}`} className="email-link">{s.email}</a>}</td>
+                  <td style={{ fontWeight: 500 }}>{[s.first_name, s.last_name].filter(Boolean).join(' ')}</td>
+                  <td>{s.primary_email && <a href={`mailto:${s.primary_email}`} className="email-link">{s.primary_email}</a>}</td>
                   <td>{s.email_segment}</td>
                   <td>{s.primary_phone}</td>
                 </tr>
@@ -342,10 +336,10 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                   <td>{p.correspondence_greeting}</td>
                   <td><span className={`badge ${p.partner_type === 'Church' ? 'badge-church' : 'badge-family'}`}>{p.partner_type}</span></td>
                   <td><span className="badge badge-donor">{p.relationship_type}</span></td>
-                  <td>{p.city}</td>
-                  <td>{p.state}</td>
+                  <td>{p.address_city}</td>
+                  <td>{p.address_state}</td>
                   <td>{p.primary_email && <a href={`mailto:${p.primary_email}`} className="email-link">{p.primary_email}</a>}</td>
-                  <td className="money">{fmt(p.total_giving)}</td>
+                  <td className="money money-zero">—</td>
                 </tr>
               ))}
             </tbody>

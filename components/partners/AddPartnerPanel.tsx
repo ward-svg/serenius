@@ -19,8 +19,6 @@ interface ContactCard {
   relationship: string
   email: string
   phone: string
-  phone_type: string
-  clone_address: boolean
 }
 
 const ENTITY_TYPES = ['Church', 'Business', 'Organization', 'School']
@@ -30,47 +28,16 @@ function parseContacts(
   nameLast: string,
   email: string,
   phone: string,
-  phoneType: string,
 ): ContactCard[] {
   const paired = nameFirst.match(/^(.+?)\s+(?:&|and)\s+(.+?)$/i)
   if (paired) {
     return [
-      {
-        id: '1',
-        included: true,
-        name_first: paired[1].trim(),
-        name_last: nameLast,
-        relationship: 'Husband',
-        email,
-        phone,
-        phone_type: phoneType,
-        clone_address: true,
-      },
-      {
-        id: '2',
-        included: true,
-        name_first: paired[2].trim(),
-        name_last: nameLast,
-        relationship: 'Wife',
-        email: '',
-        phone: '',
-        phone_type: '',
-        clone_address: true,
-      },
+      { id: '1', included: true, name_first: paired[1].trim(), name_last: nameLast, relationship: 'Husband', email, phone },
+      { id: '2', included: true, name_first: paired[2].trim(), name_last: nameLast, relationship: 'Wife', email: '', phone: '' },
     ]
   }
   return [
-    {
-      id: '1',
-      included: true,
-      name_first: nameFirst,
-      name_last: nameLast,
-      relationship: 'Self',
-      email,
-      phone,
-      phone_type: phoneType,
-      clone_address: true,
-    },
+    { id: '1', included: true, name_first: nameFirst, name_last: nameLast, relationship: 'Self', email, phone },
   ]
 }
 
@@ -82,14 +49,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
   const [partnerType, setPartnerType] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [partnerId, setPartnerId] = useState<number | null>(null)
-  const [partnerAddress, setPartnerAddress] = useState<{
-    street1: string | null
-    street2: string | null
-    city: string | null
-    state: string | null
-    zip: string | null
-  }>({ street1: null, street2: null, city: null, state: null, zip: null })
+  const [partnerId, setPartnerId] = useState<string | null>(null)
   const [contacts, setContacts] = useState<ContactCard[]>([])
 
   useEffect(() => {
@@ -116,12 +76,6 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
     const entityName = strOrNull('entity_name')
     const email = str('primary_email')
     const phone = str('primary_phone')
-    const phoneType = str('primary_phone_type')
-    const street1 = strOrNull('street1')
-    const street2 = strOrNull('street2')
-    const city = strOrNull('city')
-    const state = strOrNull('state')
-    const zip = strOrNull('zip')
 
     const displayName = isEntityType
       ? (entityName ?? `${nameFirst} ${nameLast}`.trim())
@@ -138,21 +92,13 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
         relationship_type: strOrNull('relationship_type'),
         primary_email: email || null,
         primary_phone: phone || null,
-        primary_phone_type: phoneType || null,
         secondary_phone: strOrNull('secondary_phone'),
-        secondary_phone_type: strOrNull('secondary_phone_type'),
-        street1,
-        street2,
-        city,
-        state,
-        zip,
-        mailing_list: strOrNull('mailing_list'),
+        address_street: strOrNull('street1'),
+        address_street2: strOrNull('street2'),
+        address_city: strOrNull('city'),
+        address_state: strOrNull('state'),
+        address_zip: strOrNull('zip'),
         tenant_id: orgId,
-        total_giving: 0,
-        giving_2023: 0,
-        giving_2024: 0,
-        giving_2025: 0,
-        giving_2026: 0,
       })
       .select('id')
       .single()
@@ -164,9 +110,8 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
       return
     }
 
-    setPartnerId(inserted.id)
-    setPartnerAddress({ street1, street2, city, state, zip })
-    setContacts(parseContacts(nameFirst, nameLast, email, phone, phoneType))
+    setPartnerId(inserted.id as string)
+    setContacts(parseContacts(nameFirst, nameLast, email, phone))
     setStep(2)
   }
 
@@ -179,16 +124,11 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
     const rows = included.map(c => ({
       tenant_id: orgId,
       partner_id: partnerId,
-      name_first: c.name_first || null,
-      name_last: c.name_last || null,
-      email: c.email || null,
+      first_name: c.name_first || null,
+      last_name: c.name_last || null,
+      primary_email: c.email || null,
       primary_phone: c.phone || null,
-      primary_phone_type: c.phone_type || null,
       relationship: c.relationship || null,
-      clone_primary_address: c.clone_address,
-      ...(c.clone_address
-        ? partnerAddress
-        : { street1: null, street2: null, city: null, state: null, zip: null }),
     }))
 
     const { error: contactError } = await supabase.from('partner_contacts').insert(rows)
@@ -333,29 +273,8 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                   <input name="primary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Phone Type</label>
-                  <select name="primary_phone_type" className="form-input">
-                    <option value="">Select...</option>
-                    <option>Mobile</option>
-                    <option>Home</option>
-                    <option>Work</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
                   <label className="form-label">Secondary Phone</label>
                   <input name="secondary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Phone Type</label>
-                  <select name="secondary_phone_type" className="form-input">
-                    <option value="">Select...</option>
-                    <option>Mobile</option>
-                    <option>Home</option>
-                    <option>Work</option>
-                  </select>
                 </div>
               </div>
 
@@ -385,19 +304,10 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                 </div>
               </div>
 
-              <div className="form-row">
+              <div className="form-row full">
                 <div className="form-group">
                   <label className="form-label">Zip Code</label>
                   <input name="zip" type="text" className="form-input" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Mailing List</label>
-                  <select name="mailing_list" className="form-input">
-                    <option value="">Select...</option>
-                    <option>Newsletter</option>
-                    <option>House Updates</option>
-                    <option value="Newsletter, House Updates">Newsletter, House Updates</option>
-                  </select>
                 </div>
               </div>
 
@@ -572,7 +482,7 @@ function ContactCardItem({
             </div>
           </div>
 
-          <div className="form-row">
+          <div className="form-row full">
             <div className="form-group">
               <label className="form-label">Phone</label>
               <input
@@ -582,38 +492,7 @@ function ContactCardItem({
                 onChange={e => onUpdate('phone', e.target.value)}
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Phone Type</label>
-              <select
-                className="form-input"
-                value={contact.phone_type}
-                onChange={e => onUpdate('phone_type', e.target.value)}
-              >
-                <option value="">Select...</option>
-                <option>Mobile</option>
-                <option>Home</option>
-                <option>Work</option>
-              </select>
-            </div>
           </div>
-
-          <label style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 12,
-            color: '#6b7280',
-            cursor: 'pointer',
-            marginTop: 4,
-          }}>
-            <input
-              type="checkbox"
-              checked={contact.clone_address}
-              onChange={e => onUpdate('clone_address', e.target.checked)}
-              style={{ accentColor: 'var(--brand-primary, #3b5bdb)', width: 14, height: 14 }}
-            />
-            Clone address from partner
-          </label>
         </div>
       )}
     </div>

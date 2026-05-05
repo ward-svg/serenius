@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getTenantBySlug } from '@/lib/tenant'
 import PartnersClient from '@/components/partners/PartnersClient'
 import type { Partner, PartnerContact } from '@/types/partners'
@@ -15,6 +15,7 @@ export default async function PartnersPage({
   // Get tenant to find org id
   const tenant = await getTenantBySlug(slug)
   const orgId = tenant?.org.id ?? null
+  const supabase = await createSupabaseServerClient()
 
   const [
     { data: allPartners },
@@ -29,9 +30,8 @@ export default async function PartnersPage({
       .from('partner_contacts')
       .select('*')
       .eq('tenant_id', orgId)
-      .is('partner_id', null)
       .eq('email_segment', 'Staff')
-      .order('name_last'),
+      .order('last_name'),
   ])
 
   const partners = (allPartners ?? []) as Partner[]
@@ -45,8 +45,8 @@ export default async function PartnersPage({
     total: partners.length,
     activeDonors: activeDonors.length,
     prospects: prospects.length,
-    totalGiving: partners.reduce((s, p) => s + (p.total_giving ?? 0), 0),
-    giving2026: partners.reduce((s, p) => s + (p.giving_2026 ?? 0), 0),
+    totalGiving: 0,
+    giving2026: 0,
   }
 
    return (

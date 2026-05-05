@@ -5,6 +5,12 @@
 :root {
   --sidebar-width: 220px;
   --topbar-height: 52px;
+  --color-background-info: #E6F1FB;
+  --color-text-info: #185FA5;
+  --color-background-secondary: #f5f5f2;
+  --color-text-secondary: #6b7280;
+  --color-border-secondary: #e4e4e0;
+  --color-border-tertiary: #e8e8e4;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -60,12 +66,15 @@ tr:last-child td { border-bottom: none; }
 
 /* ── Badges ── */
 .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
-.badge-family { background: #e7f5ff; color: #1864ab; }
-.badge-church { background: #f3f0ff; color: #5f3dc4; }
-.badge-donor { background: #ebfbee; color: #1b4332; }
-.badge-prospect { background: #fff9db; color: #744210; }
-.badge-active { background: #ebfbee; color: #2f9e44; }
-.badge-past { background: #f8f9fa; color: #868e96; }
+.badge-family { background: #E6F1FB; color: #0C447C; }
+.badge-church { background: #EEEDFE; color: #3C3489; }
+.badge-donor { background: #EAF3DE; color: #27500A; }
+.badge-prospect { background: #FAEEDA; color: #633806; }
+.badge-active { background: #EAF3DE; color: #27500A; }
+.badge-past { background: var(--color-background-secondary, #f5f5f2); color: var(--color-text-secondary, #6b7280); }
+.badge-business { background: #FAEEDA; color: #633806; }
+.badge-org { background: #E1F5EE; color: #085041; }
+.badge-school { background: #EAF3DE; color: #27500A; }
 
 /* ── Table links & money ── */
 .partner-link { font-weight: 500; color: #3b5bdb; cursor: pointer; text-decoration: none; }
@@ -102,9 +111,12 @@ tr:last-child td { border-bottom: none; }
 .form-section-title { font-size: 11px; font-weight: 500; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f0eb; }
 .form-hint { font-size: 11px; color: #9ca3af; margin-top: 3px; }
 
+/* ── Utility ── */
+.btn-icon { padding: 4px 8px; font-size: 11px; color: var(--color-text-secondary, #6b7280); border: 0.5px solid var(--color-border-tertiary, #e8e8e4); border-radius: 5px; background: transparent; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+.btn-icon:hover { background: var(--color-background-secondary, #f5f5f2); }
+
 /* ── Tenant brand overrides ── */
 .btn-primary { background: var(--brand-primary, #3b5bdb) !important; }
 .btn-primary:hover { background: var(--brand-secondary, #3451c7) !important; }
 .tab.active { color: var(--brand-primary, #3b5bdb) !important; border-bottom-color: var(--brand-primary, #3b5bdb) !important; }
 .partner-link, .action-link, .email-link { color: var(--brand-primary, #3b5bdb) !important; }
-.badge-family { background: var(--brand-accent, #e7f5ff); color: var(--brand-secondary, #1864ab); }
