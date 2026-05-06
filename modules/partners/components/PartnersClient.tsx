@@ -8,17 +8,13 @@ import type {
   PartnerContact,
   PartnerTab,
 } from '@/modules/partners/types'
+import { PARTNER_TABS } from '@/modules/partners/constants'
+import {
+  formatCompactCurrency,
+  formatCurrency,
+} from '@/modules/partners/utils'
 import AddPartnerModal from './AddPartnerModal'
 import { formatPhone } from '@/lib/formatPhone'
-
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
-}
-function fmtK(n: number) {
-  if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'K'
-  return fmt(n)
-}
 
 const MONTHLY_PARTNERS = [
   { name: 'Dennis and Vicki McMillen', monthly: 500, annual: 6000, start: '04/01/2025', type: 'Rescue Care' },
@@ -40,7 +36,28 @@ interface Props {
   givingByPartner: Record<string, { total: number; ytd: number }>
 }
 
-export default function PartnersClient({ slug, orgId, stats, activeDonors, prospects, pastPartners, staff, givingByPartner }: Props) {
+function getTabCount(
+  tab: PartnerTab,
+  counts: {
+    active: number
+    prospects: number
+    staff: number
+    past: number
+  }
+) {
+  return counts[tab]
+}
+
+export default function PartnersClient({
+  slug,
+  orgId,
+  stats,
+  activeDonors,
+  prospects,
+  pastPartners,
+  staff,
+  givingByPartner,
+}: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<PartnerTab>('active')
   const [search, setSearch] = useState('')
@@ -61,15 +78,15 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
     { monthly: 0, annual: 0 }
   )
 
-  const rowCount = activeTab === 'active' ? filtered.length
-    : activeTab === 'prospects' ? prospects.length
-    : activeTab === 'staff' ? staff.length
-    : pastPartners.length
+  const tabCounts = {
+    active: activeDonors.length,
+    prospects: prospects.length,
+    staff: staff.length,
+    past: pastPartners.length,
+  }
 
-  const totalCount = activeTab === 'active' ? activeDonors.length
-    : activeTab === 'prospects' ? prospects.length
-    : activeTab === 'staff' ? staff.length
-    : pastPartners.length
+  const rowCount = activeTab === 'active' ? filtered.length : getTabCount(activeTab, tabCounts)
+  const totalCount = getTabCount(activeTab, tabCounts)
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
@@ -97,12 +114,12 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
         </div>
         <div className="stat-card">
           <div className="stat-label">Total Giving</div>
-          <div className="stat-value green">{fmtK(stats.totalGiving)}</div>
+          <div className="stat-value green">{formatCompactCurrency(stats.totalGiving)}</div>
           <div className="stat-sub">All time</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">2026 Giving</div>
-          <div className="stat-value">{fmtK(stats.giving2026)}</div>
+          <div className="stat-value">{formatCompactCurrency(stats.giving2026)}</div>
           <div className="stat-sub">Current year</div>
         </div>
         <div className="stat-card">
@@ -135,8 +152,8 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
             {MONTHLY_PARTNERS.map((p, i) => (
               <tr key={i}>
                 <td><span className="partner-link">{p.name}</span></td>
-                <td className="money">{fmt(p.monthly)}</td>
-                <td className="money">{fmt(p.annual)}</td>
+                <td className="money">{formatCurrency(p.monthly)}</td>
+                <td className="money">{formatCurrency(p.annual)}</td>
                 <td>{p.start}</td>
                 <td>{p.type}</td>
               </tr>
@@ -145,8 +162,8 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
           <tfoot>
             <tr className="monthly-total">
               <td>Total</td>
-              <td className="money">{fmt(monthlyTotals.monthly)}</td>
-              <td className="money">{fmt(monthlyTotals.annual)}</td>
+              <td className="money">{formatCurrency(monthlyTotals.monthly)}</td>
+              <td className="money">{formatCurrency(monthlyTotals.annual)}</td>
               <td /><td />
             </tr>
           </tfoot>
@@ -158,12 +175,7 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
 
         {/* Tabs */}
         <div className="tab-row">
-          {([
-            { key: 'active' as PartnerTab, label: 'Active Partners', count: activeDonors.length },
-            { key: 'prospects' as PartnerTab, label: 'Prospects', count: prospects.length },
-            { key: 'staff' as PartnerTab, label: 'Staff / Volunteers', count: staff.length },
-            { key: 'past' as PartnerTab, label: 'Past Relationships', count: pastPartners.length },
-          ]).map(tab => (
+          {PARTNER_TABS.map(tab => (
             <button
               key={tab.key}
               className={`tab${activeTab === tab.key ? ' active' : ''}`}
@@ -176,7 +188,7 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                 borderRadius: 10,
                 background: activeTab === tab.key ? '#e7edff' : '#f0f0eb',
                 color: activeTab === tab.key ? '#3b5bdb' : '#6b7280',
-              }}>{tab.count}</span>
+              }}>{getTabCount(tab.key, tabCounts)}</span>
             </button>
           ))}
         </div>
@@ -249,8 +261,8 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                     <td>{p.primary_phone &&
                       <a href={`tel:${p.primary_phone}`} style={{ textDecoration: 'none', color: 'inherit' }}>{formatPhone(p.primary_phone)}</a>
                     }</td>
-                    <td className="money">{fmt(givingByPartner[p.id]?.total ?? 0)}</td>
-                    <td className="money">{fmt(givingByPartner[p.id]?.ytd ?? 0)}</td>
+                    <td className="money">{formatCurrency(givingByPartner[p.id]?.total ?? 0)}</td>
+                    <td className="money">{formatCurrency(givingByPartner[p.id]?.ytd ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,4 +1,4 @@
-import PartnersClient from '@/components/partners/PartnersClient'
+import PartnersClient from '@/modules/partners/components/PartnersClient'
 import { getPartnersPageData } from '@/modules/partners'
 
 export const revalidate = 0
