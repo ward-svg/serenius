@@ -133,3 +133,13 @@ export interface Pledge {
   created_at: string
   updated_at: string
 }
+export interface MonthlyPartnerPledge {
+  id: string
+  partner_id: string
+  partner_name: string
+  pledge_type: string
+  frequency: string
+  pledge_amount: number
+  annualized_value: number
+  start_date: string
+}

@@ -1,6 +1,10 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getTenantBySlug } from '@/lib/tenant'
-import type { Partner, PartnerContact } from './types'
+import type {
+  Partner,
+  PartnerContact,
+  MonthlyPartnerPledge,
+} from './types'
 
 export interface PartnersPageData {
   slug: string
@@ -16,6 +20,7 @@ export interface PartnersPageData {
   prospects: Partner[]
   pastPartners: Partner[]
   staff: PartnerContact[]
+monthlyPledges: MonthlyPartnerPledge[]
   givingByPartner: Record<string, { total: number; ytd: number }>
 }
 
@@ -28,31 +33,57 @@ export async function getPartnersPageData(
   const supabase = await createSupabaseServerClient()
 
   const [
-    { data: allPartners },
-    { data: staffData },
-    { data: givingData },
-  ] = await Promise.all([
-    supabase
-      .from('partners')
-      .select('*')
-      .eq('tenant_id', orgId)
-      .order('display_name'),
+  { data: allPartners },
+  { data: staffData },
+  { data: givingData },
+  { data: pledgeData },
+] = await Promise.all([
+  supabase
+    .from('partners')
+    .select('*')
+    .eq('tenant_id', orgId)
+    .order('display_name'),
 
-    supabase
-      .from('partner_contacts')
-      .select('*')
-      .eq('tenant_id', orgId)
-      .eq('email_segment', 'Staff')
-      .order('last_name'),
+  supabase
+    .from('partner_contacts')
+    .select('*')
+    .eq('tenant_id', orgId)
+    .eq('email_segment', 'Staff')
+    .order('last_name'),
 
-    supabase
-      .from('financial_gifts')
-      .select('partner_id, amount, giving_year')
-      .eq('tenant_id', orgId),
-  ])
+  supabase
+    .from('financial_gifts')
+    .select('partner_id, amount, giving_year')
+    .eq('tenant_id', orgId),
+
+  supabase
+    .from('pledges')
+    .select('id, partner_id, pledge_type, status, frequency, pledge_amount, annualized_value, start_date')
+    .eq('tenant_id', orgId)
+    .eq('status', 'Active')
+    .order('start_date'),
+])
 
   const partners = (allPartners ?? []) as Partner[]
   const staff = (staffData ?? []) as PartnerContact[]
+  const partnerNameById = new Map(
+  partners.map(partner => [partner.id, partner.display_name])
+)
+
+const monthlyPledges = (pledgeData ?? [])
+  .filter(pledge => pledge.frequency === 'Monthly')
+  .map(pledge => ({
+    id: pledge.id,
+    partner_id: pledge.partner_id,
+    partner_name: partnerNameById.get(pledge.partner_id) ?? 'Unknown Partner',
+    pledge_type: pledge.pledge_type,
+    frequency: pledge.frequency,
+    pledge_amount: pledge.pledge_amount ?? 0,
+    annualized_value:
+      pledge.annualized_value ??
+      ((pledge.pledge_amount ?? 0) * 12),
+    start_date: pledge.start_date,
+  })) as MonthlyPartnerPledge[]
 
   const activeDonors = partners.filter(
     p =>
@@ -119,6 +150,7 @@ export async function getPartnersPageData(
     prospects,
     pastPartners,
     staff,
+    monthlyPledges,
     givingByPartner,
   }
 }

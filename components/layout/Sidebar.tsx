@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { getNavigationForTenant } from '@/lib/modules/navigation'
 
 interface NavItem {
   href: string
@@ -15,21 +16,6 @@ interface NavGroup {
   items: NavItem[]
 }
 
-function getNav(slug: string): NavGroup[] {
-  return [
-    { group: 'Partners', items: [
-      { href: `/${slug}/partners`, label: 'Partners', d: 'M8 8a3 3 0 100-6 3 3 0 000 6zm-5 6a5 5 0 0110 0H3z' },
-      { href: `/${slug}/pledges`, label: 'Pledges', d: 'M2 2h12v2H2zm0 4h8v2H2zm0 4h10v2H2z' },
-      { href: `/${slug}/gifts`, label: 'Gifts', d: 'M8 1l2 5h5l-4 3 1.5 5L8 11l-4.5 3L5 9 1 6h5z' },
-      { href: `/${slug}/inkind`, label: 'In-Kind Gifts', d: 'M8 3a2 2 0 00-2-2 2 2 0 00-2 2H2v3h12V3h-2a2 2 0 00-2-2 2 2 0 00-2 2zM2 8v6h12V8H2z' },
-      { href: `/${slug}/communications`, label: 'Communications', d: 'M2 3h12v2l-6 5-6-5V3zm0 4l6 5 6-5v5H2V7z' },
-    ]},
-    { group: 'Operations', items: [
-      { href: `/${slug}/banking`, label: 'Banking', d: 'M1 5l7-4 7 4H1zm1 1h12v1H2zm1 2h2v5H3zm4 0h2v5H7zm4 0h2v5h-2zM2 13h12v2H2z' },
-      { href: `/${slug}/quick-entry`, label: 'Quick Entry', d: 'M9 1L4 9h5l-2 6 7-8H9l2-6z' },
-    ]},
-  ]
-}
 
 interface Props {
   orgName: string
@@ -39,7 +25,7 @@ interface Props {
 
 export default function Sidebar({ orgName, appName, slug }: Props) {
   const pathname = usePathname()
-  const nav = getNav(slug)
+  const nav = getNavigationForTenant(slug)
   const [canSeeSetup, setCanSeeSetup] = useState(false)
 
   useEffect(() => {

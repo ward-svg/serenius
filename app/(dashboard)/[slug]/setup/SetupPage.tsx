@@ -187,57 +187,99 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
     if (authorized) loadData()
   }, [authorized, loadData])
 
+  // ── Save helpers ────────────────────────────────────────────────────────────
+
+  async function saveOrganizationBranding(tenantId: string) {
+    const supabase = createSupabaseBrowserClient()
+
+    const { error } = await supabase
+      .from('organization_branding')
+      .update({
+        primary_color: brandForm.primary_color,
+        secondary_color: brandForm.secondary_color,
+        logo_url: brandForm.logo_url || null,
+      })
+      .eq('tenant_id', tenantId)
+
+    return error
+  }
+
+  async function saveOrganizationSettings(tenantId: string) {
+    const supabase = createSupabaseBrowserClient()
+
+    const { error } = await supabase
+      .from('organization_settings')
+      .update({
+        timezone: settingsForm.timezone,
+        date_format: settingsForm.date_format,
+        currency: settingsForm.currency,
+        fiscal_year_start: settingsForm.fiscal_year_start,
+        google_maps_api_key: settingsForm.google_maps_api_key || null,
+      })
+      .eq('tenant_id', tenantId)
+
+    return error
+  }
+
+  async function saveOrganizationMail(tenantId: string) {
+    const supabase = createSupabaseBrowserClient()
+
+    const { error } = await supabase
+      .from('organization_mail')
+      .update({
+        from_name: mailForm.from_name || null,
+        from_email: mailForm.from_email || null,
+        reply_to: mailForm.reply_to || null,
+      })
+      .eq('tenant_id', tenantId)
+
+    return error
+  }
+
   // ── Save ────────────────────────────────────────────────────────────────────
 
   async function handleSaveOrg() {
     if (!org) return
+
     const supabase = createSupabaseBrowserClient()
     setSaving(true)
     setSaveError(null)
     setSaveSuccess(false)
 
     try {
-      const [orgRes, brandRes, settingsRes, mailRes] = await Promise.all([
-        supabase.from('organizations')
-          .update({ name: orgForm.name, plan: orgForm.plan || null })
-          .eq('id', org.id),
+      const orgRes = await supabase
+        .from('organizations')
+        .update({
+          name: orgForm.name,
+          plan: orgForm.plan || null,
+        })
+        .eq('id', org.id)
 
-        supabase.from('organization_branding')
-          .update({
-            primary_color:   brandForm.primary_color,
-            secondary_color: brandForm.secondary_color,
-            logo_url:        brandForm.logo_url || null,
-          })
-          .eq('tenant_id', org.id),
-
-        supabase.from('organization_settings')
-          .update({
-            timezone:            settingsForm.timezone,
-            date_format:         settingsForm.date_format,
-            currency:            settingsForm.currency,
-            fiscal_year_start:   settingsForm.fiscal_year_start,
-            google_maps_api_key: settingsForm.google_maps_api_key || null,
-          })
-          .eq('tenant_id', org.id),
-
-        supabase.from('organization_mail')
-          .update({
-            from_name:  mailForm.from_name  || null,
-            from_email: mailForm.from_email || null,
-            reply_to:   mailForm.reply_to   || null,
-          })
-          .eq('tenant_id', org.id),
+      const [brandError, settingsError, mailError] = await Promise.all([
+        saveOrganizationBranding(org.id),
+        saveOrganizationSettings(org.id),
+        saveOrganizationMail(org.id),
       ])
 
-      const errors = [orgRes.error, brandRes.error, settingsRes.error, mailRes.error].filter(Boolean)
+      const errors = [
+        orgRes.error ? { section: 'Organization', error: orgRes.error } : null,
+        brandError ? { section: 'Branding', error: brandError } : null,
+        settingsError ? { section: 'Settings', error: settingsError } : null,
+        mailError ? { section: 'Mail', error: mailError } : null,
+      ].filter(Boolean) as { section: string; error: { message?: string } }[]
+
       if (errors.length > 0) {
-        setSaveError('One or more sections failed to save. Please try again.')
+        console.error('[SetupPage] save errors:', errors)
+        setSaveError(
+          `Failed to save ${errors.map(e => e.section).join(', ')}. Check console for details.`
+        )
       } else {
         setSaveSuccess(true)
         setTimeout(() => setSaveSuccess(false), 3000)
         loadData()
       }
-    } catch {
+    } catch (error) {
+      console.error('[SetupPage] unexpected save error:', error)
       setSaveError('Unexpected error. Please try again.')
     } finally {
       setSaving(false)
