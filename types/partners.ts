@@ -69,3 +69,67 @@ export interface PartnerContact {
 }
 
 export type PartnerTab = 'active' | 'prospects' | 'staff' | 'past'
+
+export interface FinancialGift {
+  id: string
+  tenant_id: string
+  partner_id: string
+  pledge_id: string | null
+  knack_id: string | null
+  date_given: string
+  amount: number
+  fee_donation: number | null
+  base_gift: number | null
+  processing_source: string
+  towards: string
+  towards_active_pledge: boolean | null
+  giving_year: number | null
+  gl_master_account_id: string | null
+  gl_sub_account_id: string | null
+  bank_deposit: string | null
+  deposit_status: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PartnerStatement {
+  id: string
+  tenant_id: string
+  partner_id: string
+  knack_id: string | null
+  year: number
+  total_giving: number | null
+  intro_letter_url: string | null
+  giving_report_url: string | null
+  combined_statement_url: string | null
+  intro_letter_label: string | null
+  giving_report_label: string | null
+  combined_statement_label: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Pledge {
+  id: string
+  tenant_id: string
+  partner_id: string
+  knack_id: string | null
+  pledge_type: string
+  status: string
+  frequency: string
+  pledge_amount: number
+  number_of_payments: number | null
+  annualized_value: number | null
+  start_date: string
+  end_date: string | null
+  on_hold_until: string | null
+  house_knack_id: string | null
+  resident_knack_id: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}

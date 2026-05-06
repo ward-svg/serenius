@@ -4,7 +4,8 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Partner, PartnerContact, PartnerTab } from '@/types/partners'
-import AddPartnerPanel from './AddPartnerPanel'
+import AddPartnerModal from './AddPartnerModal'
+import { formatPhone } from '@/lib/formatPhone'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
@@ -39,7 +40,7 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<PartnerTab>('active')
   const [search, setSearch] = useState('')
-  const [showPanel, setShowPanel] = useState(false)
+  const [showAddPartner, setShowAddPartner] = useState(false)
 
   const filtered = useMemo(() => {
     if (!search) return activeDonors
@@ -75,7 +76,7 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
           <div className="page-title">Partner Management</div>
           <div className="page-subtitle">WellSpring Rescue — all partners, donors and prospects</div>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowPanel(true)}>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowAddPartner(true)}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
             <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
@@ -242,7 +243,7 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                       }
                     </td>
                     <td>{p.primary_phone &&
-                      <a href={`tel:${p.primary_phone}`} style={{ textDecoration: 'none', color: 'inherit' }}>{p.primary_phone}</a>
+                      <a href={`tel:${p.primary_phone}`} style={{ textDecoration: 'none', color: 'inherit' }}>{formatPhone(p.primary_phone)}</a>
                     }</td>
                     <td className="money">{fmt(givingByPartner[p.id]?.total ?? 0)}</td>
                     <td className="money">{fmt(givingByPartner[p.id]?.ytd ?? 0)}</td>
@@ -281,7 +282,7 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
                     <td>{p.address_city}</td>
                     <td>{p.address_state}</td>
                     <td>{p.primary_email && <a href={`mailto:${p.primary_email}`} className="email-link">{p.primary_email}</a>}</td>
-                    <td>{p.primary_phone}</td>
+                    <td>{formatPhone(p.primary_phone)}</td>
                     <td className="money money-zero">—</td>
                     <td style={{ color: '#9ca3af', fontSize: 12 }}>{p.created_at.split('T')[0]}</td>
                   </tr>
@@ -350,13 +351,11 @@ export default function PartnersClient({ slug, orgId, stats, activeDonors, prosp
         )}
       </div>
 
-      {/* Add Partner Panel */}
-      {showPanel && (
-        <AddPartnerPanel
+      {showAddPartner && (
+        <AddPartnerModal
           orgId={orgId}
-          slug={slug}
-          onClose={() => setShowPanel(false)}
-          onSuccess={() => { setShowPanel(false); router.refresh() }}
+          onClose={() => setShowAddPartner(false)}
+          onSuccess={() => { setShowAddPartner(false); router.refresh() }}
         />
       )}
     </div>

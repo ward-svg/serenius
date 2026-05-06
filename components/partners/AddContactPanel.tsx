@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import type { Partner } from '@/types/partners'
+import { normalizePhone } from '@/lib/formatPhone'
 
 interface Props {
   partnerId: string
@@ -60,6 +61,19 @@ export default function AddContactPanel({ partnerId, partner, onClose, onSuccess
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  function handlePhoneInput(e: React.ChangeEvent<HTMLInputElement>, field: string) {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+    let formatted = digits
+    if (digits.length >= 7) {
+      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+    } else if (digits.length >= 4) {
+      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+    } else if (digits.length >= 1) {
+      formatted = `(${digits}`
+    }
+    setFormData(prev => ({ ...prev, [field]: formatted }))
+  }
+
   function toggleSegment(segment: string) {
     setFormData(prev => ({
       ...prev,
@@ -108,9 +122,9 @@ export default function AddContactPanel({ partnerId, partner, onClose, onSuccess
         marital_status: formData.marital_status || null,
         primary_email: formData.primary_email || null,
         secondary_email: formData.secondary_email || null,
-        primary_phone: formData.primary_phone || null,
+        primary_phone: normalizePhone(formData.primary_phone) || null,
         primary_phone_type: formData.primary_phone_type || null,
-        secondary_phone: formData.secondary_phone || null,
+        secondary_phone: normalizePhone(formData.secondary_phone) || null,
         secondary_phone_type: formData.secondary_phone_type || null,
         birthday: formData.birthday || null,
         anniversary: formData.anniversary || null,
@@ -275,7 +289,7 @@ export default function AddContactPanel({ partnerId, partner, onClose, onSuccess
                   className="form-input"
                   placeholder="(___) ___-____"
                   value={formData.primary_phone}
-                  onChange={e => handleChange('primary_phone', e.target.value)}
+                  onChange={e => handlePhoneInput(e, 'primary_phone')}
                 />
                 <select
                   className="form-input"
@@ -298,7 +312,7 @@ export default function AddContactPanel({ partnerId, partner, onClose, onSuccess
                   className="form-input"
                   placeholder="(___) ___-____"
                   value={formData.secondary_phone}
-                  onChange={e => handleChange('secondary_phone', e.target.value)}
+                  onChange={e => handlePhoneInput(e, 'secondary_phone')}
                 />
                 <select
                   className="form-input"

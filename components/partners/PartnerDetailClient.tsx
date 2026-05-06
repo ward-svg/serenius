@@ -6,15 +6,17 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import type { Partner, PartnerContact } from '@/types/partners'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { formatPhone } from '@/lib/formatPhone'
 import AddContactPanel from './AddContactPanel'
 import ContactDetailModal from './ContactDetailModal'
-import EditContactPanel from './EditContactPanel'
+import PartnerModal from './PartnerModal'
+import FinancialTab from './FinancialTab'
 
 type DetailTab = 'general' | 'financial' | 'inkind' | 'communications'
 
 interface Props {
   slug: string
-  partner: Partner
+  initialPartner: Partner
   contacts: PartnerContact[]
   createdByName: string | null
   totalGiving: number
@@ -37,25 +39,38 @@ function fmtCurrency(n: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
 }
 
-export default function PartnerDetailClient({ slug, partner, contacts: initialContacts, createdByName, totalGiving, givingYTD, firstGiftDate }: Props) {
+export default function PartnerDetailClient({ slug, initialPartner, contacts: initialContacts, createdByName, totalGiving, givingYTD, firstGiftDate }: Props) {
   const router = useRouter()
+  const [partner, setPartner] = useState<Partner>(initialPartner)
   const [activeTab, setActiveTab] = useState<DetailTab>('general')
   const [contacts, setContacts] = useState<PartnerContact[]>(initialContacts)
   const [showAddContact, setShowAddContact] = useState(false)
   const [selectedContact, setSelectedContact] = useState<PartnerContact | null>(null)
-  const [editingContact, setEditingContact] = useState<PartnerContact | null>(null)
-
-  function handleContactUpdated(updated: PartnerContact) {
-    setContacts(prev => prev.map(c => c.id === updated.id ? updated : c))
-  }
+  const [showPartnerModal, setShowPartnerModal] = useState(false)
+  const [activePledgeCount, setActivePledgeCount] = useState(0)
+  const [totalAnnualized, setTotalAnnualized] = useState(0)
   const [editingNotes, setEditingNotes] = useState(false)
-  const [notesValue, setNotesValue] = useState(partner.notes ?? '')
+  const [notesValue, setNotesValue] = useState(initialPartner.notes ?? '')
   const [savingNotes, setSavingNotes] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (editingNotes) textareaRef.current?.focus()
   }, [editingNotes])
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient()
+    supabase
+      .from('pledges')
+      .select('annualized_value, status')
+      .eq('partner_id', partner.id)
+      .eq('tenant_id', partner.tenant_id)
+      .eq('status', 'Active')
+      .then(({ data }) => {
+        setActivePledgeCount(data?.length ?? 0)
+        setTotalAnnualized(data?.reduce((sum, p) => sum + (p.annualized_value ?? 0), 0) ?? 0)
+      })
+  }, [partner.id, partner.tenant_id])
 
   async function saveNotes() {
     setSavingNotes(true)
@@ -132,9 +147,12 @@ export default function PartnerDetailClient({ slug, partner, contacts: initialCo
                 )}
               </div>
 
-              <Link href={`/${slug}/partners/${partner.id}/edit`} className="btn btn-ghost btn-sm">
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowPartnerModal(true)}
+              >
                 Edit Partner
-              </Link>
+              </button>
             </div>
           </div>
 
@@ -160,8 +178,14 @@ export default function PartnerDetailClient({ slug, partner, contacts: initialCo
             </div>
             <div className="stat-card">
               <div className="stat-label">Active Pledges</div>
-              <div className="stat-value" style={{ fontSize: 22, color: '#185FA5' }}>—</div>
-              <div className="stat-sub">Pledge data coming soon</div>
+              <div className="stat-value" style={{ fontSize: 22, color: activePledgeCount > 0 ? '#3B6D11' : '#9ca3af' }}>
+                {fmtCurrency(totalAnnualized)}
+              </div>
+              <div className="stat-sub">
+                {activePledgeCount === 0
+                  ? 'no active pledges'
+                  : `${activePledgeCount} active ${activePledgeCount === 1 ? 'pledge' : 'pledges'}`}
+              </div>
             </div>
             <div className="stat-card">
               <div className="stat-label">Engagement</div>
@@ -179,7 +203,8 @@ export default function PartnerDetailClient({ slug, partner, contacts: initialCo
                 <span className="section-title">Partner Details</span>
               </div>
               <div style={{ padding: '0 18px 8px' }}>
-                <DetailRow label="Primary Contact" value={partner.correspondence_greeting} />
+                <DetailRow label="Primary Contact" value={partner.display_name} />
+                <DetailRow label="Correspondence" value={partner.correspondence_greeting} />
                 <DetailRow
                   label="Primary Email"
                   value={partner.primary_email
@@ -190,7 +215,7 @@ export default function PartnerDetailClient({ slug, partner, contacts: initialCo
                   label="Primary Phone"
                   value={partner.primary_phone
                     ? <span>
-                        <a href={`tel:${partner.primary_phone}`} style={{ color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none' }}>{partner.primary_phone}</a>
+                        <a href={`tel:${partner.primary_phone}`} style={{ color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none' }}>{formatPhone(partner.primary_phone)}</a>
                         {partner.primary_phone_type && <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af' }}>({partner.primary_phone_type})</span>}
                       </span>
                     : null}
@@ -199,7 +224,7 @@ export default function PartnerDetailClient({ slug, partner, contacts: initialCo
                   label="Secondary Phone"
                   value={partner.secondary_phone
                     ? <span>
-                        <a href={`tel:${partner.secondary_phone}`} style={{ color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none' }}>{partner.secondary_phone}</a>
+                        <a href={`tel:${partner.secondary_phone}`} style={{ color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none' }}>{formatPhone(partner.secondary_phone)}</a>
                         {partner.secondary_phone_type && <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af' }}>({partner.secondary_phone_type})</span>}
                       </span>
                     : null}
@@ -362,7 +387,7 @@ export default function PartnerDetailClient({ slug, partner, contacts: initialCo
                         <td>{c.nickname || '—'}</td>
                         <td>
                           {c.primary_phone
-                            ? <a href={`tel:${c.primary_phone}`} style={{ color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none' }}>{c.primary_phone}</a>
+                            ? <a href={`tel:${c.primary_phone}`} style={{ color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none' }}>{formatPhone(c.primary_phone)}</a>
                             : '—'}
                         </td>
                         <td>
@@ -385,12 +410,7 @@ export default function PartnerDetailClient({ slug, partner, contacts: initialCo
 
       {/* ── Tab 2: Financial / Pledges ── */}
       {activeTab === 'financial' && (
-        <div className="section-card">
-          <div className="section-header"><span className="section-title">Financial / Pledges</span></div>
-          <div style={{ padding: '32px 18px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-            Financial data coming soon — pledges and gifts will appear here.
-          </div>
-        </div>
+        <FinancialTab partnerId={partner.id} partner={partner} />
       )}
 
       {/* ── Tab 3: In-Kind Gifts ── */}
@@ -423,25 +443,25 @@ export default function PartnerDetailClient({ slug, partner, contacts: initialCo
         </Link>
       </div>
 
+      {/* Partner Modal */}
+      {showPartnerModal && (
+        <PartnerModal
+          partner={partner}
+          onClose={() => setShowPartnerModal(false)}
+          onSuccess={(updated) => setPartner(updated)}
+        />
+      )}
+
       {/* Contact Detail Modal */}
       {selectedContact && (
         <ContactDetailModal
           contact={selectedContact}
-          onClose={() => setSelectedContact(null)}
-          onEdit={(c) => {
-            setSelectedContact(null)
-            setEditingContact(c)
-          }}
-        />
-      )}
-
-      {/* Edit Contact Panel */}
-      {editingContact && (
-        <EditContactPanel
-          contact={editingContact}
           partner={partner}
-          onClose={() => setEditingContact(null)}
-          onSuccess={handleContactUpdated}
+          onClose={() => setSelectedContact(null)}
+          onSuccess={(updated) => {
+            setContacts(prev => prev.map(c => c.id === updated.id ? updated : c))
+            setSelectedContact(updated)
+          }}
         />
       )}
 
@@ -500,24 +520,11 @@ function AddressBlock({ partner }: { partner: Partner }) {
     partner.address_country && partner.address_country !== 'US' ? partner.address_country : null,
   ].filter(Boolean) as string[]
 
-  const addrForMap = [partner.address_street, partner.address_city, partner.address_state, partner.address_zip].filter(Boolean).join(', ')
-  const mapsHref = addrForMap ? `https://maps.google.com/?q=${encodeURIComponent(addrForMap)}` : null
-
   if (lines.length === 0) return <span style={{ color: '#d1d5db' }}>—</span>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {lines.map((line, i) => <span key={i}>{line}</span>)}
-      {mapsHref && (
-        <a
-          href={mapsHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ fontSize: 11, color: 'var(--brand-primary, #3b5bdb)', textDecoration: 'none', marginTop: 2 }}
-        >
-          View on map →
-        </a>
-      )}
     </div>
   )
 }

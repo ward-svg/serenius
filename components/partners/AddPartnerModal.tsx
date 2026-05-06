@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
+import type { Partner } from '@/types/partners'
+import { normalizePhone } from '@/lib/formatPhone'
 
 interface Props {
   orgId: string | null
-  slug: string
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (newPartner: Partner) => void
 }
 
 interface ContactCard {
@@ -23,12 +23,7 @@ interface ContactCard {
 
 const ENTITY_TYPES = ['Church', 'Business', 'Organization', 'School']
 
-function parseContacts(
-  nameFirst: string,
-  nameLast: string,
-  email: string,
-  phone: string,
-): ContactCard[] {
+function parseContacts(nameFirst: string, nameLast: string, email: string, phone: string): ContactCard[] {
   const paired = nameFirst.match(/^(.+?)\s+(?:&|and)\s+(.+?)$/i)
   if (paired) {
     return [
@@ -41,16 +36,30 @@ function parseContacts(
   ]
 }
 
-export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess }: Props) {
-  const router = useRouter()
+export default function AddPartnerModal({ orgId, onClose, onSuccess }: Props) {
   const supabase = createSupabaseBrowserClient()
-
   const [step, setStep] = useState<1 | 2>(1)
   const [partnerType, setPartnerType] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [partnerId, setPartnerId] = useState<string | null>(null)
+  const [newPartner, setNewPartner] = useState<Partner | null>(null)
   const [contacts, setContacts] = useState<ContactCard[]>([])
+  const [primaryPhone, setPrimaryPhone] = useState('')
+  const [secondaryPhone, setSecondaryPhone] = useState('')
+
+  function handlePhoneInput(e: React.ChangeEvent<HTMLInputElement>, setter: (v: string) => void) {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+    let formatted = digits
+    if (digits.length >= 7) {
+      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+    } else if (digits.length >= 4) {
+      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+    } else if (digits.length >= 1) {
+      formatted = `(${digits}`
+    }
+    setter(formatted)
+  }
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -78,7 +87,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
     const nameLast = str('name_last')
     const entityName = strOrNull('entity_name')
     const email = str('primary_email')
-    const phone = str('primary_phone')
+    const phone = normalizePhone(primaryPhone)
 
     const displayName = isEntityType
       ? (entityName ?? `${nameFirst} ${nameLast}`.trim())
@@ -96,7 +105,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
         primary_email: email || null,
         primary_phone: phone || null,
         primary_phone_type: strOrNull('primary_phone_type'),
-        secondary_phone: strOrNull('secondary_phone'),
+        secondary_phone: normalizePhone(secondaryPhone) || null,
         secondary_phone_type: strOrNull('secondary_phone_type'),
         created_by: user?.id ?? null,
         address_street: strOrNull('street1'),
@@ -106,7 +115,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
         address_zip: strOrNull('zip'),
         tenant_id: orgId,
       })
-      .select('id')
+      .select('*')
       .single()
 
     setSaving(false)
@@ -117,12 +126,13 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
     }
 
     setPartnerId(inserted.id as string)
+    setNewPartner(inserted as Partner)
     setContacts(parseContacts(nameFirst, nameLast, email, phone))
     setStep(2)
   }
 
   async function handleStep2Submit() {
-    if (!partnerId) return
+    if (!partnerId || !newPartner) return
     setSaving(true)
     setError(null)
 
@@ -133,7 +143,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
       first_name: c.name_first || null,
       last_name: c.name_last || null,
       primary_email: c.email || null,
-      primary_phone: c.phone || null,
+      primary_phone: normalizePhone(c.phone) || null,
       relationship: c.relationship || null,
     }))
 
@@ -145,8 +155,8 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
       return
     }
 
-    onSuccess()
-    router.refresh()
+    onSuccess(newPartner)
+    onClose()
   }
 
   function updateContact(id: string, field: keyof ContactCard, value: string | boolean) {
@@ -156,42 +166,44 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
   const includedCount = contacts.filter(c => c.included).length
 
   return (
-    <>
-      <div className="panel-overlay" onClick={onClose} />
-      <div className="panel">
-
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 50, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '64px 24px 24px', overflowY: 'auto' }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: 'white', borderRadius: 10, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: 680, display: 'flex', flexDirection: 'column' }}
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="panel-header">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e4e4e0' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <h2>{step === 1 ? 'Add New Partner' : 'Add Contacts'}</h2>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>
+              {step === 1 ? 'Add New Partner' : 'Add Contacts'}
+            </div>
             {step === 2 && (
-              <span style={{ fontSize: 11, color: '#9ca3af' }}>
-                Step 2 of 2 — review and confirm contacts
-              </span>
+              <span style={{ fontSize: 11, color: '#9ca3af' }}>Step 2 of 2 — review and confirm contacts</span>
             )}
           </div>
-          <button className="panel-close" onClick={onClose} aria-label="Close panel">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M1 1l12 12M13 1L1 13" />
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: '#6b7280', display: 'flex' }}
+            aria-label="Close"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M2 2l12 12M14 2L2 14" strokeLinecap="round" />
             </svg>
           </button>
         </div>
 
-        {/* ── Step 1: Partner form ── */}
+        {/* ── Step 1 ── */}
         {step === 1 && (
           <>
-            <form id="add-partner-form" onSubmit={handleStep1Submit} className="panel-body">
+            <form id="add-partner-modal-form" onSubmit={handleStep1Submit} className="panel-body">
 
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Partner Type *</label>
-                  <select
-                    name="partner_type"
-                    required
-                    className="form-input"
-                    value={partnerType}
-                    onChange={e => setPartnerType(e.target.value)}
-                  >
+                  <select name="partner_type" required className="form-input" value={partnerType} onChange={e => setPartnerType(e.target.value)}>
                     <option value="">Select...</option>
                     <option>Family</option>
                     <option>Church</option>
@@ -222,13 +234,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                 {isEntityType && (
                   <div className="form-group">
                     <label className="form-label">Entity Name *</label>
-                    <input
-                      name="entity_name"
-                      type="text"
-                      placeholder="Organization name"
-                      className="form-input"
-                      required
-                    />
+                    <input name="entity_name" type="text" placeholder="Organization name" className="form-input" required />
                   </div>
                 )}
               </div>
@@ -241,9 +247,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                 <div className="form-group">
                   <label className="form-label">First Name</label>
                   <input name="name_first" type="text" placeholder="First" className="form-input" />
-                  {!isEntityType && (
-                    <span className="form-hint">Tip: "Matt and Amber" creates 2 contacts</span>
-                  )}
+                  {!isEntityType && <span className="form-hint">Tip: "Matt and Amber" creates 2 contacts</span>}
                 </div>
                 <div className="form-group">
                   <label className="form-label">Last Name</label>
@@ -254,12 +258,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
               <div className="form-row full">
                 <div className="form-group">
                   <label className="form-label">Correspondence Greeting</label>
-                  <input
-                    name="correspondence_greeting"
-                    type="text"
-                    placeholder="e.g. Matt and Amber"
-                    className="form-input"
-                  />
+                  <input name="correspondence_greeting" type="text" placeholder="e.g. Matt and Amber" className="form-input" />
                   <span className="form-hint">Used in letters and email salutations</span>
                 </div>
               </div>
@@ -277,7 +276,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                 <div className="form-group">
                   <label className="form-label">Primary Phone</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 8 }}>
-                    <input name="primary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
+                    <input name="primary_phone" type="tel" placeholder="(___) ___-____" className="form-input" value={primaryPhone} onChange={e => handlePhoneInput(e, setPrimaryPhone)} />
                     <select name="primary_phone_type" className="form-input">
                       <option value="">Select type...</option>
                       <option>Mobile</option>
@@ -293,7 +292,7 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                 <div className="form-group">
                   <label className="form-label">Secondary Phone</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 8 }}>
-                    <input name="secondary_phone" type="tel" placeholder="(___) ___-____" className="form-input" />
+                    <input name="secondary_phone" type="tel" placeholder="(___) ___-____" className="form-input" value={secondaryPhone} onChange={e => handlePhoneInput(e, setSecondaryPhone)} />
                     <select name="secondary_phone_type" className="form-input">
                       <option value="">Select type...</option>
                       <option>Mobile</option>
@@ -319,7 +318,6 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                   <input name="street2" type="text" placeholder="Apt, Suite, etc." className="form-input" />
                 </div>
               </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">City</label>
@@ -330,7 +328,6 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                   <input name="state" type="text" className="form-input" />
                 </div>
               </div>
-
               <div className="form-row full">
                 <div className="form-group">
                   <label className="form-label">Zip Code</label>
@@ -341,16 +338,16 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
               {error && <ErrorBanner message={error} />}
             </form>
 
-            <div className="panel-footer">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 24px', borderTop: '1px solid #e4e4e0' }}>
               <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-              <button type="submit" form="add-partner-form" className="btn btn-primary" disabled={saving}>
+              <button type="submit" form="add-partner-modal-form" className="btn btn-primary" disabled={saving}>
                 {saving ? 'Saving...' : 'Save & Continue →'}
               </button>
             </div>
           </>
         )}
 
-        {/* ── Step 2: Contact cards ── */}
+        {/* ── Step 2 ── */}
         {step === 2 && (
           <>
             <div className="panel-body">
@@ -372,19 +369,11 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
               {error && <ErrorBanner message={error} />}
             </div>
 
-            <div className="panel-footer">
+            <div style={{ display: 'flex', alignItems: 'center', padding: '14px 24px', borderTop: '1px solid #e4e4e0' }}>
               <button
                 type="button"
-                onClick={onSuccess}
-                style={{
-                  fontSize: 12,
-                  color: '#9ca3af',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  marginRight: 'auto',
-                  padding: '7px 0',
-                }}
+                onClick={() => { if (newPartner) { onSuccess(newPartner); onClose() } }}
+                style={{ fontSize: 12, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', marginRight: 'auto', padding: '7px 0' }}
               >
                 Skip — I'll add contacts later
               </button>
@@ -394,61 +383,31 @@ export default function AddPartnerPanel({ orgId, slug: _slug, onClose, onSuccess
                 onClick={handleStep2Submit}
                 disabled={saving || includedCount === 0}
               >
-                {saving
-                  ? 'Saving...'
-                  : `Create ${includedCount} Contact${includedCount !== 1 ? 's' : ''} & Finish`}
+                {saving ? 'Saving...' : `Create ${includedCount} Contact${includedCount !== 1 ? 's' : ''} & Finish`}
               </button>
             </div>
           </>
         )}
       </div>
-    </>
+    </div>
   )
 }
 
 function ContactCardItem({
-  contact,
-  index,
-  onUpdate,
+  contact, index, onUpdate,
 }: {
   contact: ContactCard
   index: number
   onUpdate: (field: keyof ContactCard, value: string | boolean) => void
 }) {
   return (
-    <div style={{
-      border: '1px solid #e0e0db',
-      borderRadius: 8,
-      marginBottom: 16,
-      overflow: 'hidden',
-      opacity: contact.included ? 1 : 0.55,
-      transition: 'opacity 0.15s',
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: '9px 14px',
-        background: '#fafaf8',
-        borderBottom: contact.included ? '1px solid #f0f0eb' : 'none',
-      }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: '#6b7280' }}>
-          Contact {index + 1}
-        </span>
+    <div style={{ border: '1px solid #e0e0db', borderRadius: 8, marginBottom: 16, overflow: 'hidden', opacity: contact.included ? 1 : 0.55, transition: 'opacity 0.15s' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '9px 14px', background: '#fafaf8', borderBottom: contact.included ? '1px solid #f0f0eb' : 'none' }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: '#6b7280' }}>Contact {index + 1}</span>
         <button
           type="button"
           onClick={() => onUpdate('included', !contact.included)}
-          style={{
-            marginLeft: 'auto',
-            fontSize: 11,
-            fontWeight: 500,
-            padding: '2px 10px',
-            borderRadius: 10,
-            border: '1px solid',
-            cursor: 'pointer',
-            background: contact.included ? '#ebfbee' : '#f8f9fa',
-            color: contact.included ? '#2f9e44' : '#868e96',
-            borderColor: contact.included ? '#b2f2bb' : '#dee2e6',
-          }}
+          style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 500, padding: '2px 10px', borderRadius: 10, border: '1px solid', cursor: 'pointer', background: contact.included ? '#ebfbee' : '#f8f9fa', color: contact.included ? '#2f9e44' : '#868e96', borderColor: contact.included ? '#b2f2bb' : '#dee2e6' }}
         >
           {contact.included ? 'Included' : 'Excluded'}
         </button>
@@ -459,32 +418,17 @@ function ContactCardItem({
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">First Name</label>
-              <input
-                type="text"
-                className="form-input"
-                value={contact.name_first}
-                onChange={e => onUpdate('name_first', e.target.value)}
-              />
+              <input type="text" className="form-input" value={contact.name_first} onChange={e => onUpdate('name_first', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Last Name</label>
-              <input
-                type="text"
-                className="form-input"
-                value={contact.name_last}
-                onChange={e => onUpdate('name_last', e.target.value)}
-              />
+              <input type="text" className="form-input" value={contact.name_last} onChange={e => onUpdate('name_last', e.target.value)} />
             </div>
           </div>
-
           <div className="form-row full">
             <div className="form-group">
               <label className="form-label">Relationship</label>
-              <select
-                className="form-input"
-                value={contact.relationship}
-                onChange={e => onUpdate('relationship', e.target.value)}
-              >
+              <select className="form-input" value={contact.relationship} onChange={e => onUpdate('relationship', e.target.value)}>
                 <option value="">Select...</option>
                 <option>Self</option>
                 <option>Husband</option>
@@ -496,19 +440,12 @@ function ContactCardItem({
               </select>
             </div>
           </div>
-
           <div className="form-row full">
             <div className="form-group">
               <label className="form-label">Email</label>
-              <input
-                type="email"
-                className="form-input"
-                value={contact.email}
-                onChange={e => onUpdate('email', e.target.value)}
-              />
+              <input type="email" className="form-input" value={contact.email} onChange={e => onUpdate('email', e.target.value)} />
             </div>
           </div>
-
           <div className="form-row full">
             <div className="form-group">
               <label className="form-label">Phone</label>
@@ -516,7 +453,14 @@ function ContactCardItem({
                 type="tel"
                 className="form-input"
                 value={contact.phone}
-                onChange={e => onUpdate('phone', e.target.value)}
+                onChange={e => {
+                  const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+                  let fmt = digits
+                  if (digits.length >= 7) fmt = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+                  else if (digits.length >= 4) fmt = `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+                  else if (digits.length >= 1) fmt = `(${digits}`
+                  onUpdate('phone', fmt)
+                }}
               />
             </div>
           </div>
@@ -528,15 +472,7 @@ function ContactCardItem({
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div style={{
-      marginTop: 12,
-      padding: '10px 12px',
-      background: '#fff5f5',
-      border: '1px solid #ffa8a8',
-      borderRadius: 6,
-      fontSize: 13,
-      color: '#c92a2a',
-    }}>
+    <div style={{ marginTop: 12, padding: '10px 12px', background: '#fff5f5', border: '1px solid #ffa8a8', borderRadius: 6, fontSize: 13, color: '#c92a2a' }}>
       {message}
     </div>
   )

@@ -40,7 +40,7 @@ export default async function PartnerDetailPage({
   return (
     <PartnerDetailClient
       slug={slug}
-      partner={partnerData as Partner}
+      initialPartner={partnerData as Partner}
       contacts={(contacts ?? []) as PartnerContact[]}
       createdByName={createdByName}
       totalGiving={totalGiving}
