@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
-import PartnerDetailClient from '@/components/partners/PartnerDetailClient'
+import PartnerDetailClient from '@/modules/partners/components/PartnerDetailClient'
 import type { Partner, PartnerContact } from '@/types/partners'
 
 export const revalidate = 0
