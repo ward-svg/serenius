@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getTenantBySlug } from '@/lib/tenant'
-import type { Partner, PartnerContact } from '@/types/partners'
+import type { Partner, PartnerContact } from './types'
 
 export interface PartnersPageData {
   slug: string

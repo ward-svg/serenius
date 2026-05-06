@@ -3,7 +3,11 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { Partner, PartnerContact, PartnerTab } from '@/types/partners'
+import type {
+  Partner,
+  PartnerContact,
+  PartnerTab,
+} from '@/modules/partners/types'
 import AddPartnerModal from './AddPartnerModal'
 import { formatPhone } from '@/lib/formatPhone'
 
