@@ -2,64 +2,65 @@
 
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import type { Pledge } from "@/modules/partners/types";
+import type { FinancialGift } from "@/modules/partners/types";
 import {
-  PLEDGE_FREQUENCIES,
-  PLEDGE_STATUSES,
-  PLEDGE_TYPES,
+  GIFT_PROCESSING_SOURCES,
+  GIFT_TOWARDS_OPTIONS,
 } from "@/modules/partners/constants";
 
 interface Props {
   partnerId: string;
   tenantId: string;
-  pledge?: Pledge | null;
+  gift?: FinancialGift | null;
+  pledgeId?: string | null;
+  defaultAmount?: number | null;
+  defaultTowards?: string | null;
+  towardsActivePledge?: boolean;
   onClose: () => void;
-  onSuccess: (pledge: Pledge) => void;
+  onSuccess: () => void;
 }
 
-export default function NewPledgeModal({
+export default function GiftModal({
   partnerId,
   tenantId,
-  pledge,
+  gift,
+  pledgeId = null,
+  defaultAmount = null,
+  defaultTowards = null,
+  towardsActivePledge = false,
   onClose,
   onSuccess,
 }: Props) {
   const supabase = createSupabaseBrowserClient();
 
-  const isEdit = !!pledge;
+  const isEdit = !!gift;
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
-    pledge_type: "",
-    status: "Active",
-    frequency: "Monthly",
-    pledge_amount: "",
-    number_of_payments: "",
-    start_date: "",
-    end_date: "",
-    on_hold_until: "",
+    date_given: new Date().toISOString().split("T")[0],
+    amount: defaultAmount != null ? String(defaultAmount) : "",
+    fee_donation: "",
+    base_gift_override: "",
+    processing_source: "",
+    towards: defaultTowards ?? "",
     notes: "",
   });
 
   useEffect(() => {
-    if (!pledge) return;
+    if (!gift) return;
 
     setFormData({
-      pledge_type: pledge.pledge_type ?? "",
-      status: pledge.status ?? "Active",
-      frequency: pledge.frequency ?? "Monthly",
-      pledge_amount: String(pledge.pledge_amount ?? ""),
-      number_of_payments: pledge.number_of_payments
-        ? String(pledge.number_of_payments)
-        : "",
-      start_date: pledge.start_date?.split("T")[0] ?? "",
-      end_date: pledge.end_date?.split("T")[0] ?? "",
-      on_hold_until: pledge.on_hold_until?.split("T")[0] ?? "",
-      notes: pledge.notes ?? "",
+      date_given: gift.date_given?.split("T")[0] ?? "",
+      amount: String(gift.amount ?? ""),
+      fee_donation: gift.fee_donation != null ? String(gift.fee_donation) : "",
+      base_gift_override: "",
+      processing_source: gift.processing_source ?? "",
+      towards: gift.towards ?? "",
+      notes: gift.notes ?? "",
     });
-  }, [pledge]);
+  }, [gift]);
 
   function handleChange(field: string, value: string) {
     setFormData((prev) => ({
@@ -68,20 +69,15 @@ export default function NewPledgeModal({
     }));
   }
 
-  function pledgeAmountLabel(): string {
-    if (formData.frequency === "Monthly") {
-      return "Monthly Pledge Amount *";
+  function computedBaseGift(): number {
+    const amount = parseFloat(formData.amount || "0");
+    const feeDonation = parseFloat(formData.fee_donation || "0");
+
+    if (formData.base_gift_override) {
+      return parseFloat(formData.base_gift_override);
     }
 
-    if (formData.frequency === "Quarterly") {
-      return "Quarterly Pledge Amount *";
-    }
-
-    if (formData.frequency === "Annually") {
-      return "Annual Pledge Amount *";
-    }
-
-    return "Pledge Amount *";
+    return Math.max(amount - feeDonation, 0);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -89,34 +85,32 @@ export default function NewPledgeModal({
 
     setError(null);
 
-    const amount = parseFloat(formData.pledge_amount);
+    const amount = parseFloat(formData.amount);
 
-    if (
-      !formData.pledge_type ||
-      !formData.status ||
-      !formData.frequency ||
-      !formData.start_date ||
-      isNaN(amount)
-    ) {
+    if (!formData.date_given || !formData.processing_source || isNaN(amount)) {
       setError("Please complete all required fields.");
       return;
     }
 
     setSaving(true);
 
+    const givingYear = new Date(formData.date_given).getFullYear();
+
     const payload = {
       tenant_id: tenantId,
       partner_id: partnerId,
-      pledge_type: formData.pledge_type,
-      status: formData.status,
-      frequency: formData.frequency,
-      pledge_amount: amount,
-      number_of_payments: formData.number_of_payments
-        ? parseInt(formData.number_of_payments, 10)
+      pledge_id: gift ? gift.pledge_id : pledgeId,
+      towards_active_pledge: gift
+        ? gift.towards_active_pledge
+        : towardsActivePledge,
+      date_given: formData.date_given,
+      amount,
+      fee_donation: formData.fee_donation
+        ? parseFloat(formData.fee_donation)
         : null,
-      start_date: formData.start_date,
-      end_date: formData.end_date || null,
-      on_hold_until: formData.on_hold_until || null,
+      processing_source: formData.processing_source,
+      towards: formData.towards || null,
+      giving_year: givingYear,
       notes: formData.notes || null,
     };
 
@@ -124,18 +118,12 @@ export default function NewPledgeModal({
 
     if (isEdit) {
       result = await supabase
-        .from("pledges")
+        .from("financial_gifts")
         .update(payload)
-        .eq("id", pledge.id)
-        .eq("tenant_id", tenantId)
-        .select("*")
-        .single();
+        .eq("id", gift.id)
+        .eq("tenant_id", tenantId);
     } else {
-      result = await supabase
-        .from("pledges")
-        .insert(payload)
-        .select("*")
-        .single();
+      result = await supabase.from("financial_gifts").insert(payload);
     }
 
     setSaving(false);
@@ -145,25 +133,25 @@ export default function NewPledgeModal({
       return;
     }
 
-    onSuccess(result.data as Pledge);
+    onSuccess();
     onClose();
   }
 
-  async function handleArchive() {
-    if (!pledge) return;
+  async function handleDelete() {
+    if (!gift) return;
 
-    const confirmed = window.confirm("Archive this pledge?");
+    const confirmed = window.confirm(
+      "Delete this gift? This cannot be undone.",
+    );
 
     if (!confirmed) return;
 
     setSaving(true);
 
     const { error } = await supabase
-      .from("pledges")
-      .update({
-        status: "Canceled",
-      })
-      .eq("id", pledge.id)
+      .from("financial_gifts")
+      .delete()
+      .eq("id", gift.id)
       .eq("tenant_id", tenantId);
 
     setSaving(false);
@@ -173,7 +161,7 @@ export default function NewPledgeModal({
       return;
     }
 
-    onSuccess(pledge);
+    onSuccess();
     onClose();
   }
 
@@ -196,7 +184,7 @@ export default function NewPledgeModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
-          maxWidth: 680,
+          maxWidth: 720,
           background: "white",
           borderRadius: 12,
           overflow: "hidden",
@@ -211,7 +199,7 @@ export default function NewPledgeModal({
             fontSize: 16,
           }}
         >
-          {isEdit ? "Edit Pledge" : "New Pledge"}
+          {isEdit ? "Edit Gift" : "Record Gift"}
         </div>
 
         <form
@@ -222,86 +210,95 @@ export default function NewPledgeModal({
         >
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Pledge Type *</label>
+              <label className="form-label">Date Given *</label>
 
-              <select
+              <input
+                type="date"
                 className="form-input"
-                value={formData.pledge_type}
-                onChange={(e) => handleChange("pledge_type", e.target.value)}
-              >
-                <option value="">Select...</option>
-
-                {PLEDGE_TYPES.map((type) => (
-                  <option key={type}>{type}</option>
-                ))}
-              </select>
+                value={formData.date_given}
+                onChange={(e) => handleChange("date_given", e.target.value)}
+              />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Status *</label>
-
-              <select
-                className="form-input"
-                value={formData.status}
-                onChange={(e) => handleChange("status", e.target.value)}
-              >
-                {PLEDGE_STATUSES.map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Frequency *</label>
-
-              <select
-                className="form-input"
-                value={formData.frequency}
-                onChange={(e) => handleChange("frequency", e.target.value)}
-              >
-                {PLEDGE_FREQUENCIES.map((freq) => (
-                  <option key={freq}>{freq}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">{pledgeAmountLabel()}</label>
+              <label className="form-label">Amount *</label>
 
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 className="form-input"
-                value={formData.pledge_amount}
-                onChange={(e) => handleChange("pledge_amount", e.target.value)}
+                value={formData.amount}
+                onChange={(e) => handleChange("amount", e.target.value)}
               />
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Start Date *</label>
+              <label className="form-label">Fee Donation</label>
 
               <input
-                type="date"
+                type="number"
+                min="0"
+                step="0.01"
                 className="form-input"
-                value={formData.start_date}
-                onChange={(e) => handleChange("start_date", e.target.value)}
+                value={formData.fee_donation}
+                onChange={(e) => handleChange("fee_donation", e.target.value)}
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">End Date</label>
+              <label className="form-label">Base Gift</label>
 
               <input
-                type="date"
+                type="number"
+                min="0"
+                step="0.01"
                 className="form-input"
-                value={formData.end_date}
-                onChange={(e) => handleChange("end_date", e.target.value)}
+                value={
+                  formData.base_gift_override || String(computedBaseGift())
+                }
+                onChange={(e) =>
+                  handleChange("base_gift_override", e.target.value)
+                }
               />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Processing Source *</label>
+
+              <select
+                className="form-input"
+                value={formData.processing_source}
+                onChange={(e) =>
+                  handleChange("processing_source", e.target.value)
+                }
+              >
+                <option value="">Select...</option>
+
+                {GIFT_PROCESSING_SOURCES.map((source) => (
+                  <option key={source}>{source}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Towards</label>
+
+              <select
+                className="form-input"
+                value={formData.towards}
+                onChange={(e) => handleChange("towards", e.target.value)}
+              >
+                <option value="">Select...</option>
+
+                {GIFT_TOWARDS_OPTIONS.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -312,7 +309,9 @@ export default function NewPledgeModal({
               <textarea
                 rows={4}
                 className="form-input"
-                style={{ resize: "vertical" }}
+                style={{
+                  resize: "vertical",
+                }}
                 value={formData.notes}
                 onChange={(e) => handleChange("notes", e.target.value)}
               />
@@ -347,10 +346,10 @@ export default function NewPledgeModal({
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={handleArchive}
+                  onClick={handleDelete}
                   disabled={saving}
                 >
-                  Archive
+                  Delete
                 </button>
               )}
             </div>
@@ -375,11 +374,7 @@ export default function NewPledgeModal({
                 className="btn btn-primary"
                 disabled={saving}
               >
-                {saving
-                  ? "Saving..."
-                  : isEdit
-                    ? "Save Changes"
-                    : "Create Pledge"}
+                {saving ? "Saving..." : isEdit ? "Save Changes" : "Record Gift"}
               </button>
             </div>
           </div>
