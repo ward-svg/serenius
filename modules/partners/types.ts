@@ -94,6 +94,63 @@ export interface FinancialGift {
   updated_at: string
 }
 
+export interface PartnerCommunication {
+  id: string
+  tenant_id: string
+  partner_id: string | null
+  knack_id: string | null
+  communication_type:
+    | 'Thank You For...'
+    | 'House Update'
+    | 'Program Update'
+    | 'Request'
+    | null
+  communication_channel:
+    | 'Email - Broadcast'
+    | 'Email - Personal'
+    | 'Face to Face'
+    | 'Phone Call'
+    | 'Small Group'
+    | 'Text'
+    | null
+  communication_date: string
+  notes: string | null
+  followup_needed: boolean | null
+  followup_due: string | null
+  followup_notes: string | null
+  followup_complete: boolean | null
+  completion_notes: string | null
+  completion_date: string | null
+  file_attachment_name: string | null
+  file_attachment_url: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PartnerCommunicationFollowup {
+  id: string
+  tenant_id: string
+  communication_id: string
+  action_type:
+    | 'Send Thank You'
+    | 'Send Email'
+    | 'Mail Letter'
+    | 'Make Phone Call'
+    | 'Send Form'
+    | 'Schedule Visit'
+    | 'Other'
+  instructions: string | null
+  assigned_to: string | null
+  assigned_by: string | null
+  due_date: string | null
+  completed: boolean | null
+  completed_at: string | null
+  completion_notes: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface PartnerStatement {
   id: string
   tenant_id: string

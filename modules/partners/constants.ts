@@ -60,3 +60,18 @@ export const GIFT_TOWARDS_OPTIONS = [
   "One-Time Gift",
   "Other",
 ];
+
+export const COMMUNICATION_TYPES = [
+  "Thank You For...",
+  "House Update",
+  "Program Update",
+  "Request",
+];
+
+export const COMMUNICATION_CHANNELS = [
+  "Email - Personal",
+  "Face to Face",
+  "Phone Call",
+  "Small Group",
+  "Text",
+];

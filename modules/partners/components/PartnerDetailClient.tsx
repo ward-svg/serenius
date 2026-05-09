@@ -9,6 +9,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { formatPhone } from '@/lib/formatPhone'
 import AddContactPanel from './AddContactPanel'
 import ContactDetailModal from './ContactDetailModal'
+import CommunicationsTab from './CommunicationsTab'
 import PartnerModal from './PartnerModal'
 import FinancialTab from './FinancialTab'
 
@@ -68,7 +69,13 @@ export default function PartnerDetailClient({
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const initialTab = searchParams.get('tab') === 'financial' ? 'financial' : 'general'
+  const tabParam = searchParams.get('tab')
+  const initialTab: DetailTab =
+    tabParam === 'financial' ||
+    tabParam === 'inkind' ||
+    tabParam === 'communications'
+      ? tabParam
+      : 'general'
 
   const [partner, setPartner] = useState<Partner>(initialPartner)
   const [activeTab, setActiveTab] = useState<DetailTab>(initialTab)
@@ -719,21 +726,7 @@ export default function PartnerDetailClient({
 
       {/* ── Tab 4: Communications ── */}
       {activeTab === 'communications' && (
-        <div className="section-card">
-          <div className="section-header">
-            <span className="section-title">Communications</span>
-          </div>
-          <div
-            style={{
-              padding: '32px 18px',
-              textAlign: 'center',
-              color: '#9ca3af',
-              fontSize: 13,
-            }}
-          >
-            Communications coming soon.
-          </div>
-        </div>
+        <CommunicationsTab partner={partner} />
       )}
 
       {/* Back link */}
