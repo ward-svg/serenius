@@ -439,18 +439,11 @@ export default function FinancialTab({ partnerId, partner }: Props) {
               <span className="section-count">{activePledges.length}</span>
             </div>
             {activePledges.length === 0 ? (
-              <div
-                style={{
-                  padding: "24px 18px",
-                  textAlign: "center",
-                  color: "#9ca3af",
-                  fontSize: 13,
-                }}
-              >
+              <div className="empty-state">
                 No active pledges
               </div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
+              <div className="table-scroll">
                 <table
                   style={{
                     width: "100%",
@@ -543,7 +536,7 @@ export default function FinancialTab({ partnerId, partner }: Props) {
                 No statements on file
               </div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
+              <div className="table-scroll">
                 <table>
                   <thead>
                     <tr>
@@ -781,22 +774,15 @@ export default function FinancialTab({ partnerId, partner }: Props) {
           <span className="section-count">{pledges.length}</span>
         </div>
         {pledges.length === 0 ? (
-          <div
-            style={{
-              padding: "24px 18px",
-              textAlign: "center",
-              color: "#9ca3af",
-              fontSize: 13,
-            }}
-          >
+          <div className="empty-state">
             No pledges recorded yet
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <div className="table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 70 }}>ACTIONS</th>
+                  <th className="actions-column">ACTIONS</th>
                   <th>Pledge Type</th>
                   <th>Status</th>
                   <th>Start Date</th>
@@ -888,22 +874,15 @@ export default function FinancialTab({ partnerId, partner }: Props) {
           </div>
         </div>
         {totalGifts === 0 ? (
-          <div
-            style={{
-              padding: "24px 18px",
-              textAlign: "center",
-              color: "#9ca3af",
-              fontSize: 13,
-            }}
-          >
+          <div className="empty-state">
             No gifts recorded yet
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <div className="table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 70 }}>ACTIONS</th>
+                  <th className="actions-column">ACTIONS</th>
                   <th>Date Given</th>
                   <th>Total Gift</th>
                   <th>Fee Donation</th>

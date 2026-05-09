@@ -237,6 +237,10 @@ body {
   gap: 8px;
 }
 
+.table-scroll {
+  overflow-x: auto;
+}
+
 /* ── Tabs ── */
 
 .tab-row {
@@ -479,6 +483,13 @@ tr:last-child td,
 
 .action-link-danger:hover {
   color: #a61e1e;
+}
+
+.empty-state {
+  padding: 24px 18px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 13px;
 }
 
 .email-link {
