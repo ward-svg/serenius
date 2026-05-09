@@ -473,6 +473,14 @@ tr:last-child td,
   text-decoration: underline;
 }
 
+.action-link-danger {
+  color: #c92a2a;
+}
+
+.action-link-danger:hover {
+  color: #a61e1e;
+}
+
 .email-link {
   color: var(--color-primary);
   text-decoration: none;

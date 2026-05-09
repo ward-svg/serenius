@@ -645,9 +645,9 @@ export default function PartnerDetailClient({
                       <tr key={c.id}>
                         <td>
                           <button
+                            type="button"
                             onClick={() => setSelectedContact(c)}
                             className="action-link"
-                            style={{ background: 'none', border: 'none', padding: 0 }}
                           >
                             View/Edit
                           </button>

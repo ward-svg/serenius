@@ -574,14 +574,8 @@ export default function FinancialTab({ partnerId, partner }: Props) {
                         </td>
                         <td>
                           <button
-                            style={{
-                              background: "none",
-                              border: "none",
-                              padding: 0,
-                              cursor: "pointer",
-                              color: "#c92a2a",
-                              fontSize: 13,
-                            }}
+                            type="button"
+                            className="action-link action-link-danger"
                             onClick={() => handleDeleteStatement(s.id, s.year)}
                           >
                             Delete
@@ -816,13 +810,8 @@ export default function FinancialTab({ partnerId, partner }: Props) {
                   <tr key={p.id}>
                     <td>
                       <button
+                        type="button"
                         className="action-link"
-                        style={{
-                          background: "none",
-                          border: "none",
-                          padding: 0,
-                          cursor: "pointer",
-                        }}
                         onClick={() => setEditingPledge(p)}
                       >
                         View/Edit
@@ -929,13 +918,8 @@ export default function FinancialTab({ partnerId, partner }: Props) {
                   <tr key={g.id}>
                     <td>
                       <button
+                        type="button"
                         className="action-link"
-                        style={{
-                          background: "none",
-                          border: "none",
-                          padding: 0,
-                          cursor: "pointer",
-                        }}
                         onClick={() => setEditingGift(g)}
                       >
                         View/Edit
