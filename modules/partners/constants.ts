@@ -60,3 +60,18 @@ export const GIFT_TOWARDS_OPTIONS = [
   "One-Time Gift",
   "Other",
 ];
+
+export const IN_KIND_GIFT_CONDITIONS = [
+  "New",
+  "Like New",
+  "Good",
+  "Fair",
+  "Poor",
+];
+
+export const IN_KIND_ASSET_STATUSES = [
+  "Awaiting Transfer",
+  "Transferred",
+  "In Use",
+  "Disposed",
+];
