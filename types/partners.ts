@@ -2,6 +2,7 @@ export interface Partner {
   id: string
   tenant_id: string
   knack_id: string | null
+  assigned_to: string | null
   display_name: string
   entity_name: string | null
   correspondence_greeting: string | null

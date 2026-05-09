@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SereniusModal from "@/components/ui/SereniusModal";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { normalizePhone } from "@/lib/formatPhone";
@@ -21,6 +21,11 @@ interface ContactCard {
   email: string;
   phone: string;
 }
+
+type StaffUser = {
+  id: string;
+  display_name: string | null;
+};
 
 const ENTITY_TYPES = ["Church", "Business", "Organization", "School"];
 
@@ -80,9 +85,36 @@ export default function AddPartnerModal({ orgId, onClose, onSuccess }: Props) {
   const [contacts, setContacts] = useState<ContactCard[]>([]);
   const [primaryPhone, setPrimaryPhone] = useState("");
   const [secondaryPhone, setSecondaryPhone] = useState("");
+  const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [assignedTo, setAssignedTo] = useState("");
 
   const isEntityType = ENTITY_TYPES.includes(partnerType);
   const includedCount = contacts.filter((c) => c.included).length;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!orgId) {
+      setStaff([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    supabase
+      .from("user_profiles")
+      .select("id, display_name")
+      .eq("tenant_id", orgId)
+      .order("display_name")
+      .then(({ data }) => {
+        if (!isMounted) return;
+        setStaff((data ?? []) as StaffUser[]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [orgId, supabase]);
 
   function handlePhoneInput(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -147,6 +179,7 @@ export default function AddPartnerModal({ orgId, onClose, onSuccess }: Props) {
         secondary_phone: normalizePhone(secondaryPhone) || null,
         secondary_phone_type: strOrNull("secondary_phone_type"),
         created_by: user?.id ?? null,
+        assigned_to: assignedTo || null,
         address_street: strOrNull("street1"),
         address_street2: strOrNull("street2"),
         address_city: strOrNull("city"),
@@ -312,6 +345,23 @@ export default function AddPartnerModal({ orgId, onClose, onSuccess }: Props) {
                     <option value="">Select...</option>
                     <option>Donor</option>
                     <option>Prospect</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Assigned To</label>
+                  <select
+                    name="assigned_to"
+                    className="form-input"
+                    value={assignedTo}
+                    onChange={(e) => setAssignedTo(e.target.value)}
+                  >
+                    <option value="">Unassigned</option>
+                    {staff.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.display_name?.trim() || "Unnamed User"}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

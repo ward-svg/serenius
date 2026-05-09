@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import SereniusModal from '@/components/ui/SereniusModal'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import type { Partner } from '@/types/partners'
@@ -10,6 +10,11 @@ interface Props {
   partner: Partner
   onClose: () => void
   onSuccess: (updated: Partner) => void
+}
+
+type StaffUser = {
+  id: string
+  display_name: string | null
 }
 
 const ENTITY_TYPES = ['Church', 'Business', 'Organization', 'School']
@@ -37,6 +42,7 @@ function buildFormData(p: Partner) {
     address_zip: p.address_zip ?? '',
     address_country: p.address_country ?? '',
     notes: p.notes ?? '',
+    assigned_to: p.assigned_to ?? '',
   }
 }
 
@@ -44,11 +50,31 @@ export default function PartnerModal({ partner, onClose, onSuccess }: Props) {
   const supabase = createSupabaseBrowserClient()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [staff, setStaff] = useState<StaffUser[]>([])
   const [partnerType, setPartnerType] = useState(partner.partner_type ?? '')
   const [selectedChannels, setSelectedChannels] = useState<string[]>(partner.social_channels ?? [])
   const [formData, setFormData] = useState(() => buildFormData(partner))
+  const [assignedTo, setAssignedTo] = useState(partner.assigned_to ?? '')
 
   const isEntityType = ENTITY_TYPES.includes(partnerType)
+
+  useEffect(() => {
+    let isMounted = true
+
+    supabase
+      .from('user_profiles')
+      .select('id, display_name')
+      .eq('tenant_id', partner.tenant_id)
+      .order('display_name')
+      .then(({ data }) => {
+        if (!isMounted) return
+        setStaff((data ?? []) as StaffUser[])
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [partner.tenant_id, supabase])
 
   const handleChange = useCallback((field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -99,6 +125,7 @@ export default function PartnerModal({ partner, onClose, onSuccess }: Props) {
         address_zip: formData.address_zip || null,
         address_country: formData.address_country || null,
         notes: formData.notes || null,
+        assigned_to: assignedTo || null,
         social_channels: selectedChannels,
         updated_at: new Date().toISOString(),
       })
@@ -167,6 +194,21 @@ export default function PartnerModal({ partner, onClose, onSuccess }: Props) {
                 <option value="">Select...</option>
                 <option>Donor</option>
                 <option>Prospect</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Assigned To</label>
+              <select
+                className="form-input"
+                value={assignedTo}
+                onChange={e => setAssignedTo(e.target.value)}
+              >
+                <option value="">Unassigned</option>
+                {staff.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.display_name?.trim() || 'Unnamed User'}
+                  </option>
+                ))}
               </select>
             </div>
             {isEntityType && (

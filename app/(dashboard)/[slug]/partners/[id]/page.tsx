@@ -29,6 +29,12 @@ export default async function PartnerDetailPage({
 
   if (!partnerData) notFound()
 
+  const { data: staffData } = await supabase
+    .from('user_profiles')
+    .select('id, display_name')
+    .eq('tenant_id', partnerData.tenant_id)
+    .order('display_name')
+
   const { data: settingsData } = await supabase
     .from('organization_settings')
     .select('google_maps_api_key')
@@ -60,6 +66,7 @@ export default async function PartnerDetailPage({
       slug={slug}
       initialPartner={partnerData as Partner}
       contacts={(contacts ?? []) as PartnerContact[]}
+      staff={(staffData ?? []) as { id: string; display_name: string | null }[]}
       createdByName={createdByName}
       totalGiving={totalGiving}
       givingYTD={givingYTD}

@@ -12,6 +12,7 @@ import ContactDetailModal from './ContactDetailModal'
 import CommunicationsTab from './CommunicationsTab'
 import PartnerModal from './PartnerModal'
 import FinancialTab from './FinancialTab'
+import PartnerEngagementCard, { PartnerEngagementSignals } from './PartnerEngagementCard'
 
 type DetailTab = 'general' | 'financial' | 'inkind' | 'communications'
 
@@ -19,6 +20,7 @@ interface Props {
   slug: string
   initialPartner: Partner
   contacts: PartnerContact[]
+  staff: { id: string; display_name: string | null }[]
   createdByName: string | null
   totalGiving: number
   givingYTD: number
@@ -61,6 +63,7 @@ export default function PartnerDetailClient({
   slug,
   initialPartner,
   contacts: initialContacts,
+  staff,
   createdByName,
   totalGiving,
   givingYTD,
@@ -231,6 +234,19 @@ export default function PartnerDetailClient({
                     Correspondence: {partner.correspondence_greeting}
                   </div>
                 )}
+
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+                  Assigned To:{' '}
+                  {partner.assigned_to
+                    ? staff.find(user => user.id === partner.assigned_to)?.display_name ??
+                      'Unassigned'
+                    : 'Unassigned'}
+                </div>
+
+                <PartnerEngagementSignals
+                  partner={partner}
+                  activePledgeCount={activePledgeCount}
+                />
               </div>
 
               <button
@@ -306,13 +322,11 @@ export default function PartnerDetailClient({
               </div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-label">Engagement</div>
-              <div className="stat-value" style={{ fontSize: 22, color: '#185FA5' }}>
-                —
-              </div>
-              <div className="stat-sub">Engagement tracking coming soon</div>
-            </div>
+            <PartnerEngagementCard
+              partner={partner}
+              activePledgeCount={activePledgeCount}
+            />
+
           </div>
 
           {/* Two-column: Partner Details + Location */}
@@ -332,6 +346,15 @@ export default function PartnerDetailClient({
 
               <div style={{ padding: '0 18px 8px' }}>
                 <DetailRow label="Primary Contact" value={partner.display_name} />
+                <DetailRow
+                  label="Assigned To"
+                  value={
+                    partner.assigned_to
+                      ? staff.find(user => user.id === partner.assigned_to)?.display_name ??
+                        'Unassigned'
+                      : 'Unassigned'
+                  }
+                />
                 <DetailRow label="Correspondence" value={partner.correspondence_greeting} />
 
                 <DetailRow

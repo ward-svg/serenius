@@ -2,6 +2,7 @@ export interface Partner {
   id: string
   tenant_id: string
   knack_id: string | null
+  assigned_to: string | null
   display_name: string
   entity_name: string | null
   correspondence_greeting: string | null
@@ -149,6 +150,22 @@ export interface PartnerCommunicationFollowup {
   completion_notes: string | null
   created_at: string
   updated_at: string
+}
+
+export interface PartnerEmailOpen {
+  id: string
+  tenant_id: string
+  partner_email_id: string | null
+  partner_id: string | null
+  partner_contact_id: string | null
+  campaign_message: string | null
+  sent_at: string | null
+  first_opened: string | null
+  last_opened: string | null
+  open_count: number | null
+  user_country: string | null
+  user_ip_address: string | null
+  user_agent: string | null
 }
 
 export interface PartnerStatement {
