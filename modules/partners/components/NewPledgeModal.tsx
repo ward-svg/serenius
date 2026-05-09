@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SereniusModal from "@/components/ui/SereniusModal";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type { Pledge } from "@/modules/partners/types";
 import {
@@ -26,7 +27,8 @@ export default function NewPledgeModal({
 }: Props) {
   const supabase = createSupabaseBrowserClient();
 
-  const isEdit = !!pledge;
+  const isCreate = !pledge;
+  const [mode, setMode] = useState<"view" | "edit">(isCreate ? "edit" : "view");
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,22 +45,28 @@ export default function NewPledgeModal({
     notes: "",
   });
 
+  function mapPledgeToFormData(source: Pledge) {
+    return {
+      pledge_type: source.pledge_type ?? "",
+      status: source.status ?? "Active",
+      frequency: source.frequency ?? "Monthly",
+      pledge_amount: String(source.pledge_amount ?? ""),
+      number_of_payments: source.number_of_payments
+        ? String(source.number_of_payments)
+        : "",
+      start_date: source.start_date?.split("T")[0] ?? "",
+      end_date: source.end_date?.split("T")[0] ?? "",
+      on_hold_until: source.on_hold_until?.split("T")[0] ?? "",
+      notes: source.notes ?? "",
+    };
+  }
+
   useEffect(() => {
     if (!pledge) return;
 
-    setFormData({
-      pledge_type: pledge.pledge_type ?? "",
-      status: pledge.status ?? "Active",
-      frequency: pledge.frequency ?? "Monthly",
-      pledge_amount: String(pledge.pledge_amount ?? ""),
-      number_of_payments: pledge.number_of_payments
-        ? String(pledge.number_of_payments)
-        : "",
-      start_date: pledge.start_date?.split("T")[0] ?? "",
-      end_date: pledge.end_date?.split("T")[0] ?? "",
-      on_hold_until: pledge.on_hold_until?.split("T")[0] ?? "",
-      notes: pledge.notes ?? "",
-    });
+    setFormData(mapPledgeToFormData(pledge));
+    setError(null);
+    setMode("view");
   }, [pledge]);
 
   function handleChange(field: string, value: string) {
@@ -68,20 +76,43 @@ export default function NewPledgeModal({
     }));
   }
 
-  function pledgeAmountLabel(): string {
-    if (formData.frequency === "Monthly") {
+  function pledgeAmountLabel(frequency: string = formData.frequency): string {
+    if (frequency === "Monthly") {
       return "Monthly Pledge Amount *";
     }
 
-    if (formData.frequency === "Quarterly") {
+    if (frequency === "Quarterly") {
       return "Quarterly Pledge Amount *";
     }
 
-    if (formData.frequency === "Annually") {
+    if (frequency === "Annually") {
       return "Annual Pledge Amount *";
     }
 
     return "Pledge Amount *";
+  }
+
+  function returnToViewMode() {
+    if (pledge) {
+      setFormData(mapPledgeToFormData(pledge));
+    }
+
+    setError(null);
+    setMode("view");
+  }
+
+  function formatMoney(value: string): string {
+    const amount = parseFloat(value);
+
+    if (Number.isNaN(amount)) {
+      return "—";
+    }
+
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 2,
+    }).format(amount);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -122,7 +153,7 @@ export default function NewPledgeModal({
 
     let result;
 
-    if (isEdit) {
+    if (!isCreate) {
       result = await supabase
         .from("pledges")
         .update(payload)
@@ -145,8 +176,17 @@ export default function NewPledgeModal({
       return;
     }
 
-    onSuccess(result.data as Pledge);
-    onClose();
+    const savedPledge = result.data as Pledge;
+
+    onSuccess(savedPledge);
+
+    if (isCreate) {
+      onClose();
+      return;
+    }
+
+    setFormData(mapPledgeToFormData(savedPledge));
+    setMode("view");
   }
 
   async function handleArchive() {
@@ -173,53 +213,188 @@ export default function NewPledgeModal({
       return;
     }
 
-    onSuccess(pledge);
+    onSuccess({ ...pledge, status: "Canceled" });
     onClose();
   }
 
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.45)",
-        zIndex: 50,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        overflowY: "auto",
-        padding: "60px 24px",
-      }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 680,
-          background: "white",
-          borderRadius: 12,
-          overflow: "hidden",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-        }}
+  if (!isCreate && mode === "view") {
+    const viewPledge = pledge;
+
+    return (
+      <SereniusModal
+        title="View Pledge"
+        description={
+          viewPledge
+            ? `${viewPledge.pledge_type} · ${viewPledge.frequency} · ${new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+                maximumFractionDigits: 2,
+              }).format(viewPledge.pledge_amount ?? 0)}`
+            : undefined
+        }
+        onClose={onClose}
+        maxWidth={680}
+        contentPadding={0}
+        headerActions={
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setMode("edit")}
+          >
+            Edit Pledge
+          </button>
+        }
       >
         <div
           style={{
-            padding: "18px 24px",
-            borderBottom: "1px solid #e4e4e0",
-            fontWeight: 600,
-            fontSize: 16,
-          }}
-        >
-          {isEdit ? "Edit Pledge" : "New Pledge"}
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          style={{
             padding: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
           }}
         >
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Pledge Type</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewPledge?.pledge_type || "—"}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Status</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewPledge?.status || "—"}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Frequency</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewPledge?.frequency || "—"}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                {pledgeAmountLabel(viewPledge?.frequency)}
+              </label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {formatMoney(String(viewPledge?.pledge_amount ?? ""))}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Start Date</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewPledge?.start_date || "—"}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">End Date</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewPledge?.end_date || "—"}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">On Hold Until</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewPledge?.on_hold_until || "—"}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Payments</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewPledge?.number_of_payments || "—"}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row full">
+            <div className="form-group">
+              <label className="form-label">Notes</label>
+              <div
+                style={{
+                  fontSize: 14,
+                  color: "#111827",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                  paddingTop: 4,
+                }}
+              >
+                {viewPledge?.notes || "—"}
+              </div>
+            </div>
+          </div>
+        </div>
+      </SereniusModal>
+    );
+  }
+
+  return (
+    <SereniusModal
+      title={isCreate ? "New Pledge" : "Edit Pledge"}
+      onClose={onClose}
+      showCloseButton={isCreate}
+      closeOnOverlayClick={isCreate}
+      closeOnEscape={isCreate}
+      contentPadding={0}
+      headerActions={
+        !isCreate ? (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={returnToViewMode}
+          >
+            Back to View
+          </button>
+        ) : null
+      }
+      footerLeft={
+        !isCreate && mode === "edit" ? (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={handleArchive}
+            disabled={saving}
+          >
+            Archive
+          </button>
+        ) : null
+      }
+      footer={
+        <>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={isCreate ? onClose : returnToViewMode}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            form="new-pledge-form"
+            className="btn btn-primary"
+            disabled={saving}
+          >
+            {saving ? "Saving..." : isCreate ? "Create Pledge" : "Save Changes"}
+          </button>
+        </>
+      }
+    >
+      <form id="new-pledge-form" onSubmit={handleSubmit}>
+        <div style={{ padding: 24 }}>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Pledge Type *</label>
@@ -334,57 +509,8 @@ export default function NewPledgeModal({
               {error}
             </div>
           )}
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 24,
-            }}
-          >
-            <div>
-              {isEdit && (
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={handleArchive}
-                  disabled={saving}
-                >
-                  Archive
-                </button>
-              )}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-              }}
-            >
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={onClose}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={saving}
-              >
-                {saving
-                  ? "Saving..."
-                  : isEdit
-                    ? "Save Changes"
-                    : "Create Pledge"}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </SereniusModal>
   );
 }

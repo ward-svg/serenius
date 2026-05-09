@@ -147,7 +147,7 @@ export default function PartnersClient({
     downloadCsv(
       'active-partners.csv',
       filtered.map(p => ({
-        'Display Name': p.display_name,
+        'Partner Name': p.display_name,
         Salutation: p.correspondence_greeting,
         Type: p.partner_type,
         City: p.address_city,
@@ -172,7 +172,7 @@ export default function PartnersClient({
         </div>
 
         <button
-          className="btn btn-primary btn-sm"
+          className="btn btn-ghost btn-sm"
           onClick={() => setShowAddPartner(true)}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
@@ -358,7 +358,7 @@ export default function PartnersClient({
               <thead>
                 <tr>
                   <th style={{ width: 80 }}>Actions</th>
-                  <th>Display Name</th>
+                  <th>Partner Name</th>
                   <th>Salutation</th>
                   <th>Type</th>
                   <th>City</th>
@@ -450,7 +450,7 @@ export default function PartnersClient({
               <thead>
                 <tr>
                   <th style={{ width: 80 }}>Actions</th>
-                  <th>Display Name</th>
+                  <th>Partner Name</th>
                   <th>Salutation</th>
                   <th>Type</th>
                   <th>City</th>
@@ -561,7 +561,7 @@ export default function PartnersClient({
             <thead>
               <tr>
                 <th style={{ width: 80 }}>Actions</th>
-                <th>Display Name</th>
+                <th>Partner Name</th>
                 <th>Salutation</th>
                 <th>Type</th>
                 <th>Relationship</th>

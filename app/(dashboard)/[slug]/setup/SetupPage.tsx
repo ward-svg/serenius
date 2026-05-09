@@ -20,6 +20,7 @@ interface OrganizationBranding {
   id: string
   primary_color: string | null
   secondary_color: string | null
+  accent_color: string | null
   logo_url: string | null
 }
 
@@ -97,7 +98,12 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
 
   // Form state (org tab)
   const [orgForm, setOrgForm]         = useState({ name: '', plan: '' })
-  const [brandForm, setBrandForm]     = useState({ primary_color: '#2563eb', secondary_color: '#64748b', logo_url: '' })
+  const [brandForm, setBrandForm]     = useState({
+    primary_color: '#3D5A80',
+    secondary_color: '#98C1D9',
+    accent_color: '#EE6C4D',
+    logo_url: '',
+  })
   const [settingsForm, setSettingsForm] = useState({
     timezone: 'America/New_York',
     date_format: 'MM/DD/YYYY',
@@ -152,8 +158,9 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
       if (brandRes.data) {
         setBranding(brandRes.data)
         setBrandForm({
-          primary_color:   brandRes.data.primary_color   ?? '#2563eb',
-          secondary_color: brandRes.data.secondary_color ?? '#64748b',
+          primary_color:   brandRes.data.primary_color   ?? '#3D5A80',
+          secondary_color: brandRes.data.secondary_color ?? '#98C1D9',
+          accent_color:    brandRes.data.accent_color    ?? '#EE6C4D',
           logo_url:        brandRes.data.logo_url        ?? '',
         })
       }
@@ -197,6 +204,7 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
       .update({
         primary_color: brandForm.primary_color,
         secondary_color: brandForm.secondary_color,
+        accent_color: brandForm.accent_color,
         logo_url: brandForm.logo_url || null,
       })
       .eq('tenant_id', tenantId)
@@ -427,7 +435,7 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
                     value={brandForm.primary_color}
                     onChange={e => setBrandForm(f => ({ ...f, primary_color: e.target.value }))}
                     className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="#2563eb"
+                    placeholder="#3D5A80"
                   />
                 </div>
               </div>
@@ -445,9 +453,30 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
                     value={brandForm.secondary_color}
                     onChange={e => setBrandForm(f => ({ ...f, secondary_color: e.target.value }))}
                     className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="#64748b"
+                    placeholder="#98C1D9"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Accent / Action Color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={brandForm.accent_color}
+                    onChange={e => setBrandForm(f => ({ ...f, accent_color: e.target.value }))}
+                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={brandForm.accent_color}
+                    onChange={e => setBrandForm(f => ({ ...f, accent_color: e.target.value }))}
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="#EE6C4D"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Used for action links, edit/add interactions, and secondary workflow accents.
+                </p>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>

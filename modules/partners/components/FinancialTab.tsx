@@ -10,7 +10,6 @@ import type {
 } from "@/modules/partners/types";
 
 import NewPledgeModal from "./NewPledgeModal";
-import NewStatementModal from "./NewStatementModal";
 import GiftModal from "./GiftModal";
 
 const GIFTS_PER_PAGE = 25;
@@ -139,7 +138,6 @@ export default function FinancialTab({ partnerId, partner }: Props) {
   const [pendingInitialGiftPrompt, setPendingInitialGiftPrompt] =
     useState<Pledge | null>(null);
 
-  const [showNewStatement, setShowNewStatement] = useState(false);
   const [giftsPage, setGiftsPage] = useState(1);
 
   useEffect(() => {
@@ -769,7 +767,7 @@ export default function FinancialTab({ partnerId, partner }: Props) {
       {/* ── 6. Action Buttons ── */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button
-          className="btn btn-primary btn-sm"
+          className="btn btn-ghost btn-sm"
           onClick={() => setShowNewPledge(true)}
         >
           + New Pledge
@@ -804,7 +802,7 @@ export default function FinancialTab({ partnerId, partner }: Props) {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 70 }}>View/Edit</th>
+                  <th style={{ width: 70 }}>ACTIONS</th>
                   <th>Pledge Type</th>
                   <th>Status</th>
                   <th>Start Date</th>
@@ -916,7 +914,7 @@ export default function FinancialTab({ partnerId, partner }: Props) {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 70 }}>View/Edit</th>
+                  <th style={{ width: 70 }}>ACTIONS</th>
                   <th>Date Given</th>
                   <th>Total Gift</th>
                   <th>Fee Donation</th>
@@ -1131,26 +1129,15 @@ export default function FinancialTab({ partnerId, partner }: Props) {
           tenantId={partner.tenant_id}
           pledge={editingPledge}
           onClose={() => setEditingPledge(null)}
-          onSuccess={async () => {
+          onSuccess={async (savedPledge) => {
             await reloadFinancialData();
-            setEditingPledge(null);
+            setEditingPledge(
+              savedPledge.status === "Canceled" ? null : savedPledge
+            );
           }}
         />
       )}
 
-      {showNewStatement && (
-        <NewStatementModal
-          partnerId={partnerId}
-          tenantId={partner.tenant_id}
-          onClose={() => setShowNewStatement(false)}
-          onSuccess={(newStatement) => {
-            setStatements((prev) =>
-              [newStatement, ...prev].sort((a, b) => b.year - a.year),
-            );
-            setShowNewStatement(false);
-          }}
-        />
-      )}
     </div>
   );
 }

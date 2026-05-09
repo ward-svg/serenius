@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import SereniusModal from '@/components/ui/SereniusModal'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import type { Partner, PartnerContact } from '@/types/partners'
 import { formatPhone, normalizePhone } from '@/lib/formatPhone'
@@ -224,107 +225,33 @@ export default function ContactDetailModal({ contact, partner, onClose, onSucces
     setMode('view')
   }
 
-  // ── Shared modal shell ──────────────────────────────────
-  const modalCard = (children: React.ReactNode, footer?: React.ReactNode) => (
-    <div
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.4)',
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-      }}
-      onClick={mode === 'view' ? onClose : undefined}
-    >
-      <div
-        style={{
-          background: 'white',
-          borderRadius: 10,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          width: '100%',
-          maxWidth: 900,
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 20px',
-          borderBottom: '1px solid #e4e4e0',
-          position: 'sticky',
-          top: 0,
-          background: 'white',
-          zIndex: 1,
-        }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>
-              {mode === 'view' ? 'View Contact Details' : 'Edit Contact'}
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 500, color: '#374151', marginTop: 3 }}>{fullName}</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {mode === 'view' ? (
-              <>
-                <button
-                  onClick={() => setMode('edit')}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    fontSize: 12, fontWeight: 500, padding: '6px 12px',
-                    border: '1px solid #d1d5db', borderRadius: 6,
-                    background: 'white', cursor: 'pointer', color: '#374151',
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M9 1.5l2.5 2.5L4 11.5H1.5V9L9 1.5z" strokeLinejoin="round" />
-                  </svg>
-                  Edit Contact
-                </button>
-                <button
-                  onClick={onClose}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: '#6b7280', display: 'flex' }}
-                  aria-label="Close"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="M2 2l12 12M14 2L2 14" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setMode('view')}
-                style={{
-                  fontSize: 12, fontWeight: 500, padding: '6px 12px',
-                  border: '1px solid #d1d5db', borderRadius: 6,
-                  background: 'white', cursor: 'pointer', color: '#374151',
-                }}
-              >
-                ← Back to view
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Body */}
-        {children}
-
-        {/* Footer (edit mode only) */}
-        {footer}
-      </div>
-    </div>
-  )
-
   // ── VIEW MODE ───────────────────────────────────────────
   if (mode === 'view') {
-    return modalCard(
-      <>
+    return (
+      <SereniusModal
+        title="View Contact Details"
+        description={fullName}
+        onClose={onClose}
+        maxWidth={900}
+        contentPadding={0}
+        headerActions={
+          <button
+            type="button"
+            onClick={() => setMode('edit')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontSize: 12, fontWeight: 500, padding: '6px 12px',
+              border: '1px solid #d1d5db', borderRadius: 6,
+              background: 'white', cursor: 'pointer', color: '#374151',
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M9 1.5l2.5 2.5L4 11.5H1.5V9L9 1.5z" strokeLinejoin="round" />
+            </svg>
+            Edit Contact
+          </button>
+        }
+      >
         <div style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
@@ -386,12 +313,43 @@ export default function ContactDetailModal({ contact, partner, onClose, onSucces
             <div style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>Family Connect portal coming soon</div>
           </div>
         </div>
-      </>
+      </SereniusModal>
     )
   }
 
   // ── EDIT MODE ───────────────────────────────────────────
-  return modalCard(
+  return (
+    <SereniusModal
+      title="Edit Contact"
+      description={fullName}
+      onClose={onClose}
+      maxWidth={900}
+      contentPadding={0}
+      closeOnOverlayClick={false}
+      closeOnEscape={false}
+      showCloseButton={false}
+      headerActions={
+        <button
+          type="button"
+          onClick={() => setMode('view')}
+          style={{
+            fontSize: 12, fontWeight: 500, padding: '6px 12px',
+            border: '1px solid #d1d5db', borderRadius: 6,
+            background: 'white', cursor: 'pointer', color: '#374151',
+          }}
+        >
+          Back to View
+        </button>
+      }
+      footer={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={() => setMode('view')} disabled={saving}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </>
+      }
+    >
     <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 0 }}>
 
       {/* Contact Info */}
@@ -591,18 +549,7 @@ export default function ContactDetailModal({ contact, partner, onClose, onSucces
         </div>
       )}
 
-    </div>,
-
-    // Footer
-    <div style={{
-      display: 'flex', justifyContent: 'flex-end', gap: 8,
-      padding: '14px 24px', borderTop: '1px solid #e4e4e0',
-      position: 'sticky', bottom: 0, background: 'white',
-    }}>
-      <button className="btn btn-ghost" onClick={() => setMode('view')} disabled={saving}>Cancel</button>
-      <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Changes'}
-      </button>
     </div>
+    </SereniusModal>
   )
 }

@@ -561,7 +561,7 @@ export default function PartnerDetailClient({
                   />
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                     <button
-                      className="btn btn-primary btn-sm"
+                      className="btn btn-ghost btn-sm"
                       onClick={saveNotes}
                       disabled={savingNotes}
                     >
@@ -605,7 +605,7 @@ export default function PartnerDetailClient({
               <span className="section-count">{contacts.length}</span>
               <div className="section-actions">
                 <button
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-ghost btn-sm"
                   onClick={() => setShowAddContact(true)}
                 >
                   + Add Contact
@@ -629,7 +629,7 @@ export default function PartnerDetailClient({
                 <table>
                   <thead>
                     <tr>
-                      <th style={{ width: 80 }}>View/Edit</th>
+                      <th style={{ width: 80 }}>ACTIONS</th>
                       <th>Name</th>
                       <th>Nickname</th>
                       <th>Primary Phone</th>

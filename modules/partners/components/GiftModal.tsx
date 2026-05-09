@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SereniusModal from "@/components/ui/SereniusModal";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type { FinancialGift } from "@/modules/partners/types";
 import {
@@ -166,48 +167,44 @@ export default function GiftModal({
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.45)",
-        zIndex: 50,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        overflowY: "auto",
-        padding: "60px 24px",
-      }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 720,
-          background: "white",
-          borderRadius: 12,
-          overflow: "hidden",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-        }}
-      >
-        <div
-          style={{
-            padding: "18px 24px",
-            borderBottom: "1px solid #e4e4e0",
-            fontWeight: 600,
-            fontSize: 16,
-          }}
-        >
-          {isEdit ? "Edit Gift" : "Record Gift"}
-        </div>
+    <SereniusModal
+      title={isEdit ? "Edit Gift" : "Record Gift"}
+      onClose={onClose}
+      footerLeft={
+        isEdit ? (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={handleDelete}
+            disabled={saving}
+          >
+            Delete
+          </button>
+        ) : null
+      }
+      footer={
+        <>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </button>
 
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            padding: 24,
-          }}
-        >
+          <button
+            type="submit"
+            form="gift-form"
+            className="btn btn-primary"
+            disabled={saving}
+          >
+            {saving ? "Saving..." : isEdit ? "Save Changes" : "Record Gift"}
+          </button>
+        </>
+      }
+    >
+      <form id="gift-form" onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Date Given *</label>
@@ -334,52 +331,7 @@ export default function GiftModal({
             </div>
           )}
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 24,
-            }}
-          >
-            <div>
-              {isEdit && (
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={handleDelete}
-                  disabled={saving}
-                >
-                  Delete
-                </button>
-              )}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-              }}
-            >
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={onClose}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={saving}
-              >
-                {saving ? "Saving..." : isEdit ? "Save Changes" : "Record Gift"}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </SereniusModal>
   );
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import SereniusModal from '@/components/ui/SereniusModal'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import type { Partner } from '@/types/partners'
 import { formatPhone, normalizePhone } from '@/lib/formatPhone'
@@ -117,33 +118,20 @@ export default function PartnerModal({ partner, onClose, onSuccess }: Props) {
   }
 
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 50, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '64px 24px 24px', overflowY: 'auto' }}
-      onClick={onClose}
-    >
-      <div
-        style={{ background: 'white', borderRadius: 10, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: 760, display: 'flex', flexDirection: 'column' }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header — static, scrolls with modal */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e4e4e0', borderRadius: '10px 10px 0 0' }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Edit Partner</div>
-            <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>{partner.display_name}</div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: '#6b7280', display: 'flex' }}
-            aria-label="Close"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M2 2l12 12M14 2L2 14" strokeLinecap="round" />
-            </svg>
+    <SereniusModal
+      title="Edit Partner"
+      description={partner.display_name}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
 
           {/* Partner Info */}
           <div className="form-section-title">Partner Info</div>
@@ -300,16 +288,7 @@ export default function PartnerModal({ partner, onClose, onSuccess }: Props) {
               {error}
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 24px', borderTop: '1px solid #e4e4e0', borderRadius: '0 0 10px 10px' }}>
-          <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
       </div>
-    </div>
+    </SereniusModal>
   )
 }
