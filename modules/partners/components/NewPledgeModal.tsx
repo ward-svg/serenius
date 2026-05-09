@@ -189,34 +189,6 @@ export default function NewPledgeModal({
     setMode("view");
   }
 
-  async function handleArchive() {
-    if (!pledge) return;
-
-    const confirmed = window.confirm("Archive this pledge?");
-
-    if (!confirmed) return;
-
-    setSaving(true);
-
-    const { error } = await supabase
-      .from("pledges")
-      .update({
-        status: "Canceled",
-      })
-      .eq("id", pledge.id)
-      .eq("tenant_id", tenantId);
-
-    setSaving(false);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    onSuccess({ ...pledge, status: "Canceled" });
-    onClose();
-  }
-
   if (!isCreate && mode === "view") {
     const viewPledge = pledge;
 
@@ -356,18 +328,6 @@ export default function NewPledgeModal({
             onClick={returnToViewMode}
           >
             Back to View
-          </button>
-        ) : null
-      }
-      footerLeft={
-        !isCreate && mode === "edit" ? (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={handleArchive}
-            disabled={saving}
-          >
-            Archive
           </button>
         ) : null
       }

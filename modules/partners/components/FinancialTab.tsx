@@ -1102,7 +1102,7 @@ export default function FinancialTab({ partnerId, partner }: Props) {
             setShowNewGift(false);
             setNewGiftDefaults(null);
           }}
-          onSuccess={async () => {
+          onSuccess={async (_savedGift) => {
             await reloadFinancialData();
             setShowNewGift(false);
             setNewGiftDefaults(null);
@@ -1116,9 +1116,9 @@ export default function FinancialTab({ partnerId, partner }: Props) {
           tenantId={partner.tenant_id}
           gift={editingGift}
           onClose={() => setEditingGift(null)}
-          onSuccess={async () => {
+          onSuccess={async (savedGift) => {
             await reloadFinancialData();
-            setEditingGift(null);
+            setEditingGift(savedGift === editingGift ? null : savedGift);
           }}
         />
       )}

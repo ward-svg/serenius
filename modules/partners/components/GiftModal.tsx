@@ -18,7 +18,45 @@ interface Props {
   defaultTowards?: string | null;
   towardsActivePledge?: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (gift: FinancialGift) => void;
+}
+
+type Mode = "view" | "edit";
+
+type FormData = {
+  date_given: string;
+  amount: string;
+  fee_donation: string;
+  base_gift_override: string;
+  processing_source: string;
+  towards: string;
+  notes: string;
+};
+
+function formatMoney(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+
+  const date = new Date(dateStr);
+
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  });
 }
 
 export default function GiftModal({
@@ -33,13 +71,11 @@ export default function GiftModal({
   onSuccess,
 }: Props) {
   const supabase = createSupabaseBrowserClient();
-
-  const isEdit = !!gift;
-
+  const isCreate = !gift;
+  const [mode, setMode] = useState<Mode>(isCreate ? "edit" : "view");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     date_given: new Date().toISOString().split("T")[0],
     amount: defaultAmount != null ? String(defaultAmount) : "",
     fee_donation: "",
@@ -49,21 +85,28 @@ export default function GiftModal({
     notes: "",
   });
 
+  function mapGiftToFormData(source: FinancialGift): FormData {
+    return {
+      date_given: source.date_given?.split("T")[0] ?? "",
+      amount: String(source.amount ?? ""),
+      fee_donation:
+        source.fee_donation != null ? String(source.fee_donation) : "",
+      base_gift_override: "",
+      processing_source: source.processing_source ?? "",
+      towards: source.towards ?? "",
+      notes: source.notes ?? "",
+    };
+  }
+
   useEffect(() => {
     if (!gift) return;
 
-    setFormData({
-      date_given: gift.date_given?.split("T")[0] ?? "",
-      amount: String(gift.amount ?? ""),
-      fee_donation: gift.fee_donation != null ? String(gift.fee_donation) : "",
-      base_gift_override: "",
-      processing_source: gift.processing_source ?? "",
-      towards: gift.towards ?? "",
-      notes: gift.notes ?? "",
-    });
+    setFormData(mapGiftToFormData(gift));
+    setError(null);
+    setMode("view");
   }, [gift]);
 
-  function handleChange(field: string, value: string) {
+  function handleChange(field: keyof FormData, value: string) {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -79,6 +122,23 @@ export default function GiftModal({
     }
 
     return Math.max(amount - feeDonation, 0);
+  }
+
+  function viewBaseGift(source: FinancialGift): number {
+    if (source.base_gift != null) {
+      return source.base_gift;
+    }
+
+    return Math.max((source.amount ?? 0) - (source.fee_donation ?? 0), 0);
+  }
+
+  function returnToViewMode() {
+    if (gift) {
+      setFormData(mapGiftToFormData(gift));
+    }
+
+    setError(null);
+    setMode("view");
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -115,17 +175,19 @@ export default function GiftModal({
       notes: formData.notes || null,
     };
 
-    let result;
-
-    if (isEdit) {
-      result = await supabase
-        .from("financial_gifts")
-        .update(payload)
-        .eq("id", gift.id)
-        .eq("tenant_id", tenantId);
-    } else {
-      result = await supabase.from("financial_gifts").insert(payload);
-    }
+    const result = !isCreate
+      ? await supabase
+          .from("financial_gifts")
+          .update(payload)
+          .eq("id", gift.id)
+          .eq("tenant_id", tenantId)
+          .select("*")
+          .single()
+      : await supabase
+          .from("financial_gifts")
+          .insert(payload)
+          .select("*")
+          .single();
 
     setSaving(false);
 
@@ -134,8 +196,17 @@ export default function GiftModal({
       return;
     }
 
-    onSuccess();
-    onClose();
+    const savedGift = result.data as FinancialGift;
+
+    onSuccess(savedGift);
+
+    if (isCreate) {
+      onClose();
+      return;
+    }
+
+    setFormData(mapGiftToFormData(savedGift));
+    setMode("view");
   }
 
   async function handleDelete() {
@@ -162,19 +233,158 @@ export default function GiftModal({
       return;
     }
 
-    onSuccess();
+    onSuccess(gift);
     onClose();
   }
 
-  return (
-    <SereniusModal
-      title={isEdit ? "Edit Gift" : "Record Gift"}
-      onClose={onClose}
-      footerLeft={
-        isEdit ? (
+  if (!isCreate && mode === "view") {
+    const viewGift = gift;
+
+    return (
+      <SereniusModal
+        title="View Gift"
+        description={
+          viewGift
+            ? `${formatDate(viewGift.date_given)} · ${formatMoney(viewGift.amount)}`
+            : undefined
+        }
+        onClose={onClose}
+        maxWidth={760}
+        contentPadding={0}
+        headerActions={
           <button
             type="button"
             className="btn btn-ghost"
+            onClick={() => setMode("edit")}
+          >
+            Edit Gift
+          </button>
+        }
+      >
+        <div
+          style={{
+            padding: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Date Given</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {formatDate(viewGift?.date_given)}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Total Gift</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {formatMoney(viewGift?.amount)}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Fee Donation</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {formatMoney(viewGift?.fee_donation)}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Base Gift</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {formatMoney(viewBaseGift(viewGift))}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Pledge ID</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewGift?.pledge_id || "—"}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Towards Active Pledge</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewGift?.towards_active_pledge == null
+                  ? "—"
+                  : viewGift.towards_active_pledge
+                    ? "Yes"
+                    : "No"}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Processing Source</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewGift?.processing_source || "—"}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Towards</label>
+              <div style={{ fontSize: 14, color: "#111827", paddingTop: 4 }}>
+                {viewGift?.towards || "—"}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row full">
+            <div className="form-group">
+              <label className="form-label">Notes</label>
+              <div
+                style={{
+                  fontSize: 14,
+                  color: "#111827",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                  paddingTop: 4,
+                }}
+              >
+                {viewGift?.notes || "—"}
+              </div>
+            </div>
+          </div>
+        </div>
+      </SereniusModal>
+    );
+  }
+
+  const isEditMode = !isCreate && mode === "edit";
+
+  return (
+    <SereniusModal
+      title={isCreate ? "Record Gift" : "Edit Gift"}
+      onClose={onClose}
+      maxWidth={760}
+      contentPadding={0}
+      showCloseButton={isCreate}
+      closeOnOverlayClick={isCreate}
+      closeOnEscape={isCreate}
+      headerActions={
+        !isCreate ? (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={returnToViewMode}
+          >
+            Back to View
+          </button>
+        ) : null
+      }
+      footerLeft={
+        isEditMode ? (
+          <button
+            type="button"
+            className="btn btn-danger"
             onClick={handleDelete}
             disabled={saving}
           >
@@ -187,7 +397,7 @@ export default function GiftModal({
           <button
             type="button"
             className="btn btn-ghost"
-            onClick={onClose}
+            onClick={isCreate ? onClose : returnToViewMode}
             disabled={saving}
           >
             Cancel
@@ -199,12 +409,13 @@ export default function GiftModal({
             className="btn btn-primary"
             disabled={saving}
           >
-            {saving ? "Saving..." : isEdit ? "Save Changes" : "Record Gift"}
+            {saving ? "Saving..." : isCreate ? "Record Gift" : "Save Changes"}
           </button>
         </>
       }
     >
       <form id="gift-form" onSubmit={handleSubmit}>
+        <div style={{ padding: 24 }}>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Date Given *</label>
@@ -330,7 +541,7 @@ export default function GiftModal({
               {error}
             </div>
           )}
-
+        </div>
       </form>
     </SereniusModal>
   );
