@@ -445,6 +445,11 @@ tr:last-child td,
   color: #085041;
 }
 
+.badge-info {
+  background: #e6f1fb;
+  color: #185fa5;
+}
+
 .badge-school {
   background: #eaf3de;
   color: #27500a;

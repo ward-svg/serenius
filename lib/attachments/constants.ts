@@ -1,0 +1,1 @@
+export const MAX_ATTACHMENT_UPLOAD_BYTES = 100 * 1024 * 1024

@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import SereniusModal from "@/components/ui/SereniusModal";
+import RecordAttachments from "@/components/attachments/RecordAttachments";
+import AddAttachmentModal, {
+  type AddAttachmentValues,
+  type UploadAttachmentValues,
+} from "@/components/attachments/AddAttachmentModal";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { createRecordAttachment } from "@/lib/attachments/queries";
+import type { UploadAttachmentResult } from "@/components/attachments/AddAttachmentModal";
 import type {
   PartnerCommunication,
   PartnerCommunicationFollowup,
@@ -14,6 +21,7 @@ import {
 
 interface Props {
   partnerId: string;
+  partnerDisplayName: string;
   tenantId: string;
   communication?: PartnerCommunication | null;
   followups?: PartnerCommunicationFollowup[];
@@ -22,6 +30,20 @@ interface Props {
 }
 
 type Mode = "view" | "edit";
+
+type PendingAttachmentKind = "upload" | "link";
+type PendingAttachmentStatus = "pending" | "uploading" | "uploaded" | "failed";
+
+type PendingAttachment = {
+  id: string;
+  kind: PendingAttachmentKind;
+  status: PendingAttachmentStatus;
+  file?: File;
+  file_name: string;
+  file_url?: string;
+  description: string;
+  error?: string;
+};
 
 type FormData = {
   communication_type: string;
@@ -69,6 +91,7 @@ function valueOrDash(value: string | null | undefined): string {
 
 export default function CommunicationModal({
   partnerId,
+  partnerDisplayName,
   tenantId,
   communication,
   followups = [],
@@ -76,10 +99,13 @@ export default function CommunicationModal({
   onSuccess,
 }: Props) {
   const supabase = createSupabaseBrowserClient();
-  const isCreate = !communication;
-  const [mode, setMode] = useState<Mode>(isCreate ? "edit" : "view");
+  const [currentCommunication, setCurrentCommunication] = useState<PartnerCommunication | null>(communication ?? null);
+  const [mode, setMode] = useState<Mode>(communication ? "view" : "edit");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [formData, setFormData] = useState<FormData>({
     communication_type: "",
     communication_channel: "",
@@ -112,12 +138,81 @@ export default function CommunicationModal({
     };
   }
 
-  useEffect(() => {
-    if (!communication) return;
+  function createPendingAttachmentId() {
+    return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
 
-    setFormData(mapCommunicationToFormData(communication));
+  function makePendingUploadAttachment(values: UploadAttachmentValues): PendingAttachment {
+    return {
+      id: createPendingAttachmentId(),
+      kind: "upload",
+      status: "pending",
+      file: values.file,
+      file_name: values.file.name,
+      description: values.description.trim(),
+    };
+  }
+
+  function makePendingLinkAttachment(values: AddAttachmentValues): PendingAttachment {
+    return {
+      id: createPendingAttachmentId(),
+      kind: "link",
+      status: "pending",
+      file_name: values.file_name,
+      file_url: values.file_url,
+      description: values.description.trim(),
+    };
+  }
+
+  function formatPendingAttachmentSize(file: File | undefined) {
+    if (!file) return "—";
+
+    const bytes = file.size;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  }
+
+  function getPendingAttachmentLabel(item: PendingAttachment) {
+    if (item.status === "failed") return "Failed";
+    if (item.status === "uploading") return "Uploading";
+    if (item.status === "uploaded") return "Uploaded";
+    return item.kind === "upload" ? "Pending upload" : "Pending link";
+  }
+
+  function getPendingAttachmentTitle(item: PendingAttachment) {
+    return item.kind === "upload"
+      ? item.file?.name ?? item.file_name
+      : item.file_name;
+  }
+
+  useEffect(() => {
+    if (communication) {
+      setCurrentCommunication(communication);
+      setFormData(mapCommunicationToFormData(communication));
+      setMode("view");
+    } else {
+      setCurrentCommunication(null);
+      setFormData({
+        communication_type: "",
+        communication_channel: "",
+        communication_date: new Date().toISOString().split("T")[0],
+        notes: "",
+        followup_needed: false,
+        followup_due: "",
+        followup_notes: "",
+        followup_complete: false,
+        completion_date: "",
+        completion_notes: "",
+        file_attachment_name: "",
+        file_attachment_url: "",
+      });
+      setMode("edit");
+    }
     setError(null);
-    setMode("view");
+    setAttachmentError(null);
+    setPendingAttachments([]);
   }, [communication]);
 
   function handleChange(field: keyof FormData, value: string | boolean) {
@@ -128,23 +223,260 @@ export default function CommunicationModal({
   }
 
   function returnToViewMode() {
-    if (communication) {
-      setFormData(mapCommunicationToFormData(communication));
+    if (currentCommunication) {
+      setFormData(mapCommunicationToFormData(currentCommunication));
     }
 
     setError(null);
+    setAttachmentError(null);
     setMode("view");
   }
 
   const showFollowupDetails = formData.followup_needed;
-  const showCompletionFields = !isCreate && formData.followup_needed;
-  const attachmentName = communication?.file_attachment_name || null;
-  const attachmentUrl = communication?.file_attachment_url || null;
+  const showCompletionFields = Boolean(currentCommunication) && formData.followup_needed;
+  const attachmentName = currentCommunication?.file_attachment_name || null;
+  const attachmentUrl = currentCommunication?.file_attachment_url || null;
+  const communicationId = currentCommunication?.id ?? null;
+  const isCreate = !currentCommunication;
+  const failedPendingAttachments = pendingAttachments.filter(
+    (attachment) => attachment.status === "failed",
+  );
+  const showPendingAttachmentSection = isCreate || pendingAttachments.length > 0;
+  const pendingAttachmentSectionTitle = isCreate ? "Files" : "Pending Files";
+  const sharedAttachmentsSection = communicationId ? (
+    <div style={{ marginTop: 16 }}>
+      <RecordAttachments
+        tenantId={tenantId}
+        recordType="partner_communication"
+        recordId={communicationId}
+        title="Communication Files"
+        emptyMessage="No files added yet."
+        uploadContext={{
+          partnerId,
+          partnerDisplayName,
+        }}
+        />
+      </div>
+    ) : null;
+
+  function renderPendingAttachmentList() {
+    if (pendingAttachments.length === 0) {
+      return null;
+    }
+
+    return (
+      <div style={{ padding: "0 18px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {pendingAttachments.map((attachment) => {
+          const isUpload = attachment.kind === "upload";
+          const sizeLabel =
+            isUpload && attachment.file
+              ? formatPendingAttachmentSize(attachment.file)
+              : attachment.file_url ?? "—";
+
+          return (
+            <div
+              key={attachment.id}
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 8,
+                background: "#fff",
+                padding: "12px 14px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#111827",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {getPendingAttachmentTitle(attachment)}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                    {isUpload ? `File size: ${sizeLabel}` : `Link: ${sizeLabel}`}
+                  </div>
+                  {attachment.description ? (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#374151",
+                        whiteSpace: "pre-wrap",
+                        marginTop: 6,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {attachment.description}
+                    </div>
+                  ) : null}
+                  {attachment.error ? (
+                    <div style={{ fontSize: 12, color: "#c92a2a", marginTop: 6 }}>
+                      {attachment.error}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color:
+                        attachment.status === "failed"
+                          ? "#c92a2a"
+                          : attachment.status === "uploading"
+                            ? "#1d4ed8"
+                            : "#6b7280",
+                    }}
+                  >
+                    {getPendingAttachmentLabel(attachment)}
+                  </span>
+                  {attachment.status !== "uploading" ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => removePendingAttachment(attachment.id)}
+                      disabled={saving}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {failedPendingAttachments.length > 0 && currentCommunication?.id ? (
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={handleRetryPendingAttachments}
+              disabled={saving}
+            >
+              Retry Failed Files
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  async function handleQueueUpload(values: UploadAttachmentValues) {
+    setAttachmentError(null);
+    setPendingAttachments((prev) => [...prev, makePendingUploadAttachment(values)]);
+  }
+
+  async function handleQueueLink(values: AddAttachmentValues) {
+    setAttachmentError(null);
+    setPendingAttachments((prev) => [...prev, makePendingLinkAttachment(values)]);
+  }
+
+  function removePendingAttachment(id: string) {
+    setPendingAttachments((prev) => prev.filter((current) => current.id !== id));
+  }
+
+  async function processPendingAttachments(recordId: string, items: PendingAttachment[]) {
+    const { data: userResult } = await supabase.auth.getUser();
+    const results: UploadAttachmentResult[] = [];
+
+    for (const item of items) {
+      setPendingAttachments((prev) =>
+        prev.map((current) =>
+          current.id === item.id
+            ? { ...current, status: "uploading", error: undefined }
+            : current,
+        ),
+      );
+
+      try {
+        if (item.kind === "upload") {
+          const formData = new FormData();
+          formData.set("tenantId", tenantId);
+          formData.set("recordType", "partner_communication");
+          formData.set("recordId", recordId);
+          formData.set("file", item.file as File);
+          formData.set("partnerId", partnerId);
+          formData.set("partnerDisplayName", partnerDisplayName);
+          if (item.description.trim()) {
+            formData.set("description", item.description.trim());
+          }
+
+          const response = await fetch("/api/attachments/upload", {
+            method: "POST",
+            credentials: "include",
+            body: formData,
+          });
+
+          const data = await response.json().catch(() => null) as
+            | { ok?: boolean; error?: string }
+            | null;
+
+          if (!response.ok || !data?.ok) {
+            throw new Error(data?.error || "Failed to upload file.");
+          }
+        } else {
+          await createRecordAttachment(supabase, {
+            tenant_id: tenantId,
+            record_type: "partner_communication",
+            record_id: recordId,
+            storage_provider: "google_drive",
+            file_name: item.file_name,
+            file_url: item.file_url ?? "",
+            description: item.description || null,
+            uploaded_by: userResult.user?.id ?? null,
+          });
+        }
+
+        results.push({ file: item.kind === "upload" ? (item.file as File) : new File([], item.file_name), status: "uploaded" });
+        setPendingAttachments((prev) => prev.filter((current) => current.id !== item.id));
+      } catch (attachmentError) {
+        const message = attachmentError instanceof Error ? attachmentError.message : "Failed to save file.";
+        results.push({ file: item.kind === "upload" ? (item.file as File) : new File([], item.file_name), status: "failed", error: message });
+        setPendingAttachments((prev) =>
+          prev.map((current) =>
+            current.id === item.id
+              ? { ...current, status: "failed", error: message }
+              : current,
+          ),
+        );
+      }
+    }
+
+    return results;
+  }
+
+  async function handleRetryPendingAttachments() {
+    if (!currentCommunication?.id) return;
+
+    const failedItems = pendingAttachments.filter((attachment) => attachment.status === "failed");
+    if (failedItems.length === 0) return;
+
+    setAttachmentError(null);
+    const results = await processPendingAttachments(currentCommunication.id, failedItems);
+    const failedNames = results.filter((result) => result.status === "failed").map((result) => result.file.name);
+    if (failedNames.length > 0) {
+      setAttachmentError(`Some files could not be uploaded: ${failedNames.join(", ")}.`);
+    } else {
+      setAttachmentError(null);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     setError(null);
+    setAttachmentError(null);
 
     if (
       !formData.communication_type ||
@@ -184,7 +516,7 @@ export default function CommunicationModal({
             ...payload,
             updated_at: now,
           })
-          .eq("id", communication.id)
+          .eq("id", currentCommunication!.id)
           .eq("tenant_id", tenantId)
           .select("*")
           .single()
@@ -199,28 +531,54 @@ export default function CommunicationModal({
           .select("*")
           .single();
 
-    setSaving(false);
-
     if (result.error) {
+      setSaving(false);
       setError(result.error.message);
       return;
     }
 
     const savedCommunication = result.data as PartnerCommunication;
 
-    onSuccess(savedCommunication);
-
     if (isCreate) {
-      onClose();
+      onSuccess(savedCommunication);
+
+      if (pendingAttachments.length === 0) {
+        setSaving(false);
+        onClose();
+        return;
+      }
+
+      const queuedAttachments = [...pendingAttachments];
+      const attachmentResults = await processPendingAttachments(savedCommunication.id, queuedAttachments);
+      const failedNames = attachmentResults
+        .filter((result) => result.status === "failed")
+        .map((result) => result.file.name);
+
+      if (failedNames.length === 0) {
+        setPendingAttachments([]);
+        setSaving(false);
+        onClose();
+        return;
+      }
+
+      setCurrentCommunication(savedCommunication);
+      setFormData(mapCommunicationToFormData(savedCommunication));
+      setMode("view");
+      setSaving(false);
+      setAttachmentError(
+        `Communication was created, but some files failed: ${failedNames.join(", ")}.`,
+      );
       return;
     }
 
+    onSuccess(savedCommunication);
     setFormData(mapCommunicationToFormData(savedCommunication));
     setMode("view");
+    setSaving(false);
   }
 
   if (!isCreate && mode === "view") {
-    const viewCommunication = communication;
+    const viewCommunication = currentCommunication;
     const attachedFollowups = followups.filter(
       (followup) => followup.communication_id === viewCommunication?.id,
     );
@@ -331,11 +689,13 @@ export default function CommunicationModal({
                   </div>
                 </div>
               </div>
+            </>
+          ) : null}
 
           {showAttachments ? (
             <div className="section-card" style={{ marginBottom: 0 }}>
               <div className="section-header">
-                <span className="section-title">Attachments</span>
+                <span className="section-title">Files</span>
               </div>
               <div style={{ padding: "12px 18px" }}>
                 {attachmentName ? (
@@ -355,8 +715,6 @@ export default function CommunicationModal({
                 ) : null}
               </div>
             </div>
-          ) : null}
-            </>
           ) : null}
 
           <div className="form-row full">
@@ -403,6 +761,18 @@ export default function CommunicationModal({
             )}
           </div>
 
+          {sharedAttachmentsSection}
+
+          {showPendingAttachmentSection ? (
+            <div className="section-card" style={{ marginBottom: 0 }}>
+              <div className="section-header">
+                <span className="section-title">{pendingAttachmentSectionTitle}</span>
+                <span className="section-count">{pendingAttachments.length}</span>
+              </div>
+              {renderPendingAttachmentList()}
+            </div>
+          ) : null}
+
           {error ? <div style={{ color: "#c92a2a", fontSize: 13 }}>{error}</div> : null}
         </div>
       </SereniusModal>
@@ -410,7 +780,8 @@ export default function CommunicationModal({
   }
 
   return (
-    <SereniusModal
+    <>
+      <SereniusModal
       title={isCreate ? "New Communication" : "Edit Communication"}
       onClose={onClose}
       maxWidth={900}
@@ -603,9 +974,65 @@ export default function CommunicationModal({
             </>
           ) : null}
 
+          {showPendingAttachmentSection ? (
+            <div className="section-card" style={{ marginTop: 16, marginBottom: 0 }}>
+              <div className="section-header">
+                <span className="section-title">{pendingAttachmentSectionTitle}</span>
+                <span className="section-count">{pendingAttachments.length}</span>
+                {isCreate ? (
+                  <div className="section-actions">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setShowAttachmentModal(true)}
+                      disabled={saving}
+                    >
+                      Add Files
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              {isCreate ? (
+                <div
+                  style={{
+                    padding: "0 18px 12px",
+                    fontSize: 13,
+                    color: "#6b7280",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  You can add files now. They’ll upload after this communication is saved.
+                </div>
+              ) : null}
+              {renderPendingAttachmentList()}
+              {!isCreate && failedPendingAttachments.length > 0 ? (
+                <div style={{ padding: "0 18px 18px", display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={handleRetryPendingAttachments}
+                    disabled={saving}
+                  >
+                    Retry Failed Files
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           {error ? <div style={{ color: "#c92a2a", fontSize: 13 }}>{error}</div> : null}
+          {attachmentError ? <div style={{ color: "#92400e", fontSize: 13 }}>{attachmentError}</div> : null}
         </div>
       </form>
-    </SereniusModal>
+      </SereniusModal>
+      {showAttachmentModal ? (
+        <AddAttachmentModal
+          onClose={() => setShowAttachmentModal(false)}
+          onSaveLink={handleQueueLink}
+          onUploadFile={handleQueueUpload}
+          allowUpload
+        />
+      ) : null}
+    </>
   );
 }

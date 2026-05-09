@@ -3,9 +3,16 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import ChartOfAccountsTab from './ChartOfAccountsTab'
+import IntegrationsTab from './IntegrationsTab'
 import GiftCategoriesTab from './GiftCategoriesTab'
 import UsersRolesTab from './UsersRolesTab'
 import ModulesTab from './ModulesTab'
+import type {
+  OrganizationStorageConnection,
+  OrganizationStorageSettings,
+  SetupIntegrationNotice,
+  StorageSettingsInput,
+} from './types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,12 +52,20 @@ interface OrganizationMail {
   reply_to: string | null
 }
 
-type Tab = 'organization' | 'chart-of-accounts' | 'gift-categories' | 'users-roles' | 'modules'
+type Tab = 'organization' | 'integrations' | 'chart-of-accounts' | 'gift-categories' | 'users-roles' | 'modules'
+
+interface SetupPageProps {
+  tenantSlug: string
+  initialTab?: Tab
+  googleOAuthConfigured?: boolean
+  integrationNotice?: SetupIntegrationNotice | null
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'organization',      label: 'Organization'       },
+  { id: 'integrations',      label: 'Integrations'       },
   { id: 'chart-of-accounts', label: 'Chart of Accounts'  },
   { id: 'gift-categories',   label: 'Gift Categories'    },
   { id: 'users-roles',       label: 'Users & Roles'      },
@@ -74,7 +89,12 @@ const FISCAL_YEAR_STARTS = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
+export default function SetupPage({
+  tenantSlug,
+  initialTab = 'organization',
+  googleOAuthConfigured = false,
+  integrationNotice = null,
+}: SetupPageProps) {
   // Access control
   const [authorized, setAuthorized]   = useState<boolean | null>(null)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
@@ -84,9 +104,11 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
   const [branding, setBranding]     = useState<OrganizationBranding | null>(null)
   const [settings, setSettings]     = useState<OrganizationSettings | null>(null)
   const [mail, setMail]             = useState<OrganizationMail | null>(null)
+  const [storageSettings, setStorageSettings] = useState<OrganizationStorageSettings | null>(null)
+  const [storageConnection, setStorageConnection] = useState<OrganizationStorageConnection | null>(null)
 
   // UI state
-  const [activeTab, setActiveTab]   = useState<Tab>('organization')
+  const [activeTab, setActiveTab]   = useState<Tab>(initialTab)
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
   const [saveError, setSaveError]   = useState<string | null>(null)
@@ -149,10 +171,15 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
       setOrg(orgData)
       setOrgForm({ name: orgData.name, plan: orgData.plan ?? '' })
 
-      const [brandRes, settingsRes, mailRes] = await Promise.all([
+      const [brandRes, settingsRes, mailRes, storageRes, connectionRes] = await Promise.all([
         supabase.from('organization_branding').select('*').eq('tenant_id', orgData.id).maybeSingle(),
         supabase.from('organization_settings').select('*').eq('tenant_id', orgData.id).maybeSingle(),
         supabase.from('organization_mail').select('*').eq('tenant_id', orgData.id).maybeSingle(),
+        supabase.from('organization_storage_settings').select('*').eq('tenant_id', orgData.id).maybeSingle(),
+        fetch(`/api/storage/google/status?tenantId=${encodeURIComponent(orgData.id)}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        }),
       ])
 
       if (brandRes.data) {
@@ -184,6 +211,14 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
           from_email: mailRes.data.from_email ?? '',
           reply_to:   mailRes.data.reply_to   ?? '',
         })
+      }
+
+      setStorageSettings(storageRes.data ?? null)
+      if (connectionRes.ok) {
+        const connectionJson = await connectionRes.json() as { connection: OrganizationStorageConnection | null }
+        setStorageConnection(connectionJson.connection ?? null)
+      } else {
+        setStorageConnection(null)
       }
     } finally {
       setLoading(false)
@@ -313,6 +348,51 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
     }
   }
 
+  async function handleSaveStorageSettings(values: StorageSettingsInput) {
+    if (!org) {
+      throw new Error('Organization context is unavailable.')
+    }
+
+    if (storageSettings?.provider && storageSettings.provider !== 'google_drive') {
+      throw new Error('This organization is already using an unsupported storage provider in the current UI.')
+    }
+
+    const supabase = createSupabaseBrowserClient()
+    const { data: authUser, error: authError } = await supabase.auth.getUser()
+    if (authError) throw authError
+
+    const existing = storageSettings
+    const now = new Date().toISOString()
+    const googleDriveOAuthConnected = existing?.provider === 'google_drive' && (
+      existing.connection_status === 'connected' ||
+      storageConnection?.credentialsConnected === true
+    )
+    const nextConnectionStatus = values.is_enabled
+      ? (googleDriveOAuthConnected ? 'connected' : 'manual')
+      : 'disabled'
+
+    const { data, error } = await supabase
+      .from('organization_storage_settings')
+      .upsert({
+        tenant_id: org.id,
+        provider: 'google_drive',
+        display_name: 'Google Drive',
+        root_folder_id: values.root_folder_id || null,
+        root_folder_url: values.root_folder_url || null,
+        is_enabled: values.is_enabled,
+        connection_status: nextConnectionStatus,
+        locked_at: existing?.locked_at ?? now,
+        locked_by: existing?.locked_by ?? authUser.user?.id ?? null,
+      }, { onConflict: 'tenant_id' })
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    setStorageSettings(data as OrganizationStorageSettings)
+    return data as OrganizationStorageSettings
+  }
+
   function copyToClipboard(value: string) {
     navigator.clipboard.writeText(value)
   }
@@ -331,7 +411,7 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <p className="text-gray-500 text-sm">You don't have permission to access Setup.</p>
+          <p className="text-gray-500 text-sm">You don&apos;t have permission to access Setup.</p>
           <p className="text-gray-400 text-xs mt-1">Contact your administrator.</p>
         </div>
       </div>
@@ -348,7 +428,7 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Setup &amp; Configuration</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Manage organization settings, chart of accounts, and system configuration
+            Manage organization settings, integrations, chart of accounts, and system configuration
           </p>
         </div>
       </div>
@@ -609,103 +689,6 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
             </div>
           </div>
 
-          {/* API Keys */}
-          <div className="section-card p-6">
-            <h2 className="text-base font-semibold text-gray-800 mb-1">API &amp; Integrations</h2>
-            <p className="text-xs text-gray-400 mb-4">Keys are stored securely and never exposed in logs.</p>
-
-            <div className="space-y-5">
-              {/* Google Maps */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Google Maps API Key
-                </label>
-                <p className="text-xs text-gray-400 mb-2">
-                  Used for address autocomplete and geocoding. Get a key at{' '}
-                  <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer"
-                    className="text-blue-500 hover:underline">Google Cloud Console</a>.
-                </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type={showMapsKey ? 'text' : 'password'}
-                    value={settingsForm.google_maps_api_key}
-                    onChange={e => setSettingsForm(f => ({ ...f, google_maps_api_key: e.target.value }))}
-                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="AIza..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowMapsKey(v => !v)}
-                    className="px-3 py-2 text-xs border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
-                  >
-                    {showMapsKey ? 'Hide' : 'Show'}
-                  </button>
-                  {settingsForm.google_maps_api_key && (
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(settingsForm.google_maps_api_key)}
-                      className="px-3 py-2 text-xs border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
-                    >
-                      Copy
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Serenius API Key */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Serenius API Key
-                </label>
-                <p className="text-xs text-gray-400 mb-2">
-                  Used for external integrations and webhooks.
-                  {settings?.serenius_api_key_generated_at && (
-                    <span className="ml-1">
-                      Last generated: {new Date(settings.serenius_api_key_generated_at).toLocaleDateString()}
-                    </span>
-                  )}
-                </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type={showSereniusKey ? 'text' : 'password'}
-                    value={settingsForm.serenius_api_key}
-                    readOnly
-                    className="flex-1 border border-gray-200 rounded-md px-3 py-2 text-sm font-mono bg-gray-50 text-gray-600"
-                    placeholder="No key generated yet"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSereniusKey(v => !v)}
-                    className="px-3 py-2 text-xs border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
-                  >
-                    {showSereniusKey ? 'Hide' : 'Show'}
-                  </button>
-                  {settingsForm.serenius_api_key && (
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(settingsForm.serenius_api_key)}
-                      className="px-3 py-2 text-xs border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
-                    >
-                      Copy
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleGenerateApiKey}
-                    className="px-3 py-2 text-xs bg-gray-800 text-white rounded-md hover:bg-gray-700"
-                  >
-                    {settingsForm.serenius_api_key ? 'Rotate Key' : 'Generate Key'}
-                  </button>
-                </div>
-                {settingsForm.serenius_api_key && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    ⚠ Rotating generates a new key immediately. Any existing integrations using the old key will stop working.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Save Bar */}
           <div className="flex items-center justify-between pt-2 pb-4">
             <div>
@@ -722,6 +705,29 @@ export default function SetupPage({ tenantSlug }: { tenantSlug: string }) {
           </div>
 
         </div>
+      )}
+
+      {activeTab === 'integrations' && org && (
+        <IntegrationsTab
+          tenantId={org.id}
+          tenantSlug={tenantSlug}
+          googleOAuthConfigured={googleOAuthConfigured}
+          integrationNotice={integrationNotice}
+          googleMapsApiKey={settingsForm.google_maps_api_key}
+          setGoogleMapsApiKey={value => setSettingsForm(f => ({ ...f, google_maps_api_key: value }))}
+          sereniusApiKey={settingsForm.serenius_api_key}
+          sereniusApiKeyGeneratedAt={settings?.serenius_api_key_generated_at ?? null}
+          showMapsKey={showMapsKey}
+          setShowMapsKey={setShowMapsKey}
+          showSereniusKey={showSereniusKey}
+          setShowSereniusKey={setShowSereniusKey}
+          onGenerateApiKey={handleGenerateApiKey}
+          onCopyToClipboard={copyToClipboard}
+          storageSettings={storageSettings}
+          storageConnection={storageConnection}
+          onSaveStorageSettings={handleSaveStorageSettings}
+          onStorageSettingsChange={setStorageSettings}
+        />
       )}
 
       {/* ── Other Tabs (stubs — built next) ────────────────────────────────── */}

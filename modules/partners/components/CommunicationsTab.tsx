@@ -261,6 +261,7 @@ export default function CommunicationsTab({ partner }: Props) {
       {showCommunicationModal && (
         <CommunicationModal
           partnerId={partner.id}
+          partnerDisplayName={partner.display_name}
           tenantId={partner.tenant_id}
           communication={selectedCommunication}
           followups={
