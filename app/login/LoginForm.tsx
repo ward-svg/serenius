@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 export default function LoginForm() {
@@ -37,14 +38,18 @@ export default function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#3D5A80] mb-4">
-            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-sm mb-4">
+            <Image
+              src="/brand/serenius-logo-core-black.svg"
+              alt="Serenius"
+              width={44}
+              height={44}
+              className="w-[44px] h-[44px] object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Serenius</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
+          <p className="text-xs text-gray-400 mt-2">Transparency • Stewardship • Impact</p>
+          <p className="text-sm text-gray-500 mt-4">Sign in to your account</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
@@ -107,7 +112,6 @@ export default function LoginForm() {
             </button>
           </form>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-6">Serenius · Ministry Operations Platform</p>
       </div>
     </div>
   )

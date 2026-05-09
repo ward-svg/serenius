@@ -1,21 +1,10 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { getNavigationForTenant } from '@/lib/modules/navigation'
-
-interface NavItem {
-  href: string
-  label: string
-  d: string
-}
-
-interface NavGroup {
-  group: string
-  items: NavItem[]
-}
-
 
 interface Props {
   orgName: string
@@ -51,20 +40,35 @@ export default function Sidebar({ orgName, appName, slug }: Props) {
     }}>
       {/* Logo */}
       <div style={{
-        padding: '20px 18px 16px',
+        padding: '18px 18px 16px',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
       }}>
         <div style={{
-          fontSize: 15,
-          fontWeight: 600,
-          color: 'var(--brand-sidebar-text, #ffffff)',
-          letterSpacing: 0.3,
-          fontFamily: 'var(--brand-font-heading, Inter)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
         }}>
-          {appName}
-        </div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
-          {orgName}
+          <Image
+            src="/brand/serenius-logo-core-white.svg"
+            alt="Serenius"
+            width={28}
+            height={28}
+            style={{ objectFit: 'contain', display: 'block', flexShrink: 0 }}
+          />
+          <div>
+            <div style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--brand-sidebar-text, #ffffff)',
+              letterSpacing: 0.3,
+              fontFamily: 'var(--brand-font-heading, Inter)',
+            }}>
+              {appName}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
+              {orgName}
+            </div>
+          </div>
         </div>
       </div>
 
