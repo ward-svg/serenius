@@ -238,7 +238,7 @@ export default function PartnersClient({
         <table className="monthly-table">
           <thead>
             <tr>
-              <th>Partner / Record Gift</th>
+              <th>Partner Name</th>
               <th>Monthly Gift</th>
               <th>Annualized Value</th>
               <th>Start Date</th>
@@ -357,7 +357,7 @@ export default function PartnersClient({
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 80 }}>Actions</th>
+                  <th style={{ width: 80 }}>ACTIONS</th>
                   <th>Partner Name</th>
                   <th>Salutation</th>
                   <th>Type</th>
@@ -449,7 +449,7 @@ export default function PartnersClient({
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 80 }}>Actions</th>
+                  <th style={{ width: 80 }}>ACTIONS</th>
                   <th>Partner Name</th>
                   <th>Salutation</th>
                   <th>Type</th>
@@ -558,9 +558,9 @@ export default function PartnersClient({
         {/* Past */}
         {activeTab === 'past' && (
           <table>
-            <thead>
-              <tr>
-                <th style={{ width: 80 }}>Actions</th>
+              <thead>
+                <tr>
+                  <th style={{ width: 80 }}>ACTIONS</th>
                 <th>Partner Name</th>
                 <th>Salutation</th>
                 <th>Type</th>
