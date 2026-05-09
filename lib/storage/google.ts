@@ -219,6 +219,137 @@ export function parseGoogleStorageOAuthCookie(value: string | null) {
   }
 }
 
+function isSensitiveLogKey(key: string) {
+  return /^(access_token|refresh_token|token|client_secret|clientsecret|authorization_code|auth_code|codeverifier|state|cookie|cookies)$/i.test(
+    key,
+  )
+}
+
+function serializeSafeObject(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): unknown {
+  if (
+    value == null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value
+  }
+
+  if (typeof value === 'bigint') {
+    return value.toString()
+  }
+
+  if (typeof value === 'symbol' || typeof value === 'function') {
+    return undefined
+  }
+
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => serializeSafeObject(entry, seen))
+  }
+
+  if (typeof value === 'object') {
+    if (seen.has(value)) {
+      return '[Circular]'
+    }
+
+    seen.add(value)
+
+    const record = value as Record<string, unknown>
+    const result: Record<string, unknown> = {}
+
+    for (const [key, entry] of Object.entries(record)) {
+      if (isSensitiveLogKey(key)) {
+        result[key] = '[redacted]'
+        continue
+      }
+
+      const serialized = serializeSafeObject(entry, seen)
+      if (serialized !== undefined) {
+        result[key] = serialized
+      }
+    }
+
+    return result
+  }
+
+  return undefined
+}
+
+export function serializeSafeError(error: unknown) {
+  if (error instanceof Error) {
+    const maybeRecord = error as Error & Record<string, unknown>
+    const hasSupabaseShape =
+      typeof maybeRecord.message === 'string' &&
+      (
+        typeof maybeRecord.code === 'string' ||
+        typeof maybeRecord.details === 'string' ||
+        typeof maybeRecord.hint === 'string'
+      )
+
+    if (hasSupabaseShape) {
+      return {
+        kind: 'supabase_error' as const,
+        name: maybeRecord.name,
+        message: maybeRecord.message,
+        code: typeof maybeRecord.code === 'string' ? maybeRecord.code : null,
+        details: maybeRecord.details ?? null,
+        hint: typeof maybeRecord.hint === 'string' ? maybeRecord.hint : null,
+      }
+    }
+
+    return {
+      kind: 'generic_error' as const,
+      constructorName: error.constructor?.name ?? 'Error',
+      name: error.name,
+      message: error.message,
+      safeFields: serializeSafeObject(error),
+    }
+  }
+
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>
+    const hasSupabaseShape =
+      typeof record.message === 'string' &&
+      (
+        typeof record.code === 'string' ||
+        typeof record.details === 'string' ||
+        typeof record.hint === 'string'
+      )
+
+    if (hasSupabaseShape) {
+      return {
+        kind: 'supabase_error' as const,
+        name: typeof record.name === 'string' ? record.name : 'Error',
+        message: record.message,
+        code: typeof record.code === 'string' ? record.code : null,
+        details: record.details ?? null,
+        hint: typeof record.hint === 'string' ? record.hint : null,
+      }
+    }
+
+    return {
+      kind: 'generic_error' as const,
+      constructorName: error.constructor?.name ?? 'Object',
+      safeFields: serializeSafeObject(error),
+    }
+  }
+
+  return {
+    kind: 'primitive_error' as const,
+    constructorName: typeof error,
+  }
+}
+
 export function buildGoogleOAuthUrl(input: {
   clientId: string
   redirectUri: string

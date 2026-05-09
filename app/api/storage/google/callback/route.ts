@@ -9,6 +9,7 @@ import {
   getGoogleAccountInfo,
   parseGoogleStorageOAuthCookie,
   parseGoogleStorageOAuthState,
+  serializeSafeError,
 } from '@/lib/storage/google'
 
 type StorageOAuthErrorCode =
@@ -27,6 +28,7 @@ class StorageOAuthError extends Error {
     public readonly code: StorageOAuthErrorCode,
     message: string,
     public readonly step: string,
+    public readonly cause?: unknown,
   ) {
     super(message)
     this.name = 'StorageOAuthError'
@@ -65,16 +67,26 @@ function clearOAuthCookie(response: NextResponse) {
   )
 }
 
-function sanitizeErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error ?? 'Unknown error')
-  return message.replace(/\s+/g, ' ').trim().slice(0, 240)
+function getSafeErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message.replace(/\s+/g, ' ').trim().slice(0, 240)
+  }
+
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>
+    if (typeof record.message === 'string') {
+      return record.message.replace(/\s+/g, ' ').trim().slice(0, 240)
+    }
+  }
+
+  return 'Unknown error'
 }
 
 function logOAuthFailure(step: string, code: StorageOAuthErrorCode, error: unknown) {
   console.error('[storage/google/callback] oauth failure', {
     step,
     code,
-    message: sanitizeErrorMessage(error),
+    error: serializeSafeError(error),
   })
 }
 
@@ -82,8 +94,9 @@ function toStorageOAuthError(
   code: StorageOAuthErrorCode,
   message: string,
   step: string,
+  cause?: unknown,
 ) {
-  return new StorageOAuthError(code, message, step)
+  return new StorageOAuthError(code, message, step, cause)
 }
 
 export async function GET(request: NextRequest) {
@@ -156,7 +169,7 @@ export async function GET(request: NextRequest) {
     try {
       serviceSupabase = createSupabaseServiceClient()
     } catch (error) {
-      throw toStorageOAuthError('missing_service_role_config', sanitizeErrorMessage(error), 'service_client')
+      throw toStorageOAuthError('missing_service_role_config', getSafeErrorMessage(error), 'service_client', error)
     }
 
     const tokens = await exchangeGoogleCodeForTokens({
@@ -166,12 +179,12 @@ export async function GET(request: NextRequest) {
       clientSecret: oauthConfig.clientSecret,
       redirectUri: oauthConfig.redirectUri,
     }).catch(error => {
-      throw toStorageOAuthError('token_exchange_failed', sanitizeErrorMessage(error), 'token_exchange')
+      throw toStorageOAuthError('token_exchange_failed', getSafeErrorMessage(error), 'token_exchange', error)
     })
 
     const account = await getGoogleAccountInfo(tokens.accessToken)
       .catch(error => {
-        throw toStorageOAuthError('google_account_lookup_failed', sanitizeErrorMessage(error), 'google_account_lookup')
+        throw toStorageOAuthError('google_account_lookup_failed', getSafeErrorMessage(error), 'google_account_lookup', error)
       })
 
     if (!account) {
@@ -205,7 +218,7 @@ export async function GET(request: NextRequest) {
         .eq('id', existingCredentials.id)
 
       if (credentialUpdateError) {
-        throw toStorageOAuthError('credential_save_failed', sanitizeErrorMessage(credentialUpdateError), 'credential_update')
+        throw toStorageOAuthError('credential_save_failed', getSafeErrorMessage(credentialUpdateError), 'credential_update', credentialUpdateError)
       }
     } else {
       const { error: credentialInsertError } = await serviceSupabase
@@ -223,7 +236,7 @@ export async function GET(request: NextRequest) {
         })
 
       if (credentialInsertError) {
-        throw toStorageOAuthError('credential_save_failed', sanitizeErrorMessage(credentialInsertError), 'credential_insert')
+        throw toStorageOAuthError('credential_save_failed', getSafeErrorMessage(credentialInsertError), 'credential_insert', credentialInsertError)
       }
     }
 
@@ -253,7 +266,7 @@ export async function GET(request: NextRequest) {
       }, { onConflict: 'tenant_id' })
 
     if (settingsError) {
-      throw toStorageOAuthError('storage_settings_update_failed', sanitizeErrorMessage(settingsError), 'storage_settings_upsert')
+      throw toStorageOAuthError('storage_settings_update_failed', getSafeErrorMessage(settingsError), 'storage_settings_upsert', settingsError)
     }
 
     const successResponse = NextResponse.redirect(redirectWithStatus(request, state.returnTo, 'connected'))
@@ -262,9 +275,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const storageError = error instanceof StorageOAuthError
       ? error
-      : toStorageOAuthError('unknown_oauth_error', sanitizeErrorMessage(error), 'callback_unhandled')
+      : toStorageOAuthError('unknown_oauth_error', getSafeErrorMessage(error), 'callback_unhandled', error)
 
-    logOAuthFailure(storageError.step, storageError.code, error)
+    logOAuthFailure(storageError.step, storageError.code, storageError.cause ?? error)
     return fail(storageError.code)
   }
 }
