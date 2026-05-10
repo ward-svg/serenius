@@ -20,7 +20,7 @@ interface Props {
   slug: string
   initialPartner: Partner
   contacts: PartnerContact[]
-  staff: { id: string; display_name: string | null }[]
+  staff: { id: string; full_name: string | null; email: string | null }[]
   createdByName: string | null
   totalGiving: number
   givingYTD: number
@@ -238,7 +238,8 @@ export default function PartnerDetailClient({
                 <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
                   Assigned To:{' '}
                   {partner.assigned_to
-                    ? staff.find(user => user.id === partner.assigned_to)?.display_name ??
+                    ? staff.find(user => user.id === partner.assigned_to)?.full_name ??
+                      staff.find(user => user.id === partner.assigned_to)?.email ??
                       'Unassigned'
                     : 'Unassigned'}
                 </div>
@@ -350,7 +351,8 @@ export default function PartnerDetailClient({
                   label="Assigned To"
                   value={
                     partner.assigned_to
-                      ? staff.find(user => user.id === partner.assigned_to)?.display_name ??
+                      ? staff.find(user => user.id === partner.assigned_to)?.full_name ??
+                        staff.find(user => user.id === partner.assigned_to)?.email ??
                         'Unassigned'
                       : 'Unassigned'
                   }

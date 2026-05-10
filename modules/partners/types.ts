@@ -217,3 +217,9 @@ export interface MonthlyPartnerPledge {
   annualized_value: number
   start_date: string
 }
+
+export interface PartnerStaffOption {
+  id: string
+  full_name: string | null
+  email: string | null
+}

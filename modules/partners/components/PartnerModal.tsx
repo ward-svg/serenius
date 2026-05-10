@@ -14,7 +14,8 @@ interface Props {
 
 type StaffUser = {
   id: string
-  display_name: string | null
+  full_name: string | null
+  email: string | null
 }
 
 const ENTITY_TYPES = ['Church', 'Business', 'Organization', 'School']
@@ -63,9 +64,9 @@ export default function PartnerModal({ partner, onClose, onSuccess }: Props) {
 
     supabase
       .from('user_profiles')
-      .select('id, display_name')
+      .select('id, full_name, email')
       .eq('tenant_id', partner.tenant_id)
-      .order('display_name')
+      .order('full_name')
       .then(({ data }) => {
         if (!isMounted) return
         setStaff((data ?? []) as StaffUser[])
@@ -206,7 +207,7 @@ export default function PartnerModal({ partner, onClose, onSuccess }: Props) {
                 <option value="">Unassigned</option>
                 {staff.map(user => (
                   <option key={user.id} value={user.id}>
-                    {user.display_name?.trim() || 'Unnamed User'}
+                    {user.full_name?.trim() || user.email?.trim() || 'Unnamed User'}
                   </option>
                 ))}
               </select>

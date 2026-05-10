@@ -134,3 +134,9 @@ export interface Pledge {
   created_at: string
   updated_at: string
 }
+
+export interface PartnerStaffOption {
+  id: string
+  full_name: string | null
+  email: string | null
+}

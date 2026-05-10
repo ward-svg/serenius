@@ -31,9 +31,9 @@ export default async function PartnerDetailPage({
 
   const { data: staffData } = await supabase
     .from('user_profiles')
-    .select('id, display_name')
+    .select('id, full_name, email')
     .eq('tenant_id', partnerData.tenant_id)
-    .order('display_name')
+    .order('full_name')
 
   const { data: settingsData } = await supabase
     .from('organization_settings')
@@ -66,7 +66,7 @@ export default async function PartnerDetailPage({
       slug={slug}
       initialPartner={partnerData as Partner}
       contacts={(contacts ?? []) as PartnerContact[]}
-      staff={(staffData ?? []) as { id: string; display_name: string | null }[]}
+      staff={(staffData ?? []) as { id: string; full_name: string | null; email: string | null }[]}
       createdByName={createdByName}
       totalGiving={totalGiving}
       givingYTD={givingYTD}
