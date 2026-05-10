@@ -42,7 +42,6 @@ const VALID_TABS = new Set([
   'chart-of-accounts',
   'gift-categories',
   'users-roles',
-  'modules',
 ])
 
 export default async function SetupRoute({
@@ -57,7 +56,7 @@ export default async function SetupRoute({
   const storageNotice = getSearchParamValue(resolvedSearchParams.storage)
   const storageError = getSearchParamValue(resolvedSearchParams.storage_error)
   const initialTabParam = getSearchParamValue(resolvedSearchParams.tab)
-  const parsedTab = VALID_TABS.has(initialTabParam ?? '') ? initialTabParam as 'organization' | 'integrations' | 'chart-of-accounts' | 'gift-categories' | 'users-roles' | 'modules' : 'organization'
+  const parsedTab = VALID_TABS.has(initialTabParam ?? '') ? initialTabParam as 'organization' | 'integrations' | 'chart-of-accounts' | 'gift-categories' | 'users-roles' : 'organization'
   const initialTab = storageNotice || storageError ? 'integrations' : parsedTab
 
   const googleOAuthConfigured = Boolean(
@@ -82,7 +81,7 @@ export default async function SetupRoute({
     }>
       <SetupPage
         tenantSlug={slug}
-        initialTab={initialTab as 'organization' | 'integrations' | 'chart-of-accounts' | 'gift-categories' | 'users-roles' | 'modules'}
+        initialTab={initialTab as 'organization' | 'integrations' | 'chart-of-accounts' | 'gift-categories' | 'users-roles'}
         googleOAuthConfigured={googleOAuthConfigured}
         integrationNotice={integrationNotice}
       />

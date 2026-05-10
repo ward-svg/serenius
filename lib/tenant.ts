@@ -12,7 +12,9 @@ export interface TenantConfig {
     secondary_color: string;
     accent_color: string;
     alert_color: string;
+    sidebar_background_color: string;
     sidebar_color: string;
+    logo_url: string | null;
     font_heading: string;
     font_body: string;
   };
@@ -30,7 +32,9 @@ const FALLBACK: TenantConfig = {
     secondary_color: "#98C1D9",
     accent_color: "#EE6C4D",
     alert_color: "#EE6C4D",
+    sidebar_background_color: "#293241",
     sidebar_color: "#293241",
+    logo_url: null,
     font_heading: "Inter",
     font_body: "Inter",
   },
@@ -88,8 +92,14 @@ export async function getTenantBySlug(
 
         alert_color: branding.alert_color ?? FALLBACK.branding.alert_color,
 
+        sidebar_background_color:
+          branding.sidebar_background_color ??
+          FALLBACK.branding.sidebar_background_color,
+
         sidebar_color:
           branding.sidebar_color ?? FALLBACK.branding.sidebar_color,
+
+        logo_url: branding.logo_url ?? FALLBACK.branding.logo_url,
 
         font_heading: branding.font_heading ?? FALLBACK.branding.font_heading,
 

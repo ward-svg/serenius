@@ -7,6 +7,7 @@ This branch established the baseline UI conventions for the Serenius partner mod
 - `Primary`: structure, navigation, active system state.
 - `Secondary`: subtle backgrounds and info accents.
 - `Accent`: action links, edit/add interactions, secondary workflow accents.
+- `Sidebar / menu background`: use `sidebar_background_color` when provided, then fall back to `primary_color`, then the legacy `sidebar_color` fallback if present in code. Do not hardcode tenant-specific sidebar colors.
 - Destructive actions should use semantic destructive styling, not the tenant accent color.
 
 ## Buttons
@@ -60,4 +61,3 @@ This branch established the baseline UI conventions for the Serenius partner mod
 - `GiftModal`
 - `FinancialTab`
 - `PartnersClient`
-

@@ -123,6 +123,37 @@ export function sanitizeDriveFolderName(value: string) {
   return sanitized.slice(0, 120)
 }
 
+export function extractGoogleDriveFileIdFromUrl(value: string | null | undefined) {
+  const rawValue = value?.trim()
+  if (!rawValue) return null
+
+  const tryExtract = (candidate: string) => {
+    const idMatch = candidate.match(/[?&]id=([^&]+)/)
+    if (idMatch?.[1]) return decodeURIComponent(idMatch[1])
+
+    const fileMatch = candidate.match(/\/file\/d\/([^/]+)/)
+    if (fileMatch?.[1]) return decodeURIComponent(fileMatch[1])
+
+    const openMatch = candidate.match(/\/open\?id=([^&]+)/)
+    if (openMatch?.[1]) return decodeURIComponent(openMatch[1])
+
+    return null
+  }
+
+  try {
+    const parsed = new URL(rawValue)
+    const searchId = parsed.searchParams.get('id')
+    if (searchId) return searchId
+
+    const pathnameMatch = tryExtract(parsed.pathname)
+    if (pathnameMatch) return pathnameMatch
+
+    return tryExtract(rawValue)
+  } catch {
+    return tryExtract(rawValue)
+  }
+}
+
 export function buildPartnerCommunicationUploadFolderName(input: {
   partnerDisplayName?: string | null
   partnerId?: string | null
@@ -902,6 +933,62 @@ export async function uploadFileToDrive(
     webViewLink: payload.webViewLink ?? null,
     webContentLink: payload.webContentLink ?? null,
   }
+}
+
+export async function fetchGoogleDriveFileBytes(accessToken: string, fileId: string) {
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  )
+
+  const buffer = await response.arrayBuffer()
+
+  if (!response.ok) {
+    const message = `Google Drive file download failed (${response.status}).`
+    throw new Error(message)
+  }
+
+  return {
+    bytes: Buffer.from(buffer),
+    contentType: response.headers.get('content-type') || 'application/octet-stream',
+  }
+}
+
+export async function makeDriveFilePublic(accessToken: string, fileId: string) {
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions?supportsAllDrives=true`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      role: 'reader',
+      type: 'anyone',
+      allowFileDiscovery: false,
+    }),
+  })
+
+  const payload = await response.json().catch(() => null) as {
+    id?: string
+    error?: { message?: string }
+  } | null
+
+  if (!response.ok || !payload?.id) {
+    const message = payload?.error?.message || `Unable to make Google Drive file public (${response.status}).`
+    throw new Error(message)
+  }
+
+  return {
+    id: payload.id,
+  }
+}
+
+export function buildGoogleDriveRenderableImageUrl(fileId: string) {
+  return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(fileId)}`
 }
 
 export async function prepareSereniusFolderStructure(

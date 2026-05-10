@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import ChartOfAccountsTab from './ChartOfAccountsTab'
 import IntegrationsTab from './IntegrationsTab'
 import GiftCategoriesTab from './GiftCategoriesTab'
 import UsersRolesTab from './UsersRolesTab'
-import ModulesTab from './ModulesTab'
 import type {
   OrganizationStorageConnection,
   OrganizationStorageSettings,
@@ -20,7 +19,6 @@ interface Organization {
   id: string
   name: string
   slug: string
-  plan: string | null
 }
 
 interface OrganizationBranding {
@@ -28,6 +26,7 @@ interface OrganizationBranding {
   primary_color: string | null
   secondary_color: string | null
   accent_color: string | null
+  sidebar_background_color: string | null
   logo_url: string | null
 }
 
@@ -52,7 +51,7 @@ interface OrganizationMail {
   reply_to: string | null
 }
 
-type Tab = 'organization' | 'integrations' | 'chart-of-accounts' | 'gift-categories' | 'users-roles' | 'modules'
+type Tab = 'organization' | 'integrations' | 'chart-of-accounts' | 'gift-categories' | 'users-roles'
 
 interface SetupPageProps {
   tenantSlug: string
@@ -69,7 +68,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'chart-of-accounts', label: 'Chart of Accounts'  },
   { id: 'gift-categories',   label: 'Gift Categories'    },
   { id: 'users-roles',       label: 'Users & Roles'      },
-  { id: 'modules',           label: 'Modules'            },
 ]
 
 const TIMEZONES = [
@@ -117,13 +115,18 @@ export default function SetupPage({
   // API key reveal toggles
   const [showMapsKey, setShowMapsKey]         = useState(false)
   const [showSereniusKey, setShowSereniusKey] = useState(false)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoUploadMessage, setLogoUploadMessage] = useState<string | null>(null)
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null)
+  const logoUploadInputRef = useRef<HTMLInputElement | null>(null)
 
   // Form state (org tab)
-  const [orgForm, setOrgForm]         = useState({ name: '', plan: '' })
+  const [orgForm, setOrgForm]         = useState({ name: '' })
   const [brandForm, setBrandForm]     = useState({
     primary_color: '#3D5A80',
     secondary_color: '#98C1D9',
     accent_color: '#EE6C4D',
+    sidebar_background_color: '',
     logo_url: '',
   })
   const [settingsForm, setSettingsForm] = useState({
@@ -135,6 +138,11 @@ export default function SetupPage({
     serenius_api_key: '',
   })
   const [mailForm, setMailForm]       = useState({ from_name: '', from_email: '', reply_to: '' })
+  const canUploadBrandLogo =
+    storageSettings?.provider === 'google_drive' &&
+    storageSettings.is_enabled &&
+    storageSettings.connection_status === 'connected' &&
+    storageConnection?.credentialsConnected === true
 
   // ── Auth check ──────────────────────────────────────────────────────────────
 
@@ -169,7 +177,7 @@ export default function SetupPage({
 
       if (!orgData) return
       setOrg(orgData)
-      setOrgForm({ name: orgData.name, plan: orgData.plan ?? '' })
+      setOrgForm({ name: orgData.name })
 
       const [brandRes, settingsRes, mailRes, storageRes, connectionRes] = await Promise.all([
         supabase.from('organization_branding').select('*').eq('tenant_id', orgData.id).maybeSingle(),
@@ -188,6 +196,7 @@ export default function SetupPage({
           primary_color:   brandRes.data.primary_color   ?? '#3D5A80',
           secondary_color: brandRes.data.secondary_color ?? '#98C1D9',
           accent_color:    brandRes.data.accent_color    ?? '#EE6C4D',
+          sidebar_background_color: brandRes.data.sidebar_background_color ?? '',
           logo_url:        brandRes.data.logo_url        ?? '',
         })
       }
@@ -240,6 +249,7 @@ export default function SetupPage({
         primary_color: brandForm.primary_color,
         secondary_color: brandForm.secondary_color,
         accent_color: brandForm.accent_color,
+        sidebar_background_color: brandForm.sidebar_background_color || null,
         logo_url: brandForm.logo_url || null,
       })
       .eq('tenant_id', tenantId)
@@ -279,6 +289,43 @@ export default function SetupPage({
     return error
   }
 
+  async function handleLogoUpload(file: File) {
+    if (!org) return
+
+    setLogoUploading(true)
+    setLogoUploadError(null)
+    setLogoUploadMessage(null)
+
+    try {
+      const formData = new FormData()
+      formData.set('tenantId', org.id)
+      formData.set('tenantSlug', org.slug)
+      formData.set('file', file)
+
+      const response = await fetch('/api/branding/logo/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      const payload = await response.json().catch(() => null) as
+        | { ok?: boolean; error?: string; logo_url?: string }
+        | null
+
+      if (!response.ok || !payload?.ok || !payload.logo_url) {
+        throw new Error(payload?.error ?? 'Failed to upload logo.')
+      }
+
+      setBrandForm(form => ({ ...form, logo_url: payload.logo_url ?? '' }))
+      setLogoUploadMessage('Logo uploaded successfully.')
+      await loadData()
+    } catch (error) {
+      setLogoUploadError(error instanceof Error ? error.message : 'Failed to upload logo.')
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
   // ── Save ────────────────────────────────────────────────────────────────────
 
   async function handleSaveOrg() {
@@ -294,7 +341,6 @@ export default function SetupPage({
         .from('organizations')
         .update({
           name: orgForm.name,
-          plan: orgForm.plan || null,
         })
         .eq('id', org.id)
 
@@ -479,21 +525,6 @@ export default function SetupPage({
                 />
                 <p className="text-xs text-gray-400 mt-1">Contact Serenius support to change your slug.</p>
               </div>
-              {isSuperAdmin && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Plan
-                    <span className="ml-1 badge-info text-xs">Superadmin only</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={orgForm.plan}
-                    onChange={e => setOrgForm(f => ({ ...f, plan: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g. pro, free"
-                  />
-                </div>
-              )}
             </div>
           </div>
 
@@ -558,6 +589,27 @@ export default function SetupPage({
                   Used for action links, edit/add interactions, and secondary workflow accents.
                 </p>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Menu Background Color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={brandForm.sidebar_background_color || '#293241'}
+                    onChange={e => setBrandForm(f => ({ ...f, sidebar_background_color: e.target.value }))}
+                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={brandForm.sidebar_background_color}
+                    onChange={e => setBrandForm(f => ({ ...f, sidebar_background_color: e.target.value }))}
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="#293241"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Used for the left navigation menu background.
+                </p>
+              </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
                 <input
@@ -567,11 +619,52 @@ export default function SetupPage({
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="https://..."
                 />
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => logoUploadInputRef.current?.click()}
+                    disabled={logoUploading || !canUploadBrandLogo}
+                    title={!canUploadBrandLogo ? 'Connect Google Drive in Integrations before uploading logo files.' : undefined}
+                  >
+                    {logoUploading ? 'Uploading…' : 'Upload Logo'}
+                  </button>
+                  {!canUploadBrandLogo && (
+                    <span className="text-xs text-gray-500">
+                      Connect Google Drive in Integrations before uploading logo files.
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Recommended: transparent PNG or SVG, wide format, about 300 × 80 px. Keep extra whitespace minimal.
+                </p>
+                <input
+                  ref={logoUploadInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    void handleLogoUpload(file)
+                  }}
+                />
                 {brandForm.logo_url && (
                   <div className="mt-2 flex items-center gap-3">
-                    <img src={brandForm.logo_url} alt="Logo preview" className="h-10 object-contain border rounded p-1" />
+                    <img
+                      src={`/api/branding/logo?tenantSlug=${encodeURIComponent(org?.slug ?? tenantSlug)}`}
+                      alt="Logo preview"
+                      className="h-10 object-contain border rounded p-1"
+                    />
                     <span className="text-xs text-gray-400">Preview</span>
                   </div>
+                )}
+                {logoUploadMessage && (
+                  <p className="mt-2 text-xs text-green-700">{logoUploadMessage}</p>
+                )}
+                {logoUploadError && (
+                  <p className="mt-2 text-xs text-red-700">{logoUploadError}</p>
                 )}
               </div>
             </div>
@@ -742,11 +835,6 @@ export default function SetupPage({
       {activeTab === 'users-roles' && org && (
         <UsersRolesTab tenantId={org.id} isSuperAdmin={isSuperAdmin} />
       )}
-
-      {activeTab === 'modules' && org && (
-        <ModulesTab tenantId={org.id} isSuperAdmin={isSuperAdmin} />
-      )}
-
     </div>
   )
 }
