@@ -9,6 +9,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { formatPhone } from '@/lib/formatPhone'
 import AddContactPanel from './AddContactPanel'
 import ContactDetailModal from './ContactDetailModal'
+import InKindTab from './InKindTab'
 import CommunicationsTab from './CommunicationsTab'
 import PartnerModal from './PartnerModal'
 import FinancialTab from './FinancialTab'
@@ -732,21 +733,7 @@ export default function PartnerDetailClient({
 
       {/* ── Tab 3: In-Kind Gifts ── */}
       {activeTab === 'inkind' && (
-        <div className="section-card">
-          <div className="section-header">
-            <span className="section-title">In-Kind Gifts</span>
-          </div>
-          <div
-            style={{
-              padding: '32px 18px',
-              textAlign: 'center',
-              color: '#9ca3af',
-              fontSize: 13,
-            }}
-          >
-            In-Kind gifts coming soon.
-          </div>
-        </div>
+        <InKindTab partner={partner} />
       )}
 
       {/* ── Tab 4: Communications ── */}

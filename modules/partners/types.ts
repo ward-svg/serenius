@@ -95,6 +95,26 @@ export interface FinancialGift {
   updated_at: string
 }
 
+export interface PartnerInKindGift {
+  id: string
+  tenant_id: string
+  partner_id: string | null
+  knack_id: string | null
+  description: string | null
+  notes: string | null
+  estimated_value: number | null
+  condition_type: 'New' | 'Like New' | 'Good' | 'Fair' | 'Poor' | null
+  asset_status: 'Awaiting Transfer' | 'Transferred' | 'In Use' | 'Disposed' | null
+  date_given: string | null
+  date_transferred: string | null
+  quantity: number | null
+  location_notes: string | null
+  received_by: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface PartnerCommunication {
   id: string
   tenant_id: string
