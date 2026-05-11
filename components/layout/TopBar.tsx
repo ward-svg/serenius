@@ -5,14 +5,15 @@ interface TopBarProps {
   orgName: string
   slug: string
   logoUrl?: string | null
+  platformMode?: boolean
 }
 
-export default async function TopBar({ orgName, slug, logoUrl }: TopBarProps) {
+export default async function TopBar({ orgName, slug, logoUrl, platformMode = false }: TopBarProps) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   const displayEmail = user?.email ?? ''
-  const logoSrc = logoUrl ? `/api/branding/logo?tenantSlug=${encodeURIComponent(slug)}` : null
+  const logoSrc = !platformMode && logoUrl ? `/api/branding/logo?tenantSlug=${encodeURIComponent(slug)}` : null
 
   return (
     <header className="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-6 shrink-0">
@@ -25,10 +26,16 @@ export default async function TopBar({ orgName, slug, logoUrl }: TopBarProps) {
             style={{ display: 'block' }}
           />
         ) : (
-          <span className="text-sm font-semibold text-gray-800">{orgName}</span>
+          <span className="text-sm font-semibold text-gray-800">
+            {platformMode ? 'Serenius Platform' : orgName}
+          </span>
         )}
-        <span className="text-gray-300">·</span>
-        <span className="text-sm text-gray-500">{slug}</span>
+        {!platformMode && (
+          <>
+            <span className="text-gray-300">·</span>
+            <span className="text-sm text-gray-500">{slug}</span>
+          </>
+        )}
       </div>
 
       <div className="flex items-center gap-4">

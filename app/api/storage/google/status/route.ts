@@ -1,7 +1,6 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { assertTenantAccess } from '@/lib/auth/tenant-access'
 import { createSupabaseServiceClient } from '@/lib/supabase-service'
 
 export async function GET(request: NextRequest) {
@@ -12,36 +11,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing tenantId.' }, { status: 400 })
   }
 
-  const authCookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return authCookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            authCookieStore.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  const [{ data: userResult }, superRes, adminRes] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase.rpc('has_role', { role_name: 'superadmin' }),
-    supabase.rpc('has_role', { role_name: 'tenant_admin' }),
-  ])
-
-  if (!userResult.user) {
-    return NextResponse.json({ error: 'Unauthenticated.' }, { status: 401 })
-  }
-
-  if (superRes.data !== true && adminRes.data !== true) {
-    return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+  const accessCheck = await assertTenantAccess({ tenantId })
+  if ('error' in accessCheck) {
+    return accessCheck.error
   }
 
   const serviceSupabase = createSupabaseServiceClient()

@@ -12,6 +12,7 @@ interface Props {
   appName: string
   slug?: string
   showPrimaryNav?: boolean
+  platformMode?: boolean
 }
 
 interface UserProfileSummary {
@@ -19,7 +20,7 @@ interface UserProfileSummary {
   email: string | null
 }
 
-export default function Sidebar({ orgName, appName, slug, showPrimaryNav = true }: Props) {
+export default function Sidebar({ orgName, appName, slug, showPrimaryNav = true, platformMode = false }: Props) {
   const pathname = usePathname()
   const nav = showPrimaryNav && slug ? getNavigationForTenant(slug) : []
   const [canSeeSetup, setCanSeeSetup] = useState(false)
@@ -88,10 +89,10 @@ export default function Sidebar({ orgName, appName, slug, showPrimaryNav = true 
               letterSpacing: 0.3,
               fontFamily: 'var(--brand-font-heading, Inter)',
             }}>
-              {appName}
+              {platformMode ? 'Serenius' : appName}
             </div>
             <div style={{ fontSize: 11, color: 'var(--brand-sidebar-dim, rgba(255,255,255,0.45))', marginTop: 2 }}>
-              {orgName}
+              {platformMode ? 'Platform Administration' : orgName}
             </div>
           </div>
         </div>
@@ -156,7 +157,7 @@ export default function Sidebar({ orgName, appName, slug, showPrimaryNav = true 
             </div>
           ))}
 
-          {canSeeSetup && slug && (
+          {canSeeSetup && slug && !platformMode && (
             <div style={{ padding: '8px 10px 4px' }}>
               <div style={{
                 fontSize: 10,
@@ -229,9 +230,9 @@ export default function Sidebar({ orgName, appName, slug, showPrimaryNav = true 
             }}>
               Serenius Platform
             </div>
-            <Link
-              href="/platform-admin/switch-tenant"
-              style={{
+              <Link
+                href="/platform-admin/switch-tenant"
+                style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
@@ -255,9 +256,9 @@ export default function Sidebar({ orgName, appName, slug, showPrimaryNav = true 
             >
               Switch Tenant
             </Link>
-            <Link
-              href="/platform-admin"
-              style={{
+              <Link
+                href="/platform-admin"
+                style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,

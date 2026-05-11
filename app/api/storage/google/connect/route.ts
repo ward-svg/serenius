@@ -1,7 +1,7 @@
-import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { assertTenantAccess } from '@/lib/auth/tenant-access'
 import {
   buildGoogleOAuthUrl,
   buildPkceCodeChallenge,
@@ -34,81 +34,27 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const tenantId = requestUrl.searchParams.get('tenantId')
   const tenantSlug = requestUrl.searchParams.get('tenantSlug')
+
   if (!tenantId && !tenantSlug) {
     return NextResponse.redirect(withStorageError(new URL('/setup?tab=integrations', request.url), 'missing_tenant_context'))
   }
-  const authCookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return authCookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            authCookieStore.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
 
   const oauthConfig = getGoogleOAuthConfig()
-  const orgQuery = tenantId
-    ? supabase.from('organizations').select('id, slug, is_active').eq('id', tenantId).maybeSingle()
-    : tenantSlug
-      ? supabase.from('organizations').select('id, slug, is_active').eq('slug', tenantSlug).maybeSingle()
-      : null
-
-  if (!orgQuery) {
-    return NextResponse.redirect(withStorageError(new URL('/setup?tab=integrations', request.url), 'missing_tenant_context'))
-  }
-
-  const [{ data: userResult }, superRes, adminRes, orgResult] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase.rpc('has_role', { role_name: 'superadmin' }),
-    supabase.rpc('has_role', { role_name: 'tenant_admin' }),
-    orgQuery,
-  ])
-
-  const user = userResult.user
-  const org = orgResult.data
-
-  const fallbackUrl = new URL('/login', request.url)
-  fallbackUrl.searchParams.set('redirectTo', tenantSlug ? buildReturnToPath(tenantSlug) : '/setup?tab=integrations')
-
-  if (!org || !org.is_active) {
-    if (tenantSlug) {
-      return NextResponse.redirect(withStorageError(new URL(buildReturnToPath(tenantSlug), request.url), 'tenant_not_found'))
-    }
-    return NextResponse.redirect(fallbackUrl)
-  }
-
-  const returnTo = buildReturnToPath(org.slug)
-  const returnToUrl = new URL(returnTo, request.url)
-
   if (!oauthConfig) {
-    return NextResponse.redirect(withStorageError(returnToUrl, 'google_oauth_not_configured'))
+    const returnTo = tenantSlug ? buildReturnToPath(tenantSlug) : '/setup?tab=integrations'
+    return NextResponse.redirect(withStorageError(new URL(returnTo, request.url), 'google_oauth_not_configured'))
   }
 
-  if (!user) {
-    return NextResponse.redirect(withStorageError(returnToUrl, 'not_authenticated'))
+  const accessCheck = await assertTenantAccess({ tenantId, tenantSlug })
+  if ('error' in accessCheck) {
+    return accessCheck.error
   }
 
-  if (superRes.data !== true && adminRes.data !== true) {
-    return NextResponse.redirect(withStorageError(returnToUrl, 'permission_denied'))
-  }
-
-  if (tenantId && tenantId !== org.id) {
-    return NextResponse.redirect(withStorageError(returnToUrl, 'tenant_mismatch'))
-  }
-
+  const returnTo = buildReturnToPath(accessCheck.organization.slug)
   const state = createGoogleStorageOAuthState({
-    tenantId: org.id,
-    tenantSlug: org.slug,
-    userId: user.id,
+    tenantId: accessCheck.organization.id,
+    tenantSlug: accessCheck.organization.slug,
+    userId: accessCheck.userId,
     returnTo,
   })
 

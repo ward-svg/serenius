@@ -1,57 +1,10 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { assertTenantAccess } from '@/lib/auth/tenant-access'
 import {
   getAuthorizedDriveClientForTenant,
   getDriveFolderMetadata,
 } from '@/lib/storage/google'
-
-async function assertTenantStorageAccess(tenantId: string) {
-  const authCookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return authCookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            authCookieStore.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  const [{ data: userResult }, superRes, adminRes] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase.rpc('has_role', { role_name: 'superadmin' }),
-    supabase.rpc('has_role', { role_name: 'tenant_admin' }),
-  ])
-
-  if (!userResult.user) {
-    return { error: NextResponse.json({ ok: false, error: 'Unauthenticated.' }, { status: 401 }) }
-  }
-
-  if (superRes.data !== true && adminRes.data !== true) {
-    return { error: NextResponse.json({ ok: false, error: 'Forbidden.' }, { status: 403 }) }
-  }
-
-  const { data: org } = await supabase
-    .from('organizations')
-    .select('id, slug, is_active')
-    .eq('id', tenantId)
-    .maybeSingle()
-
-  if (!org || !org.is_active) {
-    return { error: NextResponse.json({ ok: false, error: 'Tenant not found.' }, { status: 404 }) }
-  }
-
-  return { ok: true as const }
-}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -61,7 +14,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Missing tenantId.' }, { status: 400 })
   }
 
-  const accessCheck = await assertTenantStorageAccess(tenantId)
+  const accessCheck = await assertTenantAccess({ tenantId })
   if ('error' in accessCheck) return accessCheck.error
 
   try {
