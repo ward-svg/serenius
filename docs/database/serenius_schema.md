@@ -573,9 +573,19 @@
 | created_by | uuid | → auth.users.id |
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
+| sender_provider | mail_provider_type | nullable — provider used for this send |
+| sender_email | text | nullable — from address used at send time |
+| sender_name | text | nullable — from name used at send time |
+| scheduled_at | timestamptz | nullable — scheduled delivery time |
+| recipient_count | integer | nullable — final recipient count |
+| test_recipient_count | integer | nullable — test send recipient count |
+| last_error | text | nullable — last send error message |
+| last_error_at | timestamptz | nullable — timestamp of last error |
+| send_job_id | text | nullable — background worker job correlation ID |
+| test_recipients_snapshot | jsonb | DEFAULT '[]' — test recipient emails at send time |
 
 **Record Count:** 38  
-**Indexes:** tenant_id · knack_email_id · (tenant_id, sending_status) · delivery_datetime  
+**Indexes:** tenant_id · knack_email_id · (tenant_id, sending_status) · delivery_datetime · (tenant_id, sender_provider) · scheduled_at (partial, not null)  
 **RLS:** Tenant isolation  
 **Referenced By:** partner_email_opens.partner_email_id  
 **Media pattern:** `media_attachments` jsonb array for historical Knack data · new workflow uses `record_attachments` table  
@@ -613,6 +623,9 @@
 **Record Count:** 492  
 **Indexes:** tenant_id · partner_email_id · partner_id · partner_contact_id · sent_at · knack_email_id · partial index on opened records only  
 **RLS:** Tenant isolation  
+**Additional columns added (communications module):**  
+`tracking_token` uuid UNIQUE DEFAULT gen_random_uuid() — powers `/api/email/open/[tracking_token].png`  
+On hit: increment `open_count`, set `first_opened` if null, update `last_opened`, record device metadata  
 **Open stats:** 267 opened · 225 delivered never opened  
 **Backfill path:** `knack_contact_id` → Knack API → `partner_contacts.knack_id` → populate `partner_contact_id`  
 
@@ -705,6 +718,126 @@
 
 ---
 
+
+---
+
+## COMMUNICATIONS MODULE
+
+---
+
+### `public.organization_mail_settings`
+**Module:** Communications  
+**Description:** Tenant-level marketing email sender configuration. One row per tenant per provider. Controls the outbound mail sender for campaigns. Separate from `organization_mail` (legacy simple config retained for compatibility).
+
+**Relationship to `organization_mail`:**  
+- `organization_mail` = legacy simple config (from_name, from_email, reply_to). Retained, not dropped.  
+- `organization_mail_settings` = full provider config for marketing mail sender. New sending code uses this table.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PRIMARY KEY |
+| tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE |
+| provider | mail_provider_type | NOT NULL DEFAULT 'google_workspace' |
+| display_name | text | nullable |
+| from_name | text | nullable |
+| from_email | text | nullable |
+| reply_to | text | nullable |
+| provider_account_email | text | nullable (display only) |
+| provider_account_name | text | nullable (display only) |
+| is_enabled | boolean | NOT NULL DEFAULT false |
+| connection_status | text | NOT NULL DEFAULT 'manual' · CHECK ('manual', 'connected', 'error', 'disabled') |
+| send_mode | text | NOT NULL DEFAULT 'disabled' · CHECK ('disabled', 'test_only', 'live') |
+| locked_at | timestamptz | nullable |
+| locked_by | uuid | → auth.users.id · nullable |
+| connected_at | timestamptz | nullable |
+| connected_by | uuid | → auth.users.id · nullable |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| updated_at | timestamptz | NOT NULL DEFAULT now() |
+| | | UNIQUE (tenant_id, provider) |
+
+**Record Count:** 0  
+**Indexes:** tenant_id · provider  
+**RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
+**send_mode values:** disabled (no sends) · test_only (test recipients only) · live (real sends enabled)  
+**⚠️ Real sending not yet active in UI**  
+
+---
+
+### `public.organization_mail_credentials`
+**Module:** Communications  
+**Security:** ⚠️ SENSITIVE — OAuth token material. Normal authenticated users CANNOT read this table.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PRIMARY KEY |
+| tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE |
+| provider | mail_provider_type | NOT NULL DEFAULT 'google_workspace' |
+| access_token | text | nullable · SENSITIVE |
+| refresh_token | text | nullable · SENSITIVE |
+| token_type | text | nullable |
+| scope | text | nullable |
+| expiry_date | timestamptz | nullable |
+| external_account_email | text | nullable (display only) |
+| external_account_name | text | nullable (display only) |
+| provider_metadata | jsonb | NOT NULL DEFAULT '{}' |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| updated_at | timestamptz | NOT NULL DEFAULT now() |
+| | | UNIQUE (tenant_id, provider) |
+
+**Record Count:** 0  
+**Indexes:** tenant_id · (tenant_id, provider)  
+**RLS:** superadmin-only policy. Service role bypasses for OAuth routes.  
+**Do NOT expose via:** views · client-facing types · anon key API routes  
+
+---
+
+### `public.organization_mail_test_recipients`
+**Module:** Communications  
+**Description:** Tenant-configured test email addresses used during test send workflow. Checked before any live send is enabled.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PRIMARY KEY |
+| tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE |
+| email | text | NOT NULL · UNIQUE (tenant_id, lower(email)) |
+| display_name | text | nullable |
+| is_active | boolean | NOT NULL DEFAULT true |
+| notes | text | nullable |
+| created_by | uuid | → auth.users.id SET NULL |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| updated_at | timestamptz | NOT NULL DEFAULT now() |
+
+**Record Count:** 0  
+**Indexes:** tenant_id · partial index on active recipients  
+**RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
+
+---
+
+### `public.partner_email_suppressions`
+**Module:** Communications  
+**Description:** Per-contact/per-email suppression list. Must be checked before any real send. Created now for compliance — sending UI not yet active.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PRIMARY KEY |
+| tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE |
+| partner_contact_id | uuid | → partner_contacts.id SET NULL (nullable) |
+| email | text | NOT NULL |
+| suppression_type | suppression_type_enum | NOT NULL |
+| source | text | nullable (e.g. 'user_request', 'bounce_webhook', 'manual') |
+| reason | text | nullable |
+| suppressed_at | timestamptz | NOT NULL DEFAULT now() |
+| created_by | uuid | → auth.users.id SET NULL |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| updated_at | timestamptz | NOT NULL DEFAULT now() |
+
+**Record Count:** 0  
+**Indexes:** tenant_id · (tenant_id, lower(email)) · partner_contact_id (partial, not null)  
+**RLS:** SELECT — tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
+**suppression_type values:** unsubscribed · bounced · complained · manually_suppressed · invalid_email  
+
+---
+
 ## RELATIONSHIP MAP
 
 ```
@@ -734,6 +867,15 @@ organizations
   ├── gl_master_accounts                (tenant_id)
   │     └── gl_sub_accounts             (gl_master_account_id)
   └── gift_category_settings            (tenant_id)
+        ├── → gl_master_accounts        (gl_master_account_id)
+        └── → gl_sub_accounts           (gl_sub_account_id)
+
+-- Communications
+  ├── organization_mail_settings          (tenant_id)
+  ├── organization_mail_credentials       (tenant_id — SENSITIVE)
+  ├── organization_mail_test_recipients   (tenant_id)
+  └── partner_email_suppressions          (tenant_id)
+        └── → partner_contacts            (partner_contact_id — nullable)
         ├── → gl_master_accounts        (gl_master_account_id)
         └── → gl_sub_accounts           (gl_sub_account_id)
 
@@ -782,6 +924,10 @@ financial_gifts
 | email_communication_type | Ministry Update · New Donor · New Prospect · iMessage |
 | email_style_type | Raw HTML · Rich Text |
 | email_sent_type | Final Communication |
+| email_sending_status (expanded) | + Building · Ready · Scheduled · Failed |
+| email_message_status (expanded) | + Building · Scheduled · Failed |
+| mail_provider_type | google_workspace · microsoft_365 · custom_smtp · amazon_ses |
+| suppression_type_enum | unsubscribed · bounced · complained · manually_suppressed · invalid_email |
 
 ---
 
@@ -812,6 +958,10 @@ financial_gifts
 | gl_master_accounts | 15 |
 | gl_sub_accounts | 106 |
 | gift_category_settings | 10 |
+| organization_mail_settings | 0 |
+| organization_mail_credentials | 0 |
+| organization_mail_test_recipients | 0 |
+| partner_email_suppressions | 0 |
 | **TOTAL** | **1,140** |
 
 ---
