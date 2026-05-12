@@ -30,3 +30,36 @@ export interface SetupIntegrationNotice {
   type: 'success' | 'error'
   message: string
 }
+
+export interface OrganizationMailSettings {
+  id: string
+  tenant_id: string
+  provider: 'google_workspace' | 'microsoft_365' | 'custom_smtp' | 'amazon_ses'
+  display_name: string | null
+  from_name: string | null
+  from_email: string | null
+  reply_to: string | null
+  provider_account_email: string | null
+  provider_account_name: string | null
+  is_enabled: boolean | null
+  connection_status: string | null
+  send_mode: string | null
+  locked_at: string | null
+  locked_by: string | null
+  connected_at: string | null
+  connected_by: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface OrganizationMailTestRecipient {
+  id: string
+  tenant_id: string
+  email: string
+  display_name: string | null
+  is_active: boolean | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}

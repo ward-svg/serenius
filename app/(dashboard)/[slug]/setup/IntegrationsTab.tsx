@@ -7,6 +7,7 @@ import type {
   SetupIntegrationNotice,
   StorageSettingsInput,
 } from './types'
+import MailSenderSection from './MailSenderSection'
 
 interface IntegrationsTabProps {
   tenantId: string
@@ -657,6 +658,8 @@ export default function IntegrationsTab({
           )}
         </div>
       </div>
+
+      <MailSenderSection tenantId={tenantId} />
     </div>
   )
 }

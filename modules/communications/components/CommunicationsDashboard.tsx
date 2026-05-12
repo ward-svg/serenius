@@ -261,7 +261,7 @@ export default function CommunicationsDashboard({
                 </div>
                 <div style={{ marginTop: 10 }}>
                   <Link
-                    href={`/${slug}/setup?tab=integrations`}
+                    href={`/${slug}/setup?tab=integrations#mail-sender`}
                     className="action-link"
                   >
                     Configure Mail Sender
