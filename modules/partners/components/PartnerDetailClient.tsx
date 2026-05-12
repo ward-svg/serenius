@@ -1,12 +1,20 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import SortableHeader from '@/components/ui/SortableHeader'
 import type { Partner, PartnerContact } from '@/modules/partners/types'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { formatPhone } from '@/lib/formatPhone'
+import {
+  nextSortState,
+  normalizePhoneSortValue,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from '@/lib/ui/sort'
 import AddContactPanel from './AddContactPanel'
 import ContactDetailModal from './ContactDetailModal'
 import InKindTab from './InKindTab'
@@ -16,6 +24,14 @@ import FinancialTab from './FinancialTab'
 import PartnerEngagementCard, { PartnerEngagementSignals } from './PartnerEngagementCard'
 
 type DetailTab = 'general' | 'financial' | 'inkind' | 'communications'
+type ContactSortKey =
+  | 'name'
+  | 'nickname'
+  | 'phone'
+  | 'email'
+  | 'emailSegment'
+  | 'campaign'
+  | 'relationship'
 
 interface Props {
   slug: string
@@ -36,6 +52,32 @@ function getInitials(name: string): string {
     .slice(0, 2)
     .map(w => w[0].toUpperCase())
     .join('')
+}
+
+function contactFullName(contact: PartnerContact): string {
+  return [contact.first_name, contact.last_name].filter(Boolean).join(' ')
+}
+
+function getContactSortValue(
+  contact: PartnerContact,
+  key: ContactSortKey
+): SortValue {
+  switch (key) {
+    case 'name':
+      return contactFullName(contact) || contact.display_name
+    case 'nickname':
+      return contact.nickname
+    case 'phone':
+      return normalizePhoneSortValue(contact.primary_phone)
+    case 'email':
+      return contact.primary_email
+    case 'emailSegment':
+      return contact.email_segment?.join(', ')
+    case 'campaign':
+      return contact.campaign_version
+    case 'relationship':
+      return contact.relationship
+  }
 }
 
 function formatDate(dateStr: string | null): string {
@@ -92,6 +134,11 @@ export default function PartnerDetailClient({
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesValue, setNotesValue] = useState(initialPartner.notes ?? '')
   const [savingNotes, setSavingNotes] = useState(false)
+  const [contactSort, setContactSort] = useState<SortState<ContactSortKey> | null>(null)
+  const sortedContacts = useMemo(
+    () => sortByValue(contacts, contactSort, getContactSortValue),
+    [contactSort, contacts]
+  )
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -658,25 +705,60 @@ export default function PartnerDetailClient({
                 No contacts yet. Add the first contact.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div className="table-scroll">
                 <table>
                   <thead>
                     <tr>
-                      <th style={{ width: 80 }}>ACTIONS</th>
-                      <th>Name</th>
-                      <th>Nickname</th>
-                      <th>Primary Phone</th>
-                      <th>Email</th>
-                      <th>Email Segment</th>
-                      <th>Campaign</th>
-                      <th>Relationship</th>
+                      <th className="actions-column">ACTIONS</th>
+                      <SortableHeader
+                        label="Name"
+                        sortKey="name"
+                        sort={contactSort}
+                        onSort={(key) => setContactSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Nickname"
+                        sortKey="nickname"
+                        sort={contactSort}
+                        onSort={(key) => setContactSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Primary Phone"
+                        sortKey="phone"
+                        sort={contactSort}
+                        onSort={(key) => setContactSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Email"
+                        sortKey="email"
+                        sort={contactSort}
+                        onSort={(key) => setContactSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Email Segment"
+                        sortKey="emailSegment"
+                        sort={contactSort}
+                        onSort={(key) => setContactSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Campaign"
+                        sortKey="campaign"
+                        sort={contactSort}
+                        onSort={(key) => setContactSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Relationship"
+                        sortKey="relationship"
+                        sort={contactSort}
+                        onSort={(key) => setContactSort((current) => nextSortState(current, key))}
+                      />
                     </tr>
                   </thead>
 
                   <tbody>
-                    {contacts.map(c => (
+                    {sortedContacts.map(c => (
                       <tr key={c.id}>
-                        <td>
+                        <td className="actions-column">
                           <button
                             type="button"
                             onClick={() => setSelectedContact(c)}
@@ -686,7 +768,7 @@ export default function PartnerDetailClient({
                           </button>
                         </td>
                         <td style={{ fontWeight: 500 }}>
-                          {[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}
+                          {contactFullName(c) || '—'}
                         </td>
                         <td>{c.nickname || '—'}</td>
                         <td>

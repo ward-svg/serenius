@@ -1,7 +1,14 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import SortableHeader from '@/components/ui/SortableHeader'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
+import {
+  nextSortState,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from '@/lib/ui/sort'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,12 +42,28 @@ interface Props {
   isSuperAdmin: boolean
 }
 
+type UserSortKey = 'userId' | 'roles'
+
+function getUserSortValue(user: UserWithRoles, key: UserSortKey): SortValue {
+  switch (key) {
+    case 'userId':
+      return user.profile.user_id
+    case 'roles':
+      return user.roles.map(role => role.name).join(', ')
+  }
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function UsersRolesTab({ tenantId, isSuperAdmin }: Props) {
   const [users, setUsers]   = useState<UserWithRoles[]>([])
   const [roles, setRoles]   = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
+  const [sort, setSort] = useState<SortState<UserSortKey> | null>(null)
+  const sortedUsers = useMemo(
+    () => sortByValue(users, sort, getUserSortValue),
+    [sort, users],
+  )
 
   const load = useCallback(async () => {
     const supabase = createSupabaseBrowserClient()
@@ -106,14 +129,31 @@ export default function UsersRolesTab({ tenantId, isSuperAdmin }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">User ID</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Roles</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide actions-column">ACTIONS</th>
+                <SortableHeader
+                  label="User ID"
+                  sortKey="userId"
+                  sort={sort}
+                  onSort={(key) => setSort((current) => nextSortState(current, key))}
+                  className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                />
+                <SortableHeader
+                  label="Roles"
+                  sortKey="roles"
+                  sort={sort}
+                  onSort={(key) => setSort((current) => nextSortState(current, key))}
+                  className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                />
               </tr>
             </thead>
             <tbody>
-              {users.map(u => (
+              {sortedUsers.map(u => (
                 <tr key={u.profile.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="px-4 py-2.5 actions-column">
+                    <button disabled className="text-xs text-blue-400 cursor-not-allowed" title="Coming soon">
+                      Edit Roles
+                    </button>
+                  </td>
                   <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{u.profile.user_id}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex flex-wrap gap-1">
@@ -124,11 +164,6 @@ export default function UsersRolesTab({ tenantId, isSuperAdmin }: Props) {
                         ))
                       }
                     </div>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <button disabled className="text-xs text-blue-400 cursor-not-allowed" title="Coming soon">
-                      Edit Roles
-                    </button>
                   </td>
                 </tr>
               ))}

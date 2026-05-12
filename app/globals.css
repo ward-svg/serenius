@@ -360,6 +360,86 @@ th,
   background: var(--table-header-bg);
 }
 
+th.sortable-heading,
+.data-table th.sortable-heading {
+  padding: 0;
+}
+
+.sortable-heading-right {
+  text-align: right;
+}
+
+.sortable-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-transform: inherit;
+}
+
+.sortable-heading-right .sortable-header {
+  justify-content: flex-end;
+}
+
+.sortable-header:hover {
+  color: var(--link-action-hover-color);
+}
+
+.sortable-header:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.sort-indicator {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 10px;
+  flex: 0 0 8px;
+  color: currentColor;
+  opacity: 0.35;
+}
+
+.sort-indicator::before,
+.sort-indicator::after {
+  position: absolute;
+  left: 1px;
+  content: "";
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+}
+
+.sort-indicator::before {
+  top: 0;
+  border-bottom: 4px solid currentColor;
+}
+
+.sort-indicator::after {
+  bottom: 0;
+  border-top: 4px solid currentColor;
+}
+
+.sortable-header:hover .sort-indicator,
+.sortable-header:focus-visible .sort-indicator,
+.sortable-header.is-asc .sort-indicator,
+.sortable-header.is-desc .sort-indicator {
+  opacity: 0.75;
+}
+
+.sortable-header.is-asc .sort-indicator::after,
+.sortable-header.is-desc .sort-indicator::before {
+  opacity: 0.2;
+}
+
 td,
 .data-table td {
   padding: 8px 12px;
@@ -509,6 +589,7 @@ tr:last-child td,
 
 .money {
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .money-zero {

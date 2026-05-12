@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import SereniusModal from "@/components/ui/SereniusModal";
+import SortableHeader from "@/components/ui/SortableHeader";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import {
+  nextSortState,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from "@/lib/ui/sort";
 import type {
   OrganizationMailConnection,
   OrganizationMailSettings,
@@ -31,6 +38,8 @@ type RecipientFormState = {
   notes: string;
   is_active: boolean;
 }
+
+type RecipientSortKey = "name" | "email" | "notes";
 
 function buildDefaultMailSenderForm(): MailSenderFormState {
   return {
@@ -150,6 +159,20 @@ function getTestSendReadyText(activeRecipientCount: number): string {
   }.`;
 }
 
+function getRecipientSortValue(
+  recipient: OrganizationMailTestRecipient,
+  key: RecipientSortKey,
+): SortValue {
+  switch (key) {
+    case "name":
+      return recipient.display_name;
+    case "email":
+      return recipient.email;
+    case "notes":
+      return recipient.notes;
+  }
+}
+
 export default function MailSenderSection({
   tenantId,
   tenantSlug,
@@ -175,9 +198,16 @@ export default function MailSenderSection({
   const [recipientForm, setRecipientForm] = useState<RecipientFormState>(buildDefaultRecipientForm());
   const [recipientError, setRecipientError] = useState<string | null>(null);
   const [savingRecipient, setSavingRecipient] = useState(false);
+  const [recipientSort, setRecipientSort] = useState<SortState<RecipientSortKey> | null>(null);
 
-  const activeRecipients = recipients.filter((recipient) => recipient.is_active);
-  const visibleRecipients = showInactive ? recipients : activeRecipients;
+  const activeRecipients = useMemo(
+    () => recipients.filter((recipient) => recipient.is_active),
+    [recipients],
+  );
+  const visibleRecipients = useMemo(() => {
+    const filteredRecipients = showInactive ? recipients : activeRecipients;
+    return sortByValue(filteredRecipients, recipientSort, getRecipientSortValue);
+  }, [activeRecipients, recipientSort, recipients, showInactive]);
   const hasMailCredentials =
     mailConnection?.credentialsConnected === true ||
     Boolean(settings?.provider_account_email)
@@ -815,9 +845,24 @@ export default function MailSenderSection({
               <thead>
                 <tr>
                   <th className="actions-column">ACTIONS</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Notes</th>
+                  <SortableHeader
+                    label="Name"
+                    sortKey="name"
+                    sort={recipientSort}
+                    onSort={(key) => setRecipientSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Email"
+                    sortKey="email"
+                    sort={recipientSort}
+                    onSort={(key) => setRecipientSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Notes"
+                    sortKey="notes"
+                    sort={recipientSort}
+                    onSort={(key) => setRecipientSort((current) => nextSortState(current, key))}
+                  />
                   <th>ACTIVE</th>
                 </tr>
               </thead>

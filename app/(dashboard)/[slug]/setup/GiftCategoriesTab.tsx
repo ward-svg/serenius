@@ -1,7 +1,14 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import SortableHeader from '@/components/ui/SortableHeader'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
+import {
+  nextSortState,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from '@/lib/ui/sort'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +40,8 @@ interface Props {
   tenantId: string
 }
 
+type CategorySortKey = 'category' | 'masterAccount' | 'subAccount'
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function GiftCategoriesTab({ tenantId }: Props) {
@@ -55,6 +64,7 @@ export default function GiftCategoriesTab({ tenantId }: Props) {
 
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState<string | null>(null)
+  const [categorySort, setCategorySort] = useState<SortState<CategorySortKey> | null>(null)
 
   // ── Load ────────────────────────────────────────────────────────────────────
 
@@ -164,14 +174,38 @@ export default function GiftCategoriesTab({ tenantId }: Props) {
     load()
   }
 
+  const active = useMemo(
+    () => categories.filter(c => c.is_active),
+    [categories],
+  )
+  const inactive = useMemo(
+    () => categories.filter(c => !c.is_active),
+    [categories],
+  )
+  const getCategorySortValue = useCallback((cat: GiftCategory, key: CategorySortKey): SortValue => {
+    switch (key) {
+      case 'category':
+        return cat.category_name
+      case 'masterAccount':
+        return masterLabel(cat.gl_master_account_id)
+      case 'subAccount':
+        return subLabel(cat.gl_sub_account_id)
+    }
+  }, [masters, subs])
+  const sortedActive = useMemo(
+    () => sortByValue(active, categorySort, getCategorySortValue),
+    [active, categorySort, getCategorySortValue],
+  )
+  const sortedInactive = useMemo(
+    () => sortByValue(inactive, categorySort, getCategorySortValue),
+    [categorySort, getCategorySortValue, inactive],
+  )
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   if (loading) {
     return <div className="text-sm text-gray-400 py-8 text-center">Loading gift categories…</div>
   }
-
-  const active   = categories.filter(c => c.is_active)
-  const inactive = categories.filter(c => !c.is_active)
 
   return (
     <div className="space-y-4">
@@ -199,29 +233,47 @@ export default function GiftCategoriesTab({ tenantId }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Master Account</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Sub Account</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide actions-column">ACTIONS</th>
+                <SortableHeader
+                  label="Category"
+                  sortKey="category"
+                  sort={categorySort}
+                  onSort={(key) => setCategorySort((current) => nextSortState(current, key))}
+                  className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                />
+                <SortableHeader
+                  label="Master Account"
+                  sortKey="masterAccount"
+                  sort={categorySort}
+                  onSort={(key) => setCategorySort((current) => nextSortState(current, key))}
+                  className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell"
+                />
+                <SortableHeader
+                  label="Sub Account"
+                  sortKey="subAccount"
+                  sort={categorySort}
+                  onSort={(key) => setCategorySort((current) => nextSortState(current, key))}
+                  className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell"
+                />
               </tr>
             </thead>
             <tbody>
-              {active.map(cat => (
+              {sortedActive.map(cat => (
                 <tr key={cat.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-4 py-2.5 font-medium text-gray-900">{cat.category_name}</td>
-                  <td className="px-4 py-2.5 text-gray-500 hidden md:table-cell text-xs font-mono">
-                    {masterLabel(cat.gl_master_account_id)}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-500 hidden md:table-cell text-xs font-mono">
-                    {subLabel(cat.gl_sub_account_id)}
-                  </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-2.5 actions-column">
                     <div className="flex items-center gap-3">
                       <button onClick={() => openEdit(cat)} className="text-xs text-blue-600 hover:underline">Edit</button>
                       <button onClick={() => toggleActive(cat)} className="text-xs text-gray-400 hover:text-gray-600 hover:underline">
                         Deactivate
                       </button>
                     </div>
+                  </td>
+                  <td className="px-4 py-2.5 font-medium text-gray-900">{cat.category_name}</td>
+                  <td className="px-4 py-2.5 text-gray-500 hidden md:table-cell text-xs font-mono">
+                    {masterLabel(cat.gl_master_account_id)}
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-500 hidden md:table-cell text-xs font-mono">
+                    {subLabel(cat.gl_sub_account_id)}
                   </td>
                 </tr>
               ))}
@@ -237,23 +289,49 @@ export default function GiftCategoriesTab({ tenantId }: Props) {
             <h3 className="text-sm font-semibold text-gray-400">Inactive Categories ({inactive.length})</h3>
           </div>
           <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide actions-column">ACTIONS</th>
+                <SortableHeader
+                  label="Category"
+                  sortKey="category"
+                  sort={categorySort}
+                  onSort={(key) => setCategorySort((current) => nextSortState(current, key))}
+                  className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide"
+                />
+                <SortableHeader
+                  label="Master Account"
+                  sortKey="masterAccount"
+                  sort={categorySort}
+                  onSort={(key) => setCategorySort((current) => nextSortState(current, key))}
+                  className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell"
+                />
+                <SortableHeader
+                  label="Sub Account"
+                  sortKey="subAccount"
+                  sort={categorySort}
+                  onSort={(key) => setCategorySort((current) => nextSortState(current, key))}
+                  className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell"
+                />
+              </tr>
+            </thead>
             <tbody>
-              {inactive.map(cat => (
+              {sortedInactive.map(cat => (
                 <tr key={cat.id} className="border-b border-gray-50 opacity-60 hover:opacity-100">
-                  <td className="px-4 py-2.5 text-gray-500 line-through">{cat.category_name}</td>
-                  <td className="px-4 py-2.5 text-gray-400 hidden md:table-cell text-xs font-mono">
-                    {masterLabel(cat.gl_master_account_id)}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-400 hidden md:table-cell text-xs font-mono">
-                    {subLabel(cat.gl_sub_account_id)}
-                  </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-2.5 actions-column">
                     <div className="flex items-center gap-3">
                       <button onClick={() => openEdit(cat)} className="text-xs text-blue-600 hover:underline">Edit</button>
                       <button onClick={() => toggleActive(cat)} className="text-xs text-green-600 hover:underline">
                         Reactivate
                       </button>
                     </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-500 line-through">{cat.category_name}</td>
+                  <td className="px-4 py-2.5 text-gray-400 hidden md:table-cell text-xs font-mono">
+                    {masterLabel(cat.gl_master_account_id)}
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-400 hidden md:table-cell text-xs font-mono">
+                    {subLabel(cat.gl_sub_account_id)}
                   </td>
                 </tr>
               ))}

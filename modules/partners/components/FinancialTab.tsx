@@ -1,7 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
+import SortableHeader from "@/components/ui/SortableHeader";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import {
+  nextSortState,
+  parseDateSortValue,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from "@/lib/ui/sort";
 import type {
   Partner,
   Pledge,
@@ -13,6 +21,24 @@ import NewPledgeModal from "./NewPledgeModal";
 import GiftModal from "./GiftModal";
 
 const GIFTS_PER_PAGE = 25;
+
+type ActivePledgeSortKey = "pledgeType" | "monthlyValue" | "annualizedValue";
+type PledgeSortKey =
+  | "pledgeType"
+  | "status"
+  | "startDate"
+  | "endDate"
+  | "pledgeAmount"
+  | "frequency";
+type GiftSortKey =
+  | "dateGiven"
+  | "amount"
+  | "feeDonation"
+  | "baseGift"
+  | "notes"
+  | "processingSource"
+  | "towards";
+type StatementSortKey = "year" | "combinedStatement";
 
 const STATUS_STYLES: Record<
   string,
@@ -67,6 +93,68 @@ function groupByTowards(
 function truncate(s: string | null, n: number): string {
   if (!s) return "—";
   return s.length > n ? s.slice(0, n) + "…" : s;
+}
+
+function getActivePledgeSortValue(
+  pledge: Pledge,
+  key: ActivePledgeSortKey,
+): SortValue {
+  switch (key) {
+    case "pledgeType":
+      return pledge.pledge_type;
+    case "monthlyValue":
+      return monthlyValue(pledge);
+    case "annualizedValue":
+      return pledge.annualized_value;
+  }
+}
+
+function getPledgeSortValue(pledge: Pledge, key: PledgeSortKey): SortValue {
+  switch (key) {
+    case "pledgeType":
+      return pledge.pledge_type;
+    case "status":
+      return pledge.status;
+    case "startDate":
+      return parseDateSortValue(pledge.start_date);
+    case "endDate":
+      return parseDateSortValue(pledge.end_date);
+    case "pledgeAmount":
+      return pledge.pledge_amount;
+    case "frequency":
+      return pledge.frequency;
+  }
+}
+
+function getGiftSortValue(gift: FinancialGift, key: GiftSortKey): SortValue {
+  switch (key) {
+    case "dateGiven":
+      return parseDateSortValue(gift.date_given);
+    case "amount":
+      return gift.amount;
+    case "feeDonation":
+      return gift.fee_donation;
+    case "baseGift":
+      return gift.base_gift;
+    case "notes":
+      return gift.notes;
+    case "processingSource":
+      return gift.processing_source;
+    case "towards":
+      return gift.towards;
+  }
+}
+
+function getStatementSortValue(
+  statement: PartnerStatement,
+  key: StatementSortKey,
+): SortValue {
+  switch (key) {
+    case "year":
+      return statement.year;
+    case "combinedStatement":
+      return statement.combined_statement_label;
+  }
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -127,6 +215,12 @@ export default function FinancialTab({ partnerId, partner }: Props) {
 
   const [showNewGift, setShowNewGift] = useState(false);
   const [editingGift, setEditingGift] = useState<FinancialGift | null>(null);
+  const [activePledgeSort, setActivePledgeSort] =
+    useState<SortState<ActivePledgeSortKey> | null>(null);
+  const [pledgeSort, setPledgeSort] = useState<SortState<PledgeSortKey> | null>(null);
+  const [giftSort, setGiftSort] = useState<SortState<GiftSortKey> | null>(null);
+  const [statementSort, setStatementSort] =
+    useState<SortState<StatementSortKey> | null>(null);
 
   const [newGiftDefaults, setNewGiftDefaults] = useState<{
     pledgeId?: string | null;
@@ -243,7 +337,26 @@ export default function FinancialTab({ partnerId, partner }: Props) {
     .slice(0, 4)
     .reverse();
 
-  const activePledges = pledges.filter((p) => p.status === "Active");
+  const activePledges = useMemo(
+    () => pledges.filter((p) => p.status === "Active"),
+    [pledges],
+  );
+  const sortedActivePledges = useMemo(
+    () => sortByValue(activePledges, activePledgeSort, getActivePledgeSortValue),
+    [activePledgeSort, activePledges],
+  );
+  const sortedPledges = useMemo(
+    () => sortByValue(pledges, pledgeSort, getPledgeSortValue),
+    [pledgeSort, pledges],
+  );
+  const sortedGifts = useMemo(
+    () => sortByValue(gifts, giftSort, getGiftSortValue),
+    [giftSort, gifts],
+  );
+  const sortedStatements = useMemo(
+    () => sortByValue(statements, statementSort, getStatementSortValue),
+    [statementSort, statements],
+  );
   const pledgeTotalMonthly = activePledges.reduce(
     (sum, p) => sum + monthlyValue(p),
     0,
@@ -268,10 +381,15 @@ export default function FinancialTab({ partnerId, partner }: Props) {
 
   const totalGifts = gifts.length;
   const totalPages = Math.max(1, Math.ceil(totalGifts / GIFTS_PER_PAGE));
-  const paginatedGifts = gifts.slice(
+  const paginatedGifts = sortedGifts.slice(
     (giftsPage - 1) * GIFTS_PER_PAGE,
     giftsPage * GIFTS_PER_PAGE,
   );
+
+  function handleGiftSort(key: GiftSortKey) {
+    setGiftSort((current) => nextSortState(current, key));
+    setGiftsPage(1);
+  }
 
   async function handleDeleteStatement(id: string, year: number) {
     if (!window.confirm(`Delete ${year} statement? This cannot be undone.`))
@@ -458,13 +576,30 @@ export default function FinancialTab({ partnerId, partner }: Props) {
                   </colgroup>
                   <thead>
                     <tr>
-                      <th>Pledge Type</th>
-                      <th style={{ textAlign: "right" }}>Monthly Value</th>
-                      <th style={{ textAlign: "right" }}>Annualized Value</th>
+                      <SortableHeader
+                        label="Pledge Type"
+                        sortKey="pledgeType"
+                        sort={activePledgeSort}
+                        onSort={(key) => setActivePledgeSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Monthly Value"
+                        sortKey="monthlyValue"
+                        sort={activePledgeSort}
+                        onSort={(key) => setActivePledgeSort((current) => nextSortState(current, key))}
+                        align="right"
+                      />
+                      <SortableHeader
+                        label="Annualized Value"
+                        sortKey="annualizedValue"
+                        sort={activePledgeSort}
+                        onSort={(key) => setActivePledgeSort((current) => nextSortState(current, key))}
+                        align="right"
+                      />
                     </tr>
                   </thead>
                   <tbody>
-                    {activePledges.map((p) => (
+                    {sortedActivePledges.map((p) => (
                       <tr key={p.id}>
                         <td>{p.pledge_type}</td>
                         <td className="money" style={{ textAlign: "right" }}>
@@ -540,14 +675,33 @@ export default function FinancialTab({ partnerId, partner }: Props) {
                 <table>
                   <thead>
                     <tr>
-                      <th>Year</th>
-                      <th>Combined Statement</th>
-                      <th style={{ width: 60 }}></th>
+                      <th className="actions-column">ACTIONS</th>
+                      <SortableHeader
+                        label="Year"
+                        sortKey="year"
+                        sort={statementSort}
+                        onSort={(key) => setStatementSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Combined Statement"
+                        sortKey="combinedStatement"
+                        sort={statementSort}
+                        onSort={(key) => setStatementSort((current) => nextSortState(current, key))}
+                      />
                     </tr>
                   </thead>
                   <tbody>
-                    {statements.map((s) => (
+                    {sortedStatements.map((s) => (
                       <tr key={s.id}>
+                        <td className="actions-column">
+                          <button
+                            type="button"
+                            className="action-link action-link-danger"
+                            onClick={() => handleDeleteStatement(s.id, s.year)}
+                          >
+                            Delete
+                          </button>
+                        </td>
                         <td style={{ fontWeight: 500 }}>{s.year}</td>
                         <td>
                           {s.combined_statement_url ? (
@@ -564,15 +718,6 @@ export default function FinancialTab({ partnerId, partner }: Props) {
                           ) : (
                             "—"
                           )}
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="action-link action-link-danger"
-                            onClick={() => handleDeleteStatement(s.id, s.year)}
-                          >
-                            Delete
-                          </button>
                         </td>
                       </tr>
                     ))}
@@ -783,18 +928,49 @@ export default function FinancialTab({ partnerId, partner }: Props) {
               <thead>
                 <tr>
                   <th className="actions-column">ACTIONS</th>
-                  <th>Pledge Type</th>
-                  <th>Status</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
-                  <th>Pledge Amount</th>
-                  <th>Frequency</th>
+                  <SortableHeader
+                    label="Pledge Type"
+                    sortKey="pledgeType"
+                    sort={pledgeSort}
+                    onSort={(key) => setPledgeSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sort={pledgeSort}
+                    onSort={(key) => setPledgeSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Start Date"
+                    sortKey="startDate"
+                    sort={pledgeSort}
+                    onSort={(key) => setPledgeSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="End Date"
+                    sortKey="endDate"
+                    sort={pledgeSort}
+                    onSort={(key) => setPledgeSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Pledge Amount"
+                    sortKey="pledgeAmount"
+                    sort={pledgeSort}
+                    onSort={(key) => setPledgeSort((current) => nextSortState(current, key))}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Frequency"
+                    sortKey="frequency"
+                    sort={pledgeSort}
+                    onSort={(key) => setPledgeSort((current) => nextSortState(current, key))}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {pledges.map((p) => (
+                {sortedPledges.map((p) => (
                   <tr key={p.id}>
-                    <td>
+                    <td className="actions-column">
                       <button
                         type="button"
                         className="action-link"
@@ -883,19 +1059,57 @@ export default function FinancialTab({ partnerId, partner }: Props) {
               <thead>
                 <tr>
                   <th className="actions-column">ACTIONS</th>
-                  <th>Date Given</th>
-                  <th>Total Gift</th>
-                  <th>Fee Donation</th>
-                  <th>Base Gift</th>
-                  <th>Notes</th>
-                  <th>Processing Source</th>
-                  <th>Towards</th>
+                  <SortableHeader
+                    label="Date Given"
+                    sortKey="dateGiven"
+                    sort={giftSort}
+                    onSort={handleGiftSort}
+                  />
+                  <SortableHeader
+                    label="Total Gift"
+                    sortKey="amount"
+                    sort={giftSort}
+                    onSort={handleGiftSort}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Fee Donation"
+                    sortKey="feeDonation"
+                    sort={giftSort}
+                    onSort={handleGiftSort}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Base Gift"
+                    sortKey="baseGift"
+                    sort={giftSort}
+                    onSort={handleGiftSort}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Notes"
+                    sortKey="notes"
+                    sort={giftSort}
+                    onSort={handleGiftSort}
+                  />
+                  <SortableHeader
+                    label="Processing Source"
+                    sortKey="processingSource"
+                    sort={giftSort}
+                    onSort={handleGiftSort}
+                  />
+                  <SortableHeader
+                    label="Towards"
+                    sortKey="towards"
+                    sort={giftSort}
+                    onSort={handleGiftSort}
+                  />
                 </tr>
               </thead>
               <tbody>
                 {paginatedGifts.map((g) => (
                   <tr key={g.id}>
-                    <td>
+                    <td className="actions-column">
                       <button
                         type="button"
                         className="action-link"

@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import SortableHeader from "@/components/ui/SortableHeader";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import {
+  nextSortState,
+  parseDateSortValue,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from "@/lib/ui/sort";
 import type {
   Partner,
   PartnerContact,
@@ -58,6 +66,102 @@ type EmailInteraction = PartnerEmailOpen & {
   email: EmailCampaignLookup | null;
 };
 
+type CommunicationSortKey =
+  | "communicationDate"
+  | "type"
+  | "channel"
+  | "notes"
+  | "followup"
+  | "followupDue"
+  | "completed";
+
+type EmailInteractionSortKey =
+  | "sent"
+  | "contact"
+  | "campaign"
+  | "opens"
+  | "firstOpened"
+  | "lastOpened";
+
+function getEmailContactLabel(interaction: EmailInteraction): string {
+  const contact = interaction.contact;
+
+  if (contact?.display_name?.trim()) {
+    return contact.display_name;
+  }
+
+  const firstName = contact?.first_name?.trim() ?? "";
+  const lastName = contact?.last_name?.trim() ?? "";
+
+  if (firstName || lastName) {
+    return [firstName, lastName].filter(Boolean).join(" ");
+  }
+
+  if (contact?.primary_email?.trim()) {
+    return contact.primary_email;
+  }
+
+  return "Unknown Contact";
+}
+
+function getEmailCampaignLabel(interaction: EmailInteraction): string {
+  return (
+    interaction.email?.subject?.trim() ||
+    interaction.campaign_message?.trim() ||
+    "—"
+  );
+}
+
+function getEmailSentAt(interaction: EmailInteraction): string | null {
+  return interaction.sent_at ?? interaction.email?.email_sent_at ?? null;
+}
+
+function getCommunicationSortValue(
+  communication: PartnerCommunication,
+  key: CommunicationSortKey,
+): SortValue {
+  switch (key) {
+    case "communicationDate":
+      return parseDateSortValue(communication.communication_date);
+    case "type":
+      return communication.communication_type;
+    case "channel":
+      return communication.communication_channel;
+    case "notes":
+      return communication.notes;
+    case "followup":
+      return communication.followup_complete
+        ? "Complete"
+        : communication.followup_needed
+          ? "Needed"
+          : null;
+    case "followupDue":
+      return parseDateSortValue(communication.followup_due);
+    case "completed":
+      return communication.followup_complete;
+  }
+}
+
+function getEmailInteractionSortValue(
+  interaction: EmailInteraction,
+  key: EmailInteractionSortKey,
+): SortValue {
+  switch (key) {
+    case "sent":
+      return parseDateSortValue(getEmailSentAt(interaction));
+    case "contact":
+      return getEmailContactLabel(interaction);
+    case "campaign":
+      return getEmailCampaignLabel(interaction);
+    case "opens":
+      return interaction.open_count ?? 0;
+    case "firstOpened":
+      return parseDateSortValue(interaction.first_opened);
+    case "lastOpened":
+      return parseDateSortValue(interaction.last_opened);
+  }
+}
+
 export default function CommunicationsTab({ partner }: Props) {
   const [communications, setCommunications] = useState<PartnerCommunication[]>(
     [],
@@ -70,6 +174,10 @@ export default function CommunicationsTab({ partner }: Props) {
   const [showCommunicationModal, setShowCommunicationModal] = useState(false);
   const [selectedCommunication, setSelectedCommunication] =
     useState<PartnerCommunication | null>(null);
+  const [communicationSort, setCommunicationSort] =
+    useState<SortState<CommunicationSortKey> | null>(null);
+  const [emailInteractionSort, setEmailInteractionSort] =
+    useState<SortState<EmailInteractionSortKey> | null>(null);
 
   const loadCommunications = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
@@ -208,38 +316,19 @@ export default function CommunicationsTab({ partner }: Props) {
     }, {} as Record<string, PartnerCommunicationFollowup[]>);
   }, [followups]);
 
-  const contactLabelByInteraction = useCallback((interaction: EmailInteraction) => {
-    const contact = interaction.contact;
-
-    if (contact?.display_name?.trim()) {
-      return contact.display_name;
-    }
-
-    const firstName = contact?.first_name?.trim() ?? "";
-    const lastName = contact?.last_name?.trim() ?? "";
-
-    if (firstName || lastName) {
-      return [firstName, lastName].filter(Boolean).join(" ");
-    }
-
-    if (contact?.primary_email?.trim()) {
-      return contact.primary_email;
-    }
-
-    return "Unknown Contact";
-  }, []);
-
-  const campaignLabelByInteraction = useCallback((interaction: EmailInteraction) => {
-    return (
-      interaction.email?.subject?.trim() ||
-      interaction.campaign_message?.trim() ||
-      "—"
-    );
-  }, []);
-
-  const sentAtByInteraction = useCallback((interaction: EmailInteraction) => {
-    return interaction.sent_at ?? interaction.email?.email_sent_at ?? null;
-  }, []);
+  const sortedCommunications = useMemo(
+    () => sortByValue(communications, communicationSort, getCommunicationSortValue),
+    [communicationSort, communications],
+  );
+  const sortedEmailInteractions = useMemo(
+    () =>
+      sortByValue(
+        emailInteractions,
+        emailInteractionSort,
+        getEmailInteractionSortValue,
+      ),
+    [emailInteractionSort, emailInteractions],
+  );
 
   function handleNewCommunication() {
     setSelectedCommunication(null);
@@ -364,17 +453,52 @@ export default function CommunicationsTab({ partner }: Props) {
               <thead>
                 <tr>
                   <th className="actions-column">ACTIONS</th>
-                  <th>Communication Date</th>
-                  <th>Type</th>
-                  <th>Channel</th>
-                  <th>Notes</th>
-                  <th>Follow-Up</th>
-                  <th>Follow-Up Due</th>
-                  <th>Completed</th>
+                  <SortableHeader
+                    label="Communication Date"
+                    sortKey="communicationDate"
+                    sort={communicationSort}
+                    onSort={(key) => setCommunicationSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Type"
+                    sortKey="type"
+                    sort={communicationSort}
+                    onSort={(key) => setCommunicationSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Channel"
+                    sortKey="channel"
+                    sort={communicationSort}
+                    onSort={(key) => setCommunicationSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Notes"
+                    sortKey="notes"
+                    sort={communicationSort}
+                    onSort={(key) => setCommunicationSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Follow-Up"
+                    sortKey="followup"
+                    sort={communicationSort}
+                    onSort={(key) => setCommunicationSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Follow-Up Due"
+                    sortKey="followupDue"
+                    sort={communicationSort}
+                    onSort={(key) => setCommunicationSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Completed"
+                    sortKey="completed"
+                    sort={communicationSort}
+                    onSort={(key) => setCommunicationSort((current) => nextSortState(current, key))}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {communications.map((communication) => (
+                {sortedCommunications.map((communication) => (
                   <tr key={communication.id}>
                     <td className="actions-column">
                       <button
@@ -421,16 +545,46 @@ export default function CommunicationsTab({ partner }: Props) {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Sent</th>
-                  <th>Contact</th>
-                  <th>Campaign / Subject</th>
-                  <th>Opens</th>
-                  <th>First Opened</th>
-                  <th>Last Opened</th>
+                  <SortableHeader
+                    label="Sent"
+                    sortKey="sent"
+                    sort={emailInteractionSort}
+                    onSort={(key) => setEmailInteractionSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Contact"
+                    sortKey="contact"
+                    sort={emailInteractionSort}
+                    onSort={(key) => setEmailInteractionSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Campaign / Subject"
+                    sortKey="campaign"
+                    sort={emailInteractionSort}
+                    onSort={(key) => setEmailInteractionSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Opens"
+                    sortKey="opens"
+                    sort={emailInteractionSort}
+                    onSort={(key) => setEmailInteractionSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="First Opened"
+                    sortKey="firstOpened"
+                    sort={emailInteractionSort}
+                    onSort={(key) => setEmailInteractionSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Last Opened"
+                    sortKey="lastOpened"
+                    sort={emailInteractionSort}
+                    onSort={(key) => setEmailInteractionSort((current) => nextSortState(current, key))}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {emailInteractions.map((interaction) => (
+                {sortedEmailInteractions.map((interaction) => (
                   <tr
                     key={interaction.id}
                     style={
@@ -439,9 +593,9 @@ export default function CommunicationsTab({ partner }: Props) {
                         : undefined
                     }
                   >
-                    <td>{formatDate(sentAtByInteraction(interaction))}</td>
-                    <td>{contactLabelByInteraction(interaction)}</td>
-                    <td>{campaignLabelByInteraction(interaction)}</td>
+                    <td>{formatDate(getEmailSentAt(interaction))}</td>
+                    <td>{getEmailContactLabel(interaction)}</td>
+                    <td>{getEmailCampaignLabel(interaction)}</td>
                     <td>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                         <span>{interaction.open_count ?? 0}</span>

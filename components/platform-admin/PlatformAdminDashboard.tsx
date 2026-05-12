@@ -1,4 +1,14 @@
+'use client'
+
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import SortableHeader from '@/components/ui/SortableHeader'
+import {
+  nextSortState,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from '@/lib/ui/sort'
 
 interface OrganizationRow {
   id: string
@@ -29,11 +39,27 @@ interface Props {
   platformUsersCount: number
 }
 
+type TenantSortKey = 'organization' | 'slug' | 'plan' | 'modules' | 'storage' | 'status'
+
 function countBy<T extends string>(values: T[]) {
   return values.reduce((map, value) => {
     map.set(value, (map.get(value) ?? 0) + 1)
     return map
   }, new Map<T, number>())
+}
+
+function getStorageStatus(storage: OrganizationStorageRow | undefined): string {
+  if (storage?.provider === 'google_drive') {
+    if (storage.connection_status === 'connected' && storage.is_enabled) {
+      return 'Connected'
+    }
+
+    return storage.is_enabled ? 'Manual' : 'Disabled'
+  }
+
+  if (storage?.provider) return `Unsupported · ${storage.provider}`
+
+  return 'Not configured'
 }
 
 export default function PlatformAdminDashboard({
@@ -42,6 +68,7 @@ export default function PlatformAdminDashboard({
   organizationStorageSettings,
   platformUsersCount,
 }: Props) {
+  const [tenantSort, setTenantSort] = useState<SortState<TenantSortKey> | null>(null)
   const activeTenants = organizations.filter(org => org.is_active).length
   const inactiveTenants = organizations.length - activeTenants
   const plansInUse = new Set(
@@ -66,6 +93,36 @@ export default function PlatformAdminDashboard({
   const planCounts = countBy(
     organizations.map(org => org.plan?.trim() || 'Unassigned'),
   )
+  const tenantRows = useMemo(() => {
+    return organizations.map(org => {
+      const settings = organizationSettings.find(setting => setting.tenant_id === org.id)
+      const storage = organizationStorageSettings.find(setting => setting.tenant_id === org.id)
+
+      return {
+        org,
+        modulesEnabled: settings?.modules_enabled?.length ?? 0,
+        storageStatus: getStorageStatus(storage),
+      }
+    })
+  }, [organizationSettings, organizationStorageSettings, organizations])
+  const sortedTenantRows = useMemo(() => {
+    return sortByValue(tenantRows, tenantSort, (row, key): SortValue => {
+      switch (key) {
+        case 'organization':
+          return row.org.name
+        case 'slug':
+          return row.org.slug
+        case 'plan':
+          return row.org.plan
+        case 'modules':
+          return row.modulesEnabled
+        case 'storage':
+          return row.storageStatus
+        case 'status':
+          return row.org.is_active
+      }
+    })
+  }, [tenantRows, tenantSort])
 
   return (
     <div className="space-y-6">
@@ -134,33 +191,50 @@ export default function PlatformAdminDashboard({
               <thead>
                 <tr>
                   <th className="actions-column">ACTIONS</th>
-                  <th>Organization</th>
-                  <th>Slug</th>
-                  <th>Plan</th>
-                  <th>Modules</th>
-                  <th>Storage</th>
-                  <th>Status</th>
+                  <SortableHeader
+                    label="Organization"
+                    sortKey="organization"
+                    sort={tenantSort}
+                    onSort={(key) => setTenantSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Slug"
+                    sortKey="slug"
+                    sort={tenantSort}
+                    onSort={(key) => setTenantSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Plan"
+                    sortKey="plan"
+                    sort={tenantSort}
+                    onSort={(key) => setTenantSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Modules"
+                    sortKey="modules"
+                    sort={tenantSort}
+                    onSort={(key) => setTenantSort((current) => nextSortState(current, key))}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Storage"
+                    sortKey="storage"
+                    sort={tenantSort}
+                    onSort={(key) => setTenantSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sort={tenantSort}
+                    onSort={(key) => setTenantSort((current) => nextSortState(current, key))}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {organizations.map(org => {
-                  const settings = organizationSettings.find(setting => setting.tenant_id === org.id)
-                  const storage = organizationStorageSettings.find(setting => setting.tenant_id === org.id)
-                  const modulesEnabled = settings?.modules_enabled?.length ?? 0
-                  const storageStatus =
-                    storage?.provider === 'google_drive'
-                      ? storage.connection_status === 'connected' && storage.is_enabled
-                        ? 'Connected'
-                        : storage.is_enabled
-                          ? 'Manual'
-                          : 'Disabled'
-                      : storage?.provider
-                        ? `Unsupported · ${storage.provider}`
-                        : 'Not configured'
-
+                {sortedTenantRows.map(({ org, modulesEnabled, storageStatus }) => {
                   return (
                     <tr key={org.id}>
-                      <td className="whitespace-nowrap">
+                      <td className="actions-column">
                         <Link href={`/${org.slug}/partners`} className="action-link">
                           Open
                         </Link>

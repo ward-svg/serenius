@@ -25,6 +25,9 @@
 - Follow `docs/ui-foundation.md`.
 - Use established button, action, table, and modal patterns.
 - Use simple human language.
+- New data grids must follow the sortable-grid standards in `docs/ui-foundation.md`.
+- Use `SortableHeader` (`components/ui/SortableHeader.tsx`) and `lib/ui/sort.ts` helpers for all sortable columns.
+- Do not query undocumented columns from `docs/database/serenius_schema.md` just to support grid display or sorting.
 
 ## Database Rules
 

@@ -381,7 +381,7 @@ export default function ChartOfAccountsTab({ tenantId, isSuperAdmin }: Props) {
         CSV format: <code className="bg-gray-100 px-1 rounded">master_number, master_name, master_type, sub_number, sub_name, description, program_group</code>
       </p>
 
-      {/* Account Tree */}
+      {/* Account Tree: intentionally keeps chart hierarchy/number order instead of user sorting. */}
       <div className="section-card p-0 overflow-hidden">
         {filteredMasters.length === 0 ? (
           <div className="py-12 text-center text-gray-400 text-sm">

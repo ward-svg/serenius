@@ -1,7 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import SortableHeader from "@/components/ui/SortableHeader";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import {
+  nextSortState,
+  parseDateSortValue,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from "@/lib/ui/sort";
 import type { Partner, PartnerInKindGift } from "@/modules/partners/types";
 import InKindGiftModal from "./InKindGiftModal";
 
@@ -41,11 +49,43 @@ function valueOrDash(value: string | number | null | undefined): string {
   return String(value);
 }
 
+type InKindSortKey =
+  | "dateGiven"
+  | "description"
+  | "condition"
+  | "quantity"
+  | "estimatedValue"
+  | "assetStatus"
+  | "dateTransferred";
+
+function getInKindSortValue(
+  gift: PartnerInKindGift,
+  key: InKindSortKey,
+): SortValue {
+  switch (key) {
+    case "dateGiven":
+      return parseDateSortValue(gift.date_given);
+    case "description":
+      return gift.description;
+    case "condition":
+      return gift.condition_type;
+    case "quantity":
+      return gift.quantity;
+    case "estimatedValue":
+      return gift.estimated_value;
+    case "assetStatus":
+      return gift.asset_status;
+    case "dateTransferred":
+      return parseDateSortValue(gift.date_transferred);
+  }
+}
+
 export default function InKindTab({ partner }: Props) {
   const [gifts, setGifts] = useState<PartnerInKindGift[]>([]);
   const [loading, setLoading] = useState(true);
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [selectedGift, setSelectedGift] = useState<PartnerInKindGift | null>(null);
+  const [sort, setSort] = useState<SortState<InKindSortKey> | null>(null);
 
   const loadGifts = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
@@ -72,6 +112,10 @@ export default function InKindTab({ partner }: Props) {
     0,
   );
   const totalItems = gifts.length;
+  const sortedGifts = useMemo(
+    () => sortByValue(gifts, sort, getInKindSortValue),
+    [gifts, sort],
+  );
 
   function handleCreateGift() {
     setSelectedGift(null);
@@ -170,17 +214,53 @@ export default function InKindTab({ partner }: Props) {
               <thead>
                 <tr>
                   <th className="actions-column">ACTIONS</th>
-                  <th>Date Given</th>
-                  <th>Description</th>
-                  <th>Condition</th>
-                  <th>Quantity</th>
-                  <th style={{ textAlign: "right" }}>Estimated Value</th>
-                  <th>Asset Status</th>
-                  <th>Date Transferred</th>
+                  <SortableHeader
+                    label="Date Given"
+                    sortKey="dateGiven"
+                    sort={sort}
+                    onSort={(key) => setSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Description"
+                    sortKey="description"
+                    sort={sort}
+                    onSort={(key) => setSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Condition"
+                    sortKey="condition"
+                    sort={sort}
+                    onSort={(key) => setSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Quantity"
+                    sortKey="quantity"
+                    sort={sort}
+                    onSort={(key) => setSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Estimated Value"
+                    sortKey="estimatedValue"
+                    sort={sort}
+                    onSort={(key) => setSort((current) => nextSortState(current, key))}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Asset Status"
+                    sortKey="assetStatus"
+                    sort={sort}
+                    onSort={(key) => setSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Date Transferred"
+                    sortKey="dateTransferred"
+                    sort={sort}
+                    onSort={(key) => setSort((current) => nextSortState(current, key))}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {gifts.map((gift) => (
+                {sortedGifts.map((gift) => (
                   <tr key={gift.id}>
                     <td className="actions-column">
                       <button

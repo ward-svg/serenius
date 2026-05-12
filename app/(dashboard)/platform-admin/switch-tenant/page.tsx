@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createSupabaseServiceClient } from '@/lib/supabase-service'
+import PlatformSwitchTenantTable from '@/components/platform-admin/PlatformSwitchTenantTable'
 
 export const revalidate = 0
 
@@ -10,7 +11,6 @@ interface OrganizationRow {
   name: string
   slug: string
   plan: string | null
-  is_active: boolean
 }
 
 interface OrganizationSettingsRow {
@@ -49,7 +49,7 @@ export default async function SwitchTenantPage({
   const [{ data: organizationsData }, { data: settingsData }] = await Promise.all([
     serviceSupabase
       .from('organizations')
-      .select('id, name, slug, plan, is_active')
+      .select('id, name, slug, plan')
       .order('name'),
     serviceSupabase
       .from('organization_settings')
@@ -105,39 +105,10 @@ export default async function SwitchTenantPage({
         {filteredOrganizations.length === 0 ? (
           <div className="empty-state">No tenants found.</div>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th className="actions-column">ACTIONS</th>
-                  <th>Organization</th>
-                  <th>Slug</th>
-                  <th>Plan</th>
-                  <th>Modules</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrganizations.map(org => {
-                  const settingsRow = settings.find(setting => setting.tenant_id === org.id)
-                  const modulesCount = settingsRow?.modules_enabled?.length ?? 0
-
-                  return (
-                    <tr key={org.id}>
-                      <td className="whitespace-nowrap">
-                        <Link href={`/${org.slug}/partners`} className="action-link">
-                          Open
-                        </Link>
-                      </td>
-                      <td className="font-medium text-gray-900">{org.name}</td>
-                      <td className="text-gray-500">{org.slug}</td>
-                      <td className="text-gray-600">{org.plan ?? '—'}</td>
-                      <td className="text-gray-600">{modulesCount}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <PlatformSwitchTenantTable
+            organizations={filteredOrganizations}
+            settings={settings}
+          />
         )}
       </div>
     </div>

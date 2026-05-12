@@ -34,6 +34,13 @@ This branch established the baseline UI conventions for the Serenius partner mod
 - Use `empty-state` for standard centered empty states.
 - Use `actions-column` for action header or cell widths when appropriate.
 - Keep money cells right-aligned.
+- All operational/data grids should use sortable headers for meaningful visible data columns from the start.
+- `ACTIONS` columns are never sortable and remain leftmost.
+- Numeric, date, currency, and count columns must sort by the underlying value, not the formatted display string.
+- Empty or null values should sort last.
+- Sorting indicators should be subtle, consistent, and visible for unsorted, ascending, and descending sortable headers.
+- New modules must include sortable grids from the start.
+- If a grid cannot safely support sorting because of server pagination, query constraints, or hierarchy-preserving display order, document the exception in the component and keep row ordering predictable.
 
 ## Modals
 

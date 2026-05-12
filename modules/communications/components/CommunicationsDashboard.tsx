@@ -2,10 +2,19 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import SortableHeader from "@/components/ui/SortableHeader";
+import {
+  nextSortState,
+  parseDateSortValue,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from "@/lib/ui/sort";
 import CampaignModal from "./CampaignModal";
 import type {
   CampaignListFilter,
   CommunicationsPageData,
+  MailTestRecipient,
   PartnerEmailCampaign,
 } from "../types";
 import { CAMPAIGN_FILTERS } from "../constants";
@@ -48,6 +57,22 @@ function prettyText(value: string | null | undefined): string {
   return value;
 }
 
+type CampaignSortKey =
+  | "createdAt"
+  | "sendingStatus"
+  | "messageStatus"
+  | "communicationType"
+  | "segment"
+  | "campaignVersion"
+  | "subject"
+  | "deliveryAt"
+  | "emailSentAt"
+  | "totalEmailsSent"
+  | "originalOpens"
+  | "totalTouches";
+
+type TestRecipientSortKey = "name" | "email" | "notes";
+
 function classifyCampaign(campaign: PartnerEmailCampaign): CampaignListFilter {
   const sending = (campaign.sending_status ?? "").toLowerCase();
   const message = (campaign.message_status ?? "").toLowerCase();
@@ -89,6 +114,52 @@ function classifyCampaign(campaign: PartnerEmailCampaign): CampaignListFilter {
   return "completed";
 }
 
+function getCampaignSortValue(
+  campaign: PartnerEmailCampaign,
+  key: CampaignSortKey,
+): SortValue {
+  switch (key) {
+    case "createdAt":
+      return parseDateSortValue(campaign.created_at);
+    case "sendingStatus":
+      return campaign.sending_status;
+    case "messageStatus":
+      return campaign.message_status;
+    case "communicationType":
+      return campaign.communication_type;
+    case "segment":
+      return campaign.segment;
+    case "campaignVersion":
+      return campaign.campaign_version;
+    case "subject":
+      return campaign.subject;
+    case "deliveryAt":
+      return parseDateSortValue(campaign.delivery_datetime);
+    case "emailSentAt":
+      return parseDateSortValue(campaign.email_sent_at);
+    case "totalEmailsSent":
+      return campaign.total_emails_sent;
+    case "originalOpens":
+      return campaign.original_opens;
+    case "totalTouches":
+      return campaign.total_touches;
+  }
+}
+
+function getTestRecipientSortValue(
+  recipient: MailTestRecipient,
+  key: TestRecipientSortKey,
+): SortValue {
+  switch (key) {
+    case "name":
+      return recipient.display_name;
+    case "email":
+      return recipient.email;
+    case "notes":
+      return recipient.notes;
+  }
+}
+
 export default function CommunicationsDashboard({
   slug,
   orgId,
@@ -106,6 +177,18 @@ export default function CommunicationsDashboard({
   const [selectedCampaign, setSelectedCampaign] = useState<PartnerEmailCampaign | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "view" | "edit">("create");
   const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [campaignSort, setCampaignSort] = useState<SortState<CampaignSortKey> | null>(null);
+  const [testRecipientSort, setTestRecipientSort] =
+    useState<SortState<TestRecipientSortKey> | null>(null);
+
+  const activeTestRecipients = useMemo(
+    () => testRecipients.filter((recipient) => recipient.is_active),
+    [testRecipients],
+  );
+  const visibleTestRecipients = useMemo(
+    () => sortByValue(activeTestRecipients, testRecipientSort, getTestRecipientSortValue),
+    [activeTestRecipients, testRecipientSort],
+  );
 
   const totalOpenEvents = opens.reduce(
     (sum, openRow) => sum + (openRow.open_count ?? 0),
@@ -137,9 +220,13 @@ export default function CommunicationsDashboard({
   }, [campaigns]);
 
   const visibleCampaigns = useMemo(() => {
-    if (activeFilter === "all") return campaigns;
-    return campaigns.filter((campaign) => classifyCampaign(campaign) === activeFilter);
-  }, [activeFilter, campaigns]);
+    const filteredCampaigns =
+      activeFilter === "all"
+        ? campaigns
+        : campaigns.filter((campaign) => classifyCampaign(campaign) === activeFilter);
+
+    return sortByValue(filteredCampaigns, campaignSort, getCampaignSortValue);
+  }, [activeFilter, campaignSort, campaigns]);
 
   function openCampaign(campaign: PartnerEmailCampaign) {
     setSelectedCampaign(campaign);
@@ -275,12 +362,10 @@ export default function CommunicationsDashboard({
         <div className="section-card" style={{ marginBottom: 0 }}>
           <div className="section-header">
             <span className="section-title">Test Recipients</span>
-            <span className="section-count">
-              {testRecipients.filter((recipient) => recipient.is_active).length}
-            </span>
+            <span className="section-count">{activeTestRecipients.length}</span>
           </div>
 
-          {testRecipients.filter((recipient) => recipient.is_active).length === 0 ? (
+          {activeTestRecipients.length === 0 ? (
             <div className="empty-state">
               No active test recipients configured yet.
             </div>
@@ -289,15 +374,28 @@ export default function CommunicationsDashboard({
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Notes</th>
+                    <SortableHeader
+                      label="Name"
+                      sortKey="name"
+                      sort={testRecipientSort}
+                      onSort={(key) => setTestRecipientSort((current) => nextSortState(current, key))}
+                    />
+                    <SortableHeader
+                      label="Email"
+                      sortKey="email"
+                      sort={testRecipientSort}
+                      onSort={(key) => setTestRecipientSort((current) => nextSortState(current, key))}
+                    />
+                    <SortableHeader
+                      label="Notes"
+                      sortKey="notes"
+                      sort={testRecipientSort}
+                      onSort={(key) => setTestRecipientSort((current) => nextSortState(current, key))}
+                    />
                   </tr>
                 </thead>
                 <tbody>
-                  {testRecipients
-                    .filter((recipient) => recipient.is_active)
-                    .map((recipient) => (
+                  {visibleTestRecipients.map((recipient) => (
                       <tr key={recipient.id}>
                         <td>{recipient.display_name || "—"}</td>
                         <td>{recipient.email}</td>
@@ -358,18 +456,81 @@ export default function CommunicationsDashboard({
               <thead>
                 <tr>
                   <th className="actions-column">ACTIONS</th>
-                  <th>Created Date</th>
-                  <th>Sending Status</th>
-                  <th>Message Status</th>
-                  <th>Communication Type</th>
-                  <th>Segment</th>
-                  <th>Campaign Version</th>
-                  <th>Subject</th>
-                  <th>Delivery Date/Time</th>
-                  <th>Email Sent</th>
-                  <th>Total Emails Sent</th>
-                  <th>Original Opens</th>
-                  <th>Total Touches</th>
+                  <SortableHeader
+                    label="Created Date"
+                    sortKey="createdAt"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Sending Status"
+                    sortKey="sendingStatus"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Message Status"
+                    sortKey="messageStatus"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Communication Type"
+                    sortKey="communicationType"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Segment"
+                    sortKey="segment"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Campaign Version"
+                    sortKey="campaignVersion"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Subject"
+                    sortKey="subject"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Delivery Date/Time"
+                    sortKey="deliveryAt"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Email Sent"
+                    sortKey="emailSentAt"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                  />
+                  <SortableHeader
+                    label="Total Emails Sent"
+                    sortKey="totalEmailsSent"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Original Opens"
+                    sortKey="originalOpens"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Total Touches"
+                    sortKey="totalTouches"
+                    sort={campaignSort}
+                    onSort={(key) => setCampaignSort((current) => nextSortState(current, key))}
+                    align="right"
+                  />
                 </tr>
               </thead>
               <tbody>

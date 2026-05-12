@@ -16,6 +16,15 @@ import {
 } from '@/modules/partners/utils'
 import AddPartnerModal from './AddPartnerModal'
 import { formatPhone } from '@/lib/formatPhone'
+import SortableHeader from '@/components/ui/SortableHeader'
+import {
+  nextSortState,
+  normalizePhoneSortValue,
+  parseDateSortValue,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from '@/lib/ui/sort'
 
 interface Props {
   slug: string
@@ -80,6 +89,137 @@ function getTabCount(
   return counts[tab]
 }
 
+type PartnerSortKey =
+  | 'name'
+  | 'salutation'
+  | 'type'
+  | 'relationship'
+  | 'city'
+  | 'state'
+  | 'email'
+  | 'phone'
+  | 'totalGiving'
+  | 'ytd2026'
+  | 'createdAt'
+
+type PartnerTableKey = 'active' | 'prospects' | 'past'
+
+type PartnerSortState = SortState<PartnerSortKey>
+type MonthlyPledgeSortKey =
+  | 'partnerName'
+  | 'monthlyGift'
+  | 'annualizedValue'
+  | 'startDate'
+  | 'pledgeType'
+type StaffSortKey = 'name' | 'email' | 'emailSegment' | 'phone'
+
+function getPartnerSortValue(
+  partner: Partner,
+  key: PartnerSortKey,
+  givingByPartner: Record<string, { total: number; ytd: number }>
+): SortValue {
+  switch (key) {
+    case 'name':
+      return partner.display_name
+    case 'salutation':
+      return partner.correspondence_greeting
+    case 'type':
+      return partner.partner_type
+    case 'relationship':
+      return partner.relationship_type
+    case 'city':
+      return partner.address_city
+    case 'state':
+      return partner.address_state
+    case 'email':
+      return partner.primary_email
+    case 'phone':
+      return normalizePhoneSortValue(partner.primary_phone)
+    case 'totalGiving':
+      return givingByPartner[partner.id]?.total ?? 0
+    case 'ytd2026':
+      return givingByPartner[partner.id]?.ytd ?? 0
+    case 'createdAt':
+      return parseDateSortValue(partner.created_at)
+  }
+}
+
+function getMonthlyPledgeSortValue(
+  pledge: MonthlyPartnerPledge,
+  key: MonthlyPledgeSortKey
+): SortValue {
+  switch (key) {
+    case 'partnerName':
+      return pledge.partner_name
+    case 'monthlyGift':
+      return pledge.pledge_amount
+    case 'annualizedValue':
+      return pledge.annualized_value
+    case 'startDate':
+      return parseDateSortValue(pledge.start_date)
+    case 'pledgeType':
+      return pledge.pledge_type
+  }
+}
+
+function getStaffName(staff: PartnerContact): string {
+  return [staff.first_name, staff.last_name].filter(Boolean).join(' ')
+}
+
+function getStaffSortValue(
+  staff: PartnerContact,
+  key: StaffSortKey
+): SortValue {
+  switch (key) {
+    case 'name':
+      return getStaffName(staff) || staff.display_name
+    case 'email':
+      return staff.primary_email
+    case 'emailSegment':
+      return staff.email_segment?.join(', ')
+    case 'phone':
+      return normalizePhoneSortValue(staff.primary_phone)
+  }
+}
+
+function sortPartners(
+  partners: Partner[],
+  sort: PartnerSortState | null,
+  givingByPartner: Record<string, { total: number; ytd: number }>
+) {
+  return sortByValue(
+    partners,
+    sort,
+    (partner, key) => getPartnerSortValue(partner, key, givingByPartner)
+  )
+}
+
+function SortablePartnerHeader({
+  label,
+  sortKey,
+  table,
+  sort,
+  onSort,
+  align,
+}: {
+  label: string
+  sortKey: PartnerSortKey
+  table: PartnerTableKey
+  sort: PartnerSortState | null
+  onSort: (table: PartnerTableKey, key: PartnerSortKey) => void
+  align?: "left" | "right"
+}) {
+  return (
+    <SortableHeader
+      label={label}
+      sortKey={sortKey}
+      sort={sort}
+      onSort={(key) => onSort(table, key)}
+      align={align}
+    />
+  )
+}
+
 export default function PartnersClient({
   slug,
   orgId,
@@ -95,6 +235,16 @@ export default function PartnersClient({
   const [activeTab, setActiveTab] = useState<PartnerTab>('active')
   const [search, setSearch] = useState('')
   const [showAddPartner, setShowAddPartner] = useState(false)
+  const [partnerSorts, setPartnerSorts] = useState<
+    Record<PartnerTableKey, PartnerSortState | null>
+  >({
+    active: null,
+    prospects: null,
+    past: null,
+  })
+  const [monthlyPledgeSort, setMonthlyPledgeSort] =
+    useState<SortState<MonthlyPledgeSortKey> | null>(null)
+  const [staffSort, setStaffSort] = useState<SortState<StaffSortKey> | null>(null)
 
   const filtered = useMemo(() => {
     if (!search) return activeDonors
@@ -107,6 +257,29 @@ export default function PartnersClient({
       (p.primary_email ?? '').toLowerCase().includes(q)
     )
   }, [activeDonors, search])
+
+  const sortedActivePartners = useMemo(
+    () => sortPartners(filtered, partnerSorts.active, givingByPartner),
+    [filtered, partnerSorts.active, givingByPartner]
+  )
+
+  const sortedProspects = useMemo(
+    () => sortPartners(prospects, partnerSorts.prospects, givingByPartner),
+    [prospects, partnerSorts.prospects, givingByPartner]
+  )
+
+  const sortedPastPartners = useMemo(
+    () => sortPartners(pastPartners, partnerSorts.past, givingByPartner),
+    [pastPartners, partnerSorts.past, givingByPartner]
+  )
+  const sortedMonthlyPledges = useMemo(
+    () => sortByValue(monthlyPledges, monthlyPledgeSort, getMonthlyPledgeSortValue),
+    [monthlyPledgeSort, monthlyPledges]
+  )
+  const sortedStaff = useMemo(
+    () => sortByValue(staff, staffSort, getStaffSortValue),
+    [staff, staffSort]
+  )
 
   const monthlyTotals = monthlyPledges.reduce(
     (a, b) => ({
@@ -133,7 +306,7 @@ export default function PartnersClient({
   function exportMonthlyPledgesCsv() {
     downloadCsv(
       'monthly-partner-pledges.csv',
-      monthlyPledges.map(p => ({
+      sortedMonthlyPledges.map(p => ({
         'Partner / Record Gift': p.partner_name,
         'Monthly Gift': p.pledge_amount,
         'Annualized Value': p.annualized_value,
@@ -146,18 +319,27 @@ export default function PartnersClient({
   function exportActivePartnersCsv() {
     downloadCsv(
       'active-partners.csv',
-      filtered.map(p => ({
+      sortedActivePartners.map(p => ({
         'Partner Name': p.display_name,
         Salutation: p.correspondence_greeting,
         Type: p.partner_type,
         City: p.address_city,
-        State: p.address_state,
+        ST: p.address_state,
         'Primary Email': p.primary_email,
         'Primary Phone': p.primary_phone,
         'Total Giving': givingByPartner[p.id]?.total ?? 0,
         'YTD 2026': givingByPartner[p.id]?.ytd ?? 0,
       }))
     )
+  }
+
+  function handlePartnerSort(table: PartnerTableKey, key: PartnerSortKey) {
+    setPartnerSorts(prev => {
+      return {
+        ...prev,
+        [table]: nextSortState(prev[table], key),
+      }
+    })
   }
 
   return (
@@ -238,16 +420,43 @@ export default function PartnersClient({
         <table className="monthly-table">
           <thead>
             <tr>
-              <th>Partner Name</th>
-              <th>Monthly Gift</th>
-              <th>Annualized Value</th>
-              <th>Start Date</th>
-              <th>Pledge Type</th>
+              <SortableHeader
+                label="Partner Name"
+                sortKey="partnerName"
+                sort={monthlyPledgeSort}
+                onSort={(key) => setMonthlyPledgeSort((current) => nextSortState(current, key))}
+              />
+              <SortableHeader
+                label="Monthly Gift"
+                sortKey="monthlyGift"
+                sort={monthlyPledgeSort}
+                onSort={(key) => setMonthlyPledgeSort((current) => nextSortState(current, key))}
+                align="right"
+              />
+              <SortableHeader
+                label="Annualized Value"
+                sortKey="annualizedValue"
+                sort={monthlyPledgeSort}
+                onSort={(key) => setMonthlyPledgeSort((current) => nextSortState(current, key))}
+                align="right"
+              />
+              <SortableHeader
+                label="Start Date"
+                sortKey="startDate"
+                sort={monthlyPledgeSort}
+                onSort={(key) => setMonthlyPledgeSort((current) => nextSortState(current, key))}
+              />
+              <SortableHeader
+                label="Pledge Type"
+                sortKey="pledgeType"
+                sort={monthlyPledgeSort}
+                onSort={(key) => setMonthlyPledgeSort((current) => nextSortState(current, key))}
+              />
             </tr>
           </thead>
 
           <tbody>
-            {monthlyPledges.map(p => (
+            {sortedMonthlyPledges.map(p => (
               <tr key={p.id}>
                 <td>
                   <Link
@@ -353,27 +562,83 @@ export default function PartnersClient({
 
         {/* Active Donors */}
         {activeTab === 'active' && (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 80 }}>ACTIONS</th>
-                  <th>Partner Name</th>
-                  <th>Salutation</th>
-                  <th>Type</th>
-                  <th>City</th>
-                  <th>St</th>
-                  <th>Primary Email</th>
-                  <th>Primary Phone</th>
-                  <th>Total Giving</th>
-                  <th>YTD 2026</th>
+                  <th className="actions-column">ACTIONS</th>
+                  <SortablePartnerHeader
+                    table="active"
+                    sortKey="name"
+                    label="Partner Name"
+                    sort={partnerSorts.active}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="active"
+                    sortKey="salutation"
+                    label="Salutation"
+                    sort={partnerSorts.active}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="active"
+                    sortKey="type"
+                    label="Type"
+                    sort={partnerSorts.active}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="active"
+                    sortKey="city"
+                    label="City"
+                    sort={partnerSorts.active}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="active"
+                    sortKey="state"
+                    label="ST"
+                    sort={partnerSorts.active}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="active"
+                    sortKey="email"
+                    label="Primary Email"
+                    sort={partnerSorts.active}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="active"
+                    sortKey="phone"
+                    label="Primary Phone"
+                    sort={partnerSorts.active}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="active"
+                    sortKey="totalGiving"
+                    label="Total Giving"
+                    sort={partnerSorts.active}
+                    onSort={handlePartnerSort}
+                    align="right"
+                  />
+                  <SortablePartnerHeader
+                    table="active"
+                    sortKey="ytd2026"
+                    label="YTD 2026"
+                    sort={partnerSorts.active}
+                    onSort={handlePartnerSort}
+                    align="right"
+                  />
                 </tr>
               </thead>
 
               <tbody>
-                {filtered.map(p => (
+                {sortedActivePartners.map(p => (
                   <tr key={p.id}>
-                    <td>
+                    <td className="actions-column">
                       <Link
                         href={`/${slug}/partners/${p.id}`}
                         className="action-link"
@@ -445,27 +710,75 @@ export default function PartnersClient({
 
         {/* Prospects */}
         {activeTab === 'prospects' && (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 80 }}>ACTIONS</th>
-                  <th>Partner Name</th>
-                  <th>Salutation</th>
-                  <th>Type</th>
-                  <th>City</th>
-                  <th>St</th>
-                  <th>Primary Email</th>
-                  <th>Primary Phone</th>
+                  <th className="actions-column">ACTIONS</th>
+                  <SortablePartnerHeader
+                    table="prospects"
+                    sortKey="name"
+                    label="Partner Name"
+                    sort={partnerSorts.prospects}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="prospects"
+                    sortKey="salutation"
+                    label="Salutation"
+                    sort={partnerSorts.prospects}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="prospects"
+                    sortKey="type"
+                    label="Type"
+                    sort={partnerSorts.prospects}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="prospects"
+                    sortKey="city"
+                    label="City"
+                    sort={partnerSorts.prospects}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="prospects"
+                    sortKey="state"
+                    label="ST"
+                    sort={partnerSorts.prospects}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="prospects"
+                    sortKey="email"
+                    label="Primary Email"
+                    sort={partnerSorts.prospects}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="prospects"
+                    sortKey="phone"
+                    label="Primary Phone"
+                    sort={partnerSorts.prospects}
+                    onSort={handlePartnerSort}
+                  />
                   <th>Total Giving</th>
-                  <th>Created Date</th>
+                  <SortablePartnerHeader
+                    table="prospects"
+                    sortKey="createdAt"
+                    label="Created Date"
+                    sort={partnerSorts.prospects}
+                    onSort={handlePartnerSort}
+                  />
                 </tr>
               </thead>
 
               <tbody>
-                {prospects.map(p => (
+                {sortedProspects.map(p => (
                   <tr key={p.id}>
-                    <td>
+                    <td className="actions-column">
                       <Link
                         href={`/${slug}/partners/${p.id}`}
                         className="action-link"
@@ -522,18 +835,38 @@ export default function PartnersClient({
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Email Segment</th>
-                <th>Primary Phone</th>
+                <SortableHeader
+                  label="Name"
+                  sortKey="name"
+                  sort={staffSort}
+                  onSort={(key) => setStaffSort((current) => nextSortState(current, key))}
+                />
+                <SortableHeader
+                  label="Email"
+                  sortKey="email"
+                  sort={staffSort}
+                  onSort={(key) => setStaffSort((current) => nextSortState(current, key))}
+                />
+                <SortableHeader
+                  label="Email Segment"
+                  sortKey="emailSegment"
+                  sort={staffSort}
+                  onSort={(key) => setStaffSort((current) => nextSortState(current, key))}
+                />
+                <SortableHeader
+                  label="Primary Phone"
+                  sortKey="phone"
+                  sort={staffSort}
+                  onSort={(key) => setStaffSort((current) => nextSortState(current, key))}
+                />
               </tr>
             </thead>
 
             <tbody>
-              {staff.map(s => (
+              {sortedStaff.map(s => (
                 <tr key={s.id}>
                   <td style={{ fontWeight: 500 }}>
-                    {[s.first_name, s.last_name].filter(Boolean).join(' ')}
+                    {getStaffName(s) || '—'}
                   </td>
 
                   <td>
@@ -557,81 +890,125 @@ export default function PartnersClient({
 
         {/* Past */}
         {activeTab === 'past' && (
-          <table>
+          <div className="table-scroll">
+            <table>
               <thead>
                 <tr>
-                  <th style={{ width: 80 }}>ACTIONS</th>
-                <th>Partner Name</th>
-                <th>Salutation</th>
-                <th>Type</th>
-                <th>Relationship</th>
-                <th>City</th>
-                <th>St</th>
-                <th>Primary Email</th>
-                <th>Total Giving</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {pastPartners.map(p => (
-                <tr key={p.id}>
-                  <td>
-                    <Link
-                      href={`/${slug}/partners/${p.id}`}
-                      className="action-link"
-                    >
-                      View/Edit
-                    </Link>
-                  </td>
-
-                  <td>
-                    <Link
-                      href={`/${slug}/partners/${p.id}`}
-                      className="partner-link"
-                    >
-                      {p.display_name}
-                    </Link>
-                  </td>
-
-                  <td>{p.correspondence_greeting}</td>
-
-                  <td>
-                    <span
-                      className={`badge ${
-                        p.partner_type === 'Church'
-                          ? 'badge-church'
-                          : 'badge-family'
-                      }`}
-                    >
-                      {p.partner_type}
-                    </span>
-                  </td>
-
-                  <td>
-                    <span className="badge badge-donor">
-                      {p.relationship_type}
-                    </span>
-                  </td>
-
-                  <td>{p.address_city}</td>
-                  <td>{p.address_state}</td>
-
-                  <td>
-                    {p.primary_email && (
-                      <a
-                        href={`mailto:${p.primary_email}`}
-                        className="email-link"
-                      >
-                        {p.primary_email}
-                      </a>
-                    )}
-                  </td>
-
-                  <td className="money money-zero">—</td>
+                  <th className="actions-column">ACTIONS</th>
+                  <SortablePartnerHeader
+                    table="past"
+                    sortKey="name"
+                    label="Partner Name"
+                    sort={partnerSorts.past}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="past"
+                    sortKey="salutation"
+                    label="Salutation"
+                    sort={partnerSorts.past}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="past"
+                    sortKey="type"
+                    label="Type"
+                    sort={partnerSorts.past}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="past"
+                    sortKey="relationship"
+                    label="Relationship"
+                    sort={partnerSorts.past}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="past"
+                    sortKey="city"
+                    label="City"
+                    sort={partnerSorts.past}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="past"
+                    sortKey="state"
+                    label="ST"
+                    sort={partnerSorts.past}
+                    onSort={handlePartnerSort}
+                  />
+                  <SortablePartnerHeader
+                    table="past"
+                    sortKey="email"
+                    label="Primary Email"
+                    sort={partnerSorts.past}
+                    onSort={handlePartnerSort}
+                  />
+                  <th>Total Giving</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {sortedPastPartners.map(p => (
+                  <tr key={p.id}>
+                    <td className="actions-column">
+                      <Link
+                        href={`/${slug}/partners/${p.id}`}
+                        className="action-link"
+                      >
+                        View/Edit
+                      </Link>
+                    </td>
+
+                    <td>
+                      <Link
+                        href={`/${slug}/partners/${p.id}`}
+                        className="partner-link"
+                      >
+                        {p.display_name}
+                      </Link>
+                    </td>
+
+                    <td>{p.correspondence_greeting}</td>
+
+                    <td>
+                      <span
+                        className={`badge ${
+                          p.partner_type === 'Church'
+                            ? 'badge-church'
+                            : 'badge-family'
+                        }`}
+                      >
+                        {p.partner_type}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="badge badge-donor">
+                        {p.relationship_type}
+                      </span>
+                    </td>
+
+                    <td>{p.address_city}</td>
+                    <td>{p.address_state}</td>
+
+                    <td>
+                      {p.primary_email && (
+                        <a
+                          href={`mailto:${p.primary_email}`}
+                          className="email-link"
+                        >
+                          {p.primary_email}
+                        </a>
+                      )}
+                    </td>
+
+                    <td className="money money-zero">—</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

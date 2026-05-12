@@ -1,3 +1,14 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+import SortableHeader from '@/components/ui/SortableHeader'
+import {
+  nextSortState,
+  parseDateSortValue,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from '@/lib/ui/sort'
 import type { RecordAttachment } from '@/lib/attachments/types'
 import { getStorageProviderLabel } from '@/lib/attachments/types'
 
@@ -32,12 +43,44 @@ function formatFileSize(bytes: number | string | null | undefined): string {
   return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
+type AttachmentSortKey = 'fileName' | 'description' | 'provider' | 'created' | 'size'
+
+function getAttachmentSortValue(
+  attachment: RecordAttachment,
+  key: AttachmentSortKey,
+): SortValue {
+  switch (key) {
+    case 'fileName':
+      return attachment.file_name
+    case 'description':
+      return attachment.description
+    case 'provider':
+      return getStorageProviderLabel(attachment.storage_provider)
+    case 'created':
+      return parseDateSortValue(attachment.created_at)
+    case 'size': {
+      const value = Number(attachment.file_size_bytes)
+      return attachment.file_size_bytes == null ||
+        attachment.file_size_bytes === '' ||
+        Number.isNaN(value)
+        ? null
+        : value
+    }
+  }
+}
+
 export default function AttachmentList({
   attachments,
   readonly = false,
   emptyMessage = 'No files added yet.',
   onDelete,
 }: AttachmentListProps) {
+  const [sort, setSort] = useState<SortState<AttachmentSortKey> | null>(null)
+  const sortedAttachments = useMemo(
+    () => sortByValue(attachments, sort, getAttachmentSortValue),
+    [attachments, sort],
+  )
+
   if (attachments.length === 0) {
     return <div className="empty-state">{emptyMessage}</div>
   }
@@ -48,15 +91,40 @@ export default function AttachmentList({
         <thead>
           <tr>
             <th className="actions-column">ACTIONS</th>
-            <th>File Name</th>
-            <th>Description</th>
-            <th>Provider</th>
-            <th>Created</th>
-            <th>Size</th>
+            <SortableHeader
+              label="File Name"
+              sortKey="fileName"
+              sort={sort}
+              onSort={(key) => setSort((current) => nextSortState(current, key))}
+            />
+            <SortableHeader
+              label="Description"
+              sortKey="description"
+              sort={sort}
+              onSort={(key) => setSort((current) => nextSortState(current, key))}
+            />
+            <SortableHeader
+              label="Provider"
+              sortKey="provider"
+              sort={sort}
+              onSort={(key) => setSort((current) => nextSortState(current, key))}
+            />
+            <SortableHeader
+              label="Created"
+              sortKey="created"
+              sort={sort}
+              onSort={(key) => setSort((current) => nextSortState(current, key))}
+            />
+            <SortableHeader
+              label="Size"
+              sortKey="size"
+              sort={sort}
+              onSort={(key) => setSort((current) => nextSortState(current, key))}
+            />
           </tr>
         </thead>
         <tbody>
-          {attachments.map(attachment => (
+          {sortedAttachments.map(attachment => (
             <tr key={attachment.id}>
               <td className="actions-column">
                 {attachment.file_url ? (

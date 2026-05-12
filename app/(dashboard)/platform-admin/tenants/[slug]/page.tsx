@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createSupabaseServiceClient } from '@/lib/supabase-service'
 import PlatformTenantSettingsForm from '@/components/platform-admin/PlatformTenantSettingsForm'
+import TenantAdminsTable from '@/components/platform-admin/TenantAdminsTable'
 
 export const revalidate = 0
 
@@ -20,8 +21,6 @@ interface OrganizationRow {
 interface UserProfileRow {
   id: string
   user_id: string
-  full_name: string | null
-  email: string | null
 }
 
 interface RoleRow {
@@ -88,9 +87,9 @@ export default async function PlatformTenantManagePage({ params }: PageProps) {
       .maybeSingle<StorageRow>(),
     serviceSupabase
       .from('user_profiles')
-      .select('id, user_id, full_name, email')
+      .select('id, user_id')
       .eq('tenant_id', organization.id)
-      .order('full_name'),
+      .order('created_at'),
     serviceSupabase
       .from('roles')
       .select('id, name')
@@ -148,30 +147,7 @@ export default async function PlatformTenantManagePage({ params }: PageProps) {
         {adminProfiles.length === 0 ? (
           <div className="empty-state">Tenant admin management will live here.</div>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th className="actions-column">ACTIONS</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>User ID</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adminProfiles.map(profile => (
-                  <tr key={profile.id}>
-                    <td className="whitespace-nowrap">
-                      <span className="action-link cursor-default opacity-60">View</span>
-                    </td>
-                    <td className="font-medium text-gray-900">{profile.full_name ?? profile.email ?? 'Unnamed User'}</td>
-                    <td className="text-gray-600">{profile.email ?? '—'}</td>
-                    <td className="font-mono text-xs text-gray-500">{profile.user_id}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <TenantAdminsTable adminProfiles={adminProfiles} />
         )}
       </div>
 

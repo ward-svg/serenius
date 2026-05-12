@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SereniusModal from "@/components/ui/SereniusModal";
+import SortableHeader from "@/components/ui/SortableHeader";
 import RecordAttachments from "@/components/attachments/RecordAttachments";
 import AddAttachmentModal, {
   type AddAttachmentValues,
@@ -9,6 +10,13 @@ import AddAttachmentModal, {
 } from "@/components/attachments/AddAttachmentModal";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { createRecordAttachment } from "@/lib/attachments/queries";
+import {
+  nextSortState,
+  parseDateSortValue,
+  sortByValue,
+  type SortState,
+  type SortValue,
+} from "@/lib/ui/sort";
 import type { UploadAttachmentResult } from "@/components/attachments/AddAttachmentModal";
 import type {
   PartnerCommunication,
@@ -60,6 +68,8 @@ type FormData = {
   file_attachment_url: string;
 };
 
+type FollowupSortKey = "action" | "due" | "assignedTo" | "completed" | "notes";
+
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
 
@@ -84,10 +94,28 @@ function valueOrDash(value: string | null | undefined): string {
   return value;
 }
 
-  function truncate(value: string | null | undefined, limit: number): string {
-    if (!value || value.trim() === "") return "—";
-    return value.length > limit ? `${value.slice(0, limit)}…` : value;
+function truncate(value: string | null | undefined, limit: number): string {
+  if (!value || value.trim() === "") return "—";
+  return value.length > limit ? `${value.slice(0, limit)}…` : value;
+}
+
+function getFollowupSortValue(
+  followup: PartnerCommunicationFollowup,
+  key: FollowupSortKey,
+): SortValue {
+  switch (key) {
+    case "action":
+      return followup.action_type;
+    case "due":
+      return parseDateSortValue(followup.due_date);
+    case "assignedTo":
+      return followup.assigned_to;
+    case "completed":
+      return followup.completed;
+    case "notes":
+      return followup.instructions;
   }
+}
 
 export default function CommunicationModal({
   partnerId,
@@ -106,6 +134,7 @@ export default function CommunicationModal({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [followupSort, setFollowupSort] = useState<SortState<FollowupSortKey> | null>(null);
   const [formData, setFormData] = useState<FormData>({
     communication_type: "",
     communication_channel: "",
@@ -120,6 +149,17 @@ export default function CommunicationModal({
     file_attachment_name: "",
     file_attachment_url: "",
   });
+  const attachedFollowups = useMemo(
+    () =>
+      followups.filter(
+        (followup) => followup.communication_id === currentCommunication?.id,
+      ),
+    [currentCommunication?.id, followups],
+  );
+  const sortedAttachedFollowups = useMemo(
+    () => sortByValue(attachedFollowups, followupSort, getFollowupSortValue),
+    [attachedFollowups, followupSort],
+  );
 
   function mapCommunicationToFormData(source: PartnerCommunication): FormData {
     return {
@@ -579,9 +619,6 @@ export default function CommunicationModal({
 
   if (!isCreate && mode === "view") {
     const viewCommunication = currentCommunication;
-    const attachedFollowups = followups.filter(
-      (followup) => followup.communication_id === viewCommunication?.id,
-    );
     const showAttachments = Boolean(attachmentName || attachmentUrl);
 
     return (
@@ -738,15 +775,40 @@ export default function CommunicationModal({
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Action</th>
-                      <th>Due</th>
-                      <th>Assigned To</th>
-                      <th>Completed</th>
-                      <th>Notes</th>
+                      <SortableHeader
+                        label="Action"
+                        sortKey="action"
+                        sort={followupSort}
+                        onSort={(key) => setFollowupSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Due"
+                        sortKey="due"
+                        sort={followupSort}
+                        onSort={(key) => setFollowupSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Assigned To"
+                        sortKey="assignedTo"
+                        sort={followupSort}
+                        onSort={(key) => setFollowupSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Completed"
+                        sortKey="completed"
+                        sort={followupSort}
+                        onSort={(key) => setFollowupSort((current) => nextSortState(current, key))}
+                      />
+                      <SortableHeader
+                        label="Notes"
+                        sortKey="notes"
+                        sort={followupSort}
+                        onSort={(key) => setFollowupSort((current) => nextSortState(current, key))}
+                      />
                     </tr>
                   </thead>
                   <tbody>
-                    {attachedFollowups.map((followup) => (
+                    {sortedAttachedFollowups.map((followup) => (
                       <tr key={followup.id}>
                         <td>{followup.action_type}</td>
                         <td>{formatDate(followup.due_date)}</td>
