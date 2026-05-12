@@ -58,6 +58,7 @@ interface SetupPageProps {
   initialTab?: Tab
   googleOAuthConfigured?: boolean
   integrationNotice?: SetupIntegrationNotice | null
+  mailIntegrationNotice?: SetupIntegrationNotice | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -92,6 +93,7 @@ export default function SetupPage({
   initialTab = 'organization',
   googleOAuthConfigured = false,
   integrationNotice = null,
+  mailIntegrationNotice = null,
 }: SetupPageProps) {
   // Access control
   const [authorized, setAuthorized]   = useState<boolean | null>(null)
@@ -806,6 +808,7 @@ export default function SetupPage({
           tenantSlug={tenantSlug}
           googleOAuthConfigured={googleOAuthConfigured}
           integrationNotice={integrationNotice}
+          mailIntegrationNotice={mailIntegrationNotice}
           googleMapsApiKey={settingsForm.google_maps_api_key}
           setGoogleMapsApiKey={value => setSettingsForm(f => ({ ...f, google_maps_api_key: value }))}
           sereniusApiKey={settingsForm.serenius_api_key}

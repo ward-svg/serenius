@@ -26,6 +26,17 @@ export interface OrganizationStorageConnection {
   external_account_name: string | null
 }
 
+export type MailConnectionStatus = 'manual' | 'connected' | 'error' | 'disabled'
+export type MailSendMode = 'disabled' | 'test_only' | 'live'
+
+export interface OrganizationMailConnection {
+  provider: 'google_workspace' | 'microsoft_365' | 'custom_smtp' | 'amazon_ses' | null
+  connection_status: MailConnectionStatus | null
+  credentialsConnected: boolean
+  external_account_email: string | null
+  external_account_name: string | null
+}
+
 export interface SetupIntegrationNotice {
   type: 'success' | 'error'
   message: string
@@ -42,8 +53,8 @@ export interface OrganizationMailSettings {
   provider_account_email: string | null
   provider_account_name: string | null
   is_enabled: boolean | null
-  connection_status: string | null
-  send_mode: string | null
+  connection_status: MailConnectionStatus | null
+  send_mode: MailSendMode | null
   locked_at: string | null
   locked_by: string | null
   connected_at: string | null

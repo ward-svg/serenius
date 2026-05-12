@@ -14,6 +14,7 @@ interface IntegrationsTabProps {
   tenantSlug: string
   googleOAuthConfigured: boolean
   integrationNotice?: SetupIntegrationNotice | null
+  mailIntegrationNotice?: SetupIntegrationNotice | null
   googleMapsApiKey: string
   setGoogleMapsApiKey: (value: string) => void
   sereniusApiKey: string
@@ -88,6 +89,7 @@ export default function IntegrationsTab({
   tenantSlug,
   googleOAuthConfigured,
   integrationNotice,
+  mailIntegrationNotice,
   googleMapsApiKey,
   setGoogleMapsApiKey,
   sereniusApiKey,
@@ -659,7 +661,11 @@ export default function IntegrationsTab({
         </div>
       </div>
 
-      <MailSenderSection tenantId={tenantId} />
+      <MailSenderSection
+        tenantId={tenantId}
+        tenantSlug={tenantSlug}
+        mailIntegrationNotice={mailIntegrationNotice}
+      />
     </div>
   )
 }

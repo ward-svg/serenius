@@ -4,12 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import SereniusModal from "@/components/ui/SereniusModal";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type {
+  OrganizationMailConnection,
   OrganizationMailSettings,
   OrganizationMailTestRecipient,
+  SetupIntegrationNotice,
 } from "./types";
 
 interface MailSenderSectionProps {
   tenantId: string;
+  tenantSlug: string;
+  mailIntegrationNotice?: SetupIntegrationNotice | null;
 }
 
 type MailSenderFormState = {
@@ -77,16 +81,95 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-export default function MailSenderSection({ tenantId }: MailSenderSectionProps) {
+function humanizeMailStatus(value: string | null | undefined): string {
+  if (!value) return "—";
+  switch (value) {
+    case "test_only":
+      return "Test only";
+    case "disabled":
+      return "Disabled";
+    case "live":
+      return "Live";
+    case "connected":
+      return "Connected";
+    case "manual":
+      return "Manual";
+    case "error":
+      return "Error";
+    default:
+      return value
+        .split(/[_-]/g)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+  }
+}
+
+function getTestSendDisableReason(options: {
+  hasMailCredentials: boolean;
+  connectionStatus: string | null | undefined;
+  isEnabled: boolean | null | undefined;
+  sendMode: MailSenderFormState["send_mode"] | null | undefined;
+  activeRecipientCount: number;
+}): string {
+  const reasons: string[] = [];
+
+  if (!options.hasMailCredentials) {
+    reasons.push("Connect Google Workspace.");
+  }
+  if (options.connectionStatus !== "connected") {
+    reasons.push("Connect Google Workspace.");
+  }
+  if (options.isEnabled !== true) {
+    reasons.push("Enable the sender.");
+  }
+  if (options.sendMode !== "test_only") {
+    if (options.sendMode === "live") {
+      reasons.push("Set Send Mode to Test only.");
+    } else {
+      reasons.push("Set Send Mode to Test only.");
+    }
+  }
+  if (options.activeRecipientCount <= 0) {
+    reasons.push("Add at least one active test recipient.");
+  }
+
+  const uniqueReasons = Array.from(new Set(reasons));
+  if (uniqueReasons.length === 1 && uniqueReasons[0] === "Set Send Mode to Test only.") {
+    return "Set Send Mode to Test only to enable test sending.";
+  }
+  if (uniqueReasons.length === 0) {
+    return "Ready to send to configured test recipients.";
+  }
+  return uniqueReasons.join(" ");
+}
+
+function getTestSendReadyText(activeRecipientCount: number): string {
+  return `Ready to send to ${activeRecipientCount} active test recipient${
+    activeRecipientCount === 1 ? "" : "s"
+  }.`;
+}
+
+export default function MailSenderSection({
+  tenantId,
+  tenantSlug,
+  mailIntegrationNotice,
+}: MailSenderSectionProps) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<OrganizationMailSettings | null>(null);
+  const [mailConnection, setMailConnection] = useState<OrganizationMailConnection | null>(null);
   const [recipients, setRecipients] = useState<OrganizationMailTestRecipient[]>([]);
   const [showInactive, setShowInactive] = useState(false);
   const [settingsForm, setSettingsForm] = useState<MailSenderFormState>(buildDefaultMailSenderForm());
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
+  const [connectingMail, setConnectingMail] = useState(false);
+  const [disconnectingMail, setDisconnectingMail] = useState(false);
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
+  const [testSendError, setTestSendError] = useState<string | null>(null);
+  const [testSendSuccess, setTestSendSuccess] = useState<string | null>(null);
   const [showRecipientModal, setShowRecipientModal] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<OrganizationMailTestRecipient | null>(null);
   const [recipientForm, setRecipientForm] = useState<RecipientFormState>(buildDefaultRecipientForm());
@@ -95,6 +178,26 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
 
   const activeRecipients = recipients.filter((recipient) => recipient.is_active);
   const visibleRecipients = showInactive ? recipients : activeRecipients;
+  const hasMailCredentials =
+    mailConnection?.credentialsConnected === true ||
+    Boolean(settings?.provider_account_email)
+  const canConnectMail = !connectingMail;
+  const canDisconnectMail =
+    hasMailCredentials ||
+    settings?.connection_status === "connected"
+  const canSendTestEmail =
+    hasMailCredentials &&
+    settings?.connection_status === "connected" &&
+    settings?.is_enabled === true &&
+    settings?.send_mode === "test_only" &&
+    activeRecipients.length > 0;
+  const sendTestHelpText = getTestSendDisableReason({
+    hasMailCredentials,
+    connectionStatus: settings?.connection_status,
+    isEnabled: settings?.is_enabled,
+    sendMode: settings?.send_mode,
+    activeRecipientCount: activeRecipients.length,
+  });
 
   const sendModeOptions: { value: MailSenderFormState["send_mode"]; label: string; disabled?: boolean }[] =
     settings?.send_mode === "live"
@@ -112,7 +215,7 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
     setLoading(true);
 
     try {
-      const [settingsRes, recipientsRes] = await Promise.all([
+      const [settingsRes, recipientsRes, statusRes] = await Promise.all([
         supabase
           .from("organization_mail_settings")
           .select(
@@ -126,13 +229,26 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
           .select("id, tenant_id, email, display_name, is_active, notes, created_by, created_at, updated_at")
           .eq("tenant_id", tenantId)
           .order("email", { ascending: true }),
+        fetch(`/api/mail/google/status?tenantId=${encodeURIComponent(tenantId)}`, {
+          credentials: "include",
+          cache: "no-store",
+        }),
       ]);
+
+      const statusJson = statusRes.ok
+        ? ((await statusRes.json().catch(() => null)) as
+          | { connection?: OrganizationMailConnection | null }
+          | null)
+        : null
 
       setSettings((settingsRes.data ?? null) as OrganizationMailSettings | null);
       setRecipients((recipientsRes.data ?? []) as OrganizationMailTestRecipient[]);
+      setMailConnection(statusJson?.connection ?? null);
       setSettingsForm(mapSettingsToForm((settingsRes.data ?? null) as OrganizationMailSettings | null));
       setSettingsError(null);
       setSettingsSuccess(null);
+      setTestSendError(null);
+      setTestSendSuccess(null);
       setRecipientError(null);
       setEditingRecipient(null);
       setRecipientForm(buildDefaultRecipientForm());
@@ -196,6 +312,96 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
       setSettingsError(error instanceof Error ? error.message : "Failed to save mail sender settings.");
     } finally {
       setSavingSettings(false);
+    }
+  }
+
+  function connectGoogleWorkspace() {
+    if (!canConnectMail) return
+
+    setConnectingMail(true)
+    const url = `/api/mail/google/connect?tenantId=${encodeURIComponent(tenantId)}&tenantSlug=${encodeURIComponent(tenantSlug)}`
+    window.location.assign(url)
+  }
+
+  async function disconnectGoogleWorkspace() {
+    if (!canDisconnectMail) return
+
+    const confirmed = window.confirm('Disconnect Google Workspace from this tenant?')
+    if (!confirmed) return
+
+    setDisconnectingMail(true)
+    setSettingsError(null)
+
+    try {
+      const response = await fetch(
+        `/api/mail/google/disconnect?tenantId=${encodeURIComponent(tenantId)}&tenantSlug=${encodeURIComponent(tenantSlug)}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+        },
+      )
+
+      const payload = await response.json().catch(() => null) as
+        | { ok?: boolean; error?: string }
+        | null
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error ?? 'Failed to disconnect Google Workspace.')
+      }
+
+      await loadMailSender()
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : 'Failed to disconnect Google Workspace.')
+    } finally {
+      setDisconnectingMail(false)
+    }
+  }
+
+  async function sendTestEmail() {
+    if (!canSendTestEmail) return
+
+    setSendingTestEmail(true)
+    setTestSendError(null)
+    setTestSendSuccess(null)
+
+    try {
+      const response = await fetch(
+        `/api/mail/google/test-send?tenantId=${encodeURIComponent(tenantId)}&tenantSlug=${encodeURIComponent(tenantSlug)}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+        },
+      )
+
+      const payload = await response.json().catch(() => null) as
+        | {
+            ok?: boolean
+            error?: string
+            recipients_attempted?: number
+            recipients_sent?: number
+            failed_recipients?: Array<{ email: string; error: string }>
+          }
+        | null
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error ?? 'Failed to send test email.')
+      }
+
+      const failedCount = payload.failed_recipients?.length ?? 0
+      const sentCount = payload.recipients_sent ?? 0
+      setTestSendSuccess(
+        failedCount > 0
+          ? `Sent ${sentCount} test email${sentCount === 1 ? '' : 's'}. ${failedCount} recipient${failedCount === 1 ? '' : 's'} failed.`
+          : `Sent ${sentCount} test email${sentCount === 1 ? '' : 's'} to configured test recipients.`,
+      )
+      await loadMailSender()
+      window.setTimeout(() => setTestSendSuccess(null), 5000)
+    } catch (error) {
+      setTestSendError(error instanceof Error ? error.message : 'Failed to send test email.')
+    } finally {
+      setSendingTestEmail(false)
     }
   }
 
@@ -332,258 +538,183 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
 
   return (
     <div className="space-y-6">
+      {mailIntegrationNotice && (
+        <div
+          className={`rounded-md border px-4 py-3 text-sm ${
+            mailIntegrationNotice.type === "success"
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "border-red-200 bg-red-50 text-red-800"
+          }`}
+        >
+          {mailIntegrationNotice.message}
+        </div>
+      )}
+
       <div className="section-card p-6" id="mail-sender">
-        <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between mb-4">
           <div>
             <h2 className="text-base font-semibold text-gray-800">Mail Sender</h2>
             <p className="text-xs text-gray-400 mt-1">
               Marketing mail settings and test recipients for this tenant.
             </p>
           </div>
-          <a href="#mail-sender-settings" className="action-link">
-            Manage Mail Sender
-          </a>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <div className="section-card p-4" style={{ marginBottom: 0, boxShadow: "none" }}>
-            <div className="section-header">
-              <span className="section-title">Google Workspace</span>
-              <span className="section-count">{settings?.connection_status ?? "Not configured"}</span>
-            </div>
-            <div style={{ paddingTop: 4, display: "grid", gap: 6 }}>
-              <div className="text-sm text-gray-700">
-                Send mode: {settings?.send_mode ?? "disabled"}
-              </div>
-              <div className="text-sm text-gray-700">
-                From email: {settings?.from_email ?? "—"}
-              </div>
-              <div className="text-sm text-gray-700">
-                Reply-to: {settings?.reply_to ?? "—"}
-              </div>
-              <div className="text-sm text-gray-700">
-                Test recipients: {activeRecipients.length}
-              </div>
-              <div className="mt-2 text-xs text-gray-500">
-                Microsoft 365, Custom SMTP, and Amazon SES are coming soon.
-              </div>
-            </div>
-          </div>
-
-          <div className="section-card p-4" style={{ marginBottom: 0, boxShadow: "none" }}>
-            <div className="section-header">
-              <span className="section-title">Status</span>
-            </div>
-            <div style={{ paddingTop: 4 }}>
-              <div className="text-sm text-gray-700">
-                {settings?.connection_status ?? "Not configured"}
-              </div>
-              <div className="mt-2 text-xs text-gray-500">
-                {settings?.send_mode ?? "disabled"} sending mode
-              </div>
-            </div>
-          </div>
-
-          <div className="section-card p-4" style={{ marginBottom: 0, boxShadow: "none" }}>
-            <div className="section-header">
-              <span className="section-title">Test Recipients</span>
-            </div>
-            <div style={{ paddingTop: 4 }}>
-              <div className="text-sm text-gray-700">{activeRecipients.length} active</div>
-              <div className="mt-2 text-xs text-gray-500">
-                Recipients used for test sends after setup is enabled.
-              </div>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+              Google Workspace
+            </span>
+            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+              {humanizeMailStatus(settings?.connection_status ?? "disabled")}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+              Send mode: {humanizeMailStatus(settings?.send_mode ?? "disabled")}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+              Active test recipients: {activeRecipients.length}
+            </span>
           </div>
         </div>
 
-        {!settings && (
-          <div className="empty-state mt-4" style={{ textAlign: "left" }}>
-            Mail sender is not configured yet.
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="xl:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="md:col-span-2 xl:col-span-3">
+                <label className="form-label">Display Name</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={settingsForm.display_name}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, display_name: e.target.value }))}
+                  placeholder="Serenius Mail"
+                />
+              </div>
+              <div>
+                <label className="form-label">From Name</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={settingsForm.from_name}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, from_name: e.target.value }))}
+                  placeholder="Serenius"
+                />
+              </div>
+              <div>
+                <label className="form-label">From Email</label>
+                <input
+                  className="form-input"
+                  type="email"
+                  value={settingsForm.from_email}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, from_email: e.target.value }))}
+                  placeholder="hello@example.org"
+                />
+              </div>
+              <div>
+                <label className="form-label">Reply-To</label>
+                <input
+                  className="form-input"
+                  type="email"
+                  value={settingsForm.reply_to}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, reply_to: e.target.value }))}
+                  placeholder="replies@example.org"
+                />
+              </div>
+              <div>
+                <label className="form-label">Send Mode</label>
+                <select
+                  className="form-input"
+                  value={settingsForm.send_mode}
+                  onChange={(e) =>
+                    setSettingsForm((prev) => ({
+                      ...prev,
+                      send_mode: e.target.value as MailSenderFormState["send_mode"],
+                    }))
+                  }
+                >
+                  {sendModeOptions.map((option) => (
+                    <option key={option.value} value={option.value} disabled={option.disabled}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="form-helper text-xs text-gray-500">
+                  Live sending will be enabled after Google Workspace test sending and suppression checks are verified.
+                </p>
+                {settings?.send_mode === "live" && (
+                  <p className="form-helper text-xs" style={{ color: "#b45309" }}>
+                    Live sending is already configured for this tenant. It is shown here for reference only and cannot be newly selected in this slice.
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={settingsForm.is_enabled}
+                    onChange={(e) =>
+                      setSettingsForm((prev) => ({
+                        ...prev,
+                        is_enabled: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-[color:var(--color-primary)] focus:ring-[color:var(--color-primary)]"
+                  />
+                  Enabled
+                </label>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
 
-      <div className="section-card p-6" id="mail-sender-settings">
-        <div className="section-header">
-          <span className="section-title">Mail Sender Settings</span>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div>
-            <label className="form-label">Provider</label>
-            <input
-              className="form-input"
-              type="text"
-              value="Google Workspace"
-              readOnly
-              disabled
-            />
-          </div>
-          <div>
-            <label className="form-label">Connection Status</label>
-            <input
-              className="form-input"
-              type="text"
-              value={settings?.connection_status ?? "Not configured"}
-              readOnly
-              disabled
-            />
-          </div>
-          <div>
-            <label className="form-label">Provider Account Email</label>
-            <input
-              className="form-input"
-              type="text"
-              value={settings?.provider_account_email ?? ""}
-              readOnly
-              disabled
-              placeholder="—"
-            />
-          </div>
-          <div>
-            <label className="form-label">Provider Account Name</label>
-            <input
-              className="form-input"
-              type="text"
-              value={settings?.provider_account_name ?? ""}
-              readOnly
-              disabled
-              placeholder="—"
-            />
-          </div>
-          <div>
-            <label className="form-label">Connected At</label>
-            <input
-              className="form-input"
-              type="text"
-              value={formatDateTime(settings?.connected_at)}
-              readOnly
-              disabled
-            />
-          </div>
-          <div>
-            <label className="form-label">Connected By</label>
-            <input
-              className="form-input"
-              type="text"
-              value={settings?.connected_by ?? ""}
-              readOnly
-              disabled
-              placeholder="—"
-            />
-          </div>
-          <div>
-            <label className="form-label">Locked At</label>
-            <input
-              className="form-input"
-              type="text"
-              value={formatDateTime(settings?.locked_at)}
-              readOnly
-              disabled
-            />
-          </div>
-          <div>
-            <label className="form-label">Locked By</label>
-            <input
-              className="form-input"
-              type="text"
-              value={settings?.locked_by ?? ""}
-              readOnly
-              disabled
-              placeholder="—"
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <label className="form-label">Display Name</label>
-            <input
-              className="form-input"
-              type="text"
-              value={settingsForm.display_name}
-              onChange={(e) => setSettingsForm((prev) => ({ ...prev, display_name: e.target.value }))}
-              placeholder="Serenius Mail"
-            />
-          </div>
-          <div>
-            <label className="form-label">From Name</label>
-            <input
-              className="form-input"
-              type="text"
-              value={settingsForm.from_name}
-              onChange={(e) => setSettingsForm((prev) => ({ ...prev, from_name: e.target.value }))}
-              placeholder="Serenius"
-            />
-          </div>
-          <div>
-            <label className="form-label">From Email</label>
-            <input
-              className="form-input"
-              type="email"
-              value={settingsForm.from_email}
-              onChange={(e) => setSettingsForm((prev) => ({ ...prev, from_email: e.target.value }))}
-              placeholder="hello@example.org"
-            />
-          </div>
-          <div>
-            <label className="form-label">Reply-To</label>
-            <input
-              className="form-input"
-              type="email"
-              value={settingsForm.reply_to}
-              onChange={(e) => setSettingsForm((prev) => ({ ...prev, reply_to: e.target.value }))}
-              placeholder="replies@example.org"
-            />
-          </div>
-          <div>
-            <label className="form-label">Send Mode</label>
-            <select
-              className="form-input"
-              value={settingsForm.send_mode}
-              onChange={(e) =>
-                setSettingsForm((prev) => ({
-                  ...prev,
-                  send_mode: e.target.value as MailSenderFormState["send_mode"],
-                }))
-              }
-            >
-              {sendModeOptions.map((option) => (
-                <option key={option.value} value={option.value} disabled={option.disabled}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="form-helper">
-              Live sending will be enabled after Google Workspace test sending and suppression checks are verified.
-            </p>
-            {settings?.send_mode === "live" && (
-              <p className="form-helper" style={{ color: "#b45309" }}>
-                Live sending is already configured for this tenant. It is shown here for reference only and cannot be newly selected in this slice.
-              </p>
-            )}
-          </div>
-          <div className="lg:col-span-2 flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={settingsForm.is_enabled}
-                onChange={(e) =>
-                  setSettingsForm((prev) => ({
-                    ...prev,
-                    is_enabled: e.target.checked,
-                  }))
-                }
-                className="h-4 w-4 rounded border-gray-300 text-[color:var(--color-primary)] focus:ring-[color:var(--color-primary)]"
-              />
-              Enabled
-            </label>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled
-              title="Connect Google Workspace — Coming soon"
-            >
-              Connect Google Workspace — Coming soon
-            </button>
+          <div className="section-card p-4" style={{ marginBottom: 0, boxShadow: "none" }}>
+            <div className="section-header">
+              <span className="section-title">Connection</span>
+              <span className="section-count">{humanizeMailStatus(settings?.connection_status ?? "disabled")}</span>
+            </div>
+            <div className="space-y-2 pt-1">
+              <div className="text-sm text-gray-700">
+                <span className="font-medium">Provider:</span> Google Workspace
+              </div>
+              <div className="text-sm text-gray-700">
+                <span className="font-medium">Status:</span> {humanizeMailStatus(settings?.connection_status ?? "disabled")}
+              </div>
+              <div className="text-sm text-gray-700">
+                <span className="font-medium">Account:</span>{" "}
+                {mailConnection?.external_account_name ||
+                  settings?.provider_account_name ||
+                  mailConnection?.external_account_email ||
+                  settings?.provider_account_email ||
+                  "—"}
+              </div>
+              <div className="text-sm text-gray-700">
+                <span className="font-medium">Connected:</span> {formatDateTime(settings?.connected_at)}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={connectGoogleWorkspace}
+                  disabled={!canConnectMail}
+                  title="Connect Google Workspace for this tenant."
+                >
+                  {settings?.connection_status === "connected"
+                    ? "Reconnect Google Workspace"
+                    : "Connect Google Workspace"}
+                </button>
+                {canDisconnectMail && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={disconnectGoogleWorkspace}
+                    disabled={disconnectingMail}
+                  >
+                    {disconnectingMail ? "Disconnecting…" : "Disconnect"}
+                  </button>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 leading-5">
+                {settings?.connection_status === "connected"
+                  ? "Google Workspace is connected."
+                  : "Connect Google Workspace before using test sends."}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -599,7 +730,7 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
               onClick={() => setSettingsForm(mapSettingsToForm(settings))}
               disabled={savingSettings}
             >
-              Discard Changes
+              Reset Changes
             </button>
             <button
               type="button"
@@ -611,6 +742,45 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
             </button>
           </div>
         </div>
+
+        <div className="border-t border-gray-100 pt-4 mt-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-gray-800">Test Send</div>
+              <p className="text-xs text-gray-500 mt-1">
+                Test sends only go to the active test recipients configured below. Partner/contact campaign sending is not enabled yet.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={sendTestEmail}
+                disabled={!canSendTestEmail || sendingTestEmail}
+                title={
+                  !hasMailCredentials
+                    ? "Connect Google Workspace before sending a test email."
+                    : settings?.connection_status !== "connected"
+                      ? "Google Workspace must be connected before sending a test email."
+                      : settings?.is_enabled !== true
+                        ? "Enable the mail sender before sending a test email."
+                        : settings?.send_mode !== "test_only"
+                          ? "Set Send Mode to Test only before sending a test email."
+                          : activeRecipients.length === 0
+                            ? "Add at least one active test recipient before sending a test email."
+                            : undefined
+                }
+              >
+                {sendingTestEmail ? "Sending…" : "Send Test Email"}
+              </button>
+              <span className="text-xs text-gray-500 max-w-md">
+                {canSendTestEmail
+                  ? getTestSendReadyText(activeRecipients.length)
+                  : sendTestHelpText}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="section-card p-6" id="mail-test-recipients">
@@ -618,11 +788,7 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
           <span className="section-title">Test Recipients</span>
           <span className="section-count">{activeRecipients.length}</span>
           <div className="section-actions">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => openRecipientModal()}
-            >
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => openRecipientModal()}>
               + Add Recipient
             </button>
           </div>
@@ -638,15 +804,11 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
             />
             Show inactive recipients
           </label>
-          <span className="text-xs text-gray-400">
-            Active recipients are used for test sending.
-          </span>
+          <span className="text-xs text-gray-400">Active recipients are used for test sending.</span>
         </div>
 
         {visibleRecipients.length === 0 ? (
-          <div className="empty-state">
-            No active test recipients configured yet.
-          </div>
+          <div className="empty-state">No active test recipients configured yet.</div>
         ) : (
           <div className="table-scroll">
             <table className="data-table">
@@ -656,7 +818,7 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
                   <th>Name</th>
                   <th>Email</th>
                   <th>Notes</th>
-                  <th>Status</th>
+                  <th>ACTIVE</th>
                 </tr>
               </thead>
               <tbody>
@@ -674,25 +836,24 @@ export default function MailSenderSection({ tenantId }: MailSenderSectionProps) 
                         <button
                           type="button"
                           className="action-link-danger"
-                          onClick={() => toggleRecipientActive(recipient)}
+                          onClick={() => deleteRecipient(recipient)}
                         >
-                          {recipient.is_active ? "Deactivate" : "Reactivate"}
+                          Delete
                         </button>
-                        {!recipient.is_active && (
-                          <button
-                            type="button"
-                            className="action-link-danger"
-                            onClick={() => deleteRecipient(recipient)}
-                          >
-                            Delete
-                          </button>
-                        )}
                       </div>
                     </td>
                     <td>{recipient.display_name || "—"}</td>
                     <td>{recipient.email}</td>
                     <td>{recipient.notes || "—"}</td>
-                    <td>{recipient.is_active ? "Active" : "Inactive"}</td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(recipient.is_active)}
+                        onChange={() => toggleRecipientActive(recipient)}
+                        className="h-4 w-4 rounded border-gray-300 text-[color:var(--color-primary)] focus:ring-[color:var(--color-primary)]"
+                        aria-label={recipient.is_active ? `Deactivate ${recipient.email}` : `Activate ${recipient.email}`}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
