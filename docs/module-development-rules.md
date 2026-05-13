@@ -36,6 +36,15 @@
 - RLS is required on every new table.
 - Do not rely on unconfirmed schema details in UI work.
 
+## Communications Email Workflow
+
+- Architecture decisions for Communications email (templates, brand kit, opt-out, live send) live in `docs/communications-email-workflow.md`.
+- New Communications email features must follow that document, especially:
+  - No imported mailing lists — recipients come from `partner_contacts` only.
+  - Required footer and opt-out link must be present on all live campaign sends.
+  - Suppression check (`partner_email_suppressions`) must run before every live send.
+  - Test-only guardrails must be maintained until the opt-out token model exists.
+
 ## Build Discipline
 
 - Run `npm run build` after meaningful changes.
