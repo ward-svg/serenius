@@ -22,6 +22,7 @@ export async function getCommunicationsPageData(
     { data: suppressions },
     { data: templates },
     { data: brandSettings },
+    { data: emailAssets },
   ] = await Promise.all([
     supabase
       .from('organization_mail_settings')
@@ -75,6 +76,14 @@ export async function getCommunicationsPageData(
       )
       .eq('tenant_id', tenant.org.id)
       .maybeSingle(),
+    supabase
+      .from('communication_email_assets')
+      .select(
+        'id, tenant_id, asset_type, file_name, original_file_name, public_url, mime_type, file_size_bytes, width, height, alt_text, created_at, updated_at',
+      )
+      .eq('tenant_id', tenant.org.id)
+      .is('archived_at', null)
+      .order('created_at', { ascending: false }),
   ])
 
   return {
@@ -89,5 +98,6 @@ export async function getCommunicationsPageData(
     suppressions: (suppressions ?? []) as CommunicationsPageData['suppressions'],
     templates: (templates ?? []) as CommunicationsPageData['templates'],
     brandSettings: (brandSettings ?? null) as CommunicationsPageData['brandSettings'],
+    emailAssets: (emailAssets ?? []) as CommunicationsPageData['emailAssets'],
   }
 }

@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import type { EmailBrandSettings } from "../types";
+import type { CommunicationEmailAsset, EmailBrandSettings } from "../types";
+import EmailAssetsSection from "./EmailAssetsSection";
 
 interface Props {
   tenantId: string;
   brandSettings: EmailBrandSettings | null;
   canManage: boolean;
+  emailAssets: CommunicationEmailAsset[];
   onSaved: (settings: EmailBrandSettings) => void;
+  onAssetsChange: (assets: CommunicationEmailAsset[]) => void;
 }
 
 type FormData = {
@@ -143,7 +146,7 @@ function ColorField({
   );
 }
 
-export default function BrandKitTab({ tenantId, brandSettings, canManage, onSaved }: Props) {
+export default function BrandKitTab({ tenantId, brandSettings, canManage, emailAssets, onSaved, onAssetsChange }: Props) {
   const [form, setForm] = useState<FormData>(() =>
     brandSettings ? settingsToForm(brandSettings) : { ...DEFAULTS },
   );
@@ -239,6 +242,10 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
     onSaved(saved);
   }
 
+  function handleUseAsLogo(url: string) {
+    field("logo_url", url);
+  }
+
   const footerPreviewLines = [
     form.organization_name,
     [form.mailing_address, form.city, form.state, form.zip].filter(Boolean).join(", "),
@@ -248,6 +255,7 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
   ].filter(Boolean);
 
   return (
+    <>
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 360px", gap: 16, alignItems: "start" }}>
       <div className="section-card">
         <div className="section-header">
@@ -566,5 +574,13 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
         </div>
       </div>
     </div>
+    <EmailAssetsSection
+      tenantId={tenantId}
+      assets={emailAssets}
+      canManage={canManage}
+      onAssetsChange={onAssetsChange}
+      onUseAsLogo={handleUseAsLogo}
+    />
+    </>
   );
 }

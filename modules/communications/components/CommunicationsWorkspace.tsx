@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type {
   CommWorkspaceTab,
+  CommunicationEmailAsset,
   CommunicationsPageData,
   EmailBrandSettings,
   EmailTemplate,
@@ -22,6 +23,7 @@ export default function CommunicationsWorkspace(props: Props) {
   const [brandSettings, setBrandSettings] = useState<EmailBrandSettings | null>(
     props.brandSettings,
   );
+  const [emailAssets, setEmailAssets] = useState<CommunicationEmailAsset[]>(props.emailAssets);
 
   return (
     <div style={{ maxWidth: 1400, margin: "0 auto" }}>
@@ -79,7 +81,9 @@ export default function CommunicationsWorkspace(props: Props) {
           tenantId={props.orgId}
           brandSettings={brandSettings}
           canManage={props.canManage}
+          emailAssets={emailAssets}
           onSaved={setBrandSettings}
+          onAssetsChange={setEmailAssets}
         />
       )}
       {activeTab === "delivery-setup" && (

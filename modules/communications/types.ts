@@ -87,6 +87,22 @@ export interface PartnerEmailSuppression {
   suppressed_at: string
 }
 
+export interface CommunicationEmailAsset {
+  id: string
+  tenant_id: string
+  asset_type: string
+  file_name: string
+  original_file_name: string | null
+  public_url: string
+  mime_type: string
+  file_size_bytes: number
+  width: number | null
+  height: number | null
+  alt_text: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface CommunicationsPageData {
   slug: string
   orgId: string
@@ -99,6 +115,7 @@ export interface CommunicationsPageData {
   suppressions: PartnerEmailSuppression[]
   templates: EmailTemplate[]
   brandSettings: EmailBrandSettings | null
+  emailAssets: CommunicationEmailAsset[]
 }
 
 export type CampaignListFilter =
