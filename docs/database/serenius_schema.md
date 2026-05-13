@@ -1,11 +1,11 @@
 # SERENIUS DATABASE SCHEMA
-**Last Updated:** May 2026  
-**Stack:** Supabase (PostgreSQL), RLS enabled on all tables  
-**Auth:** Supabase Auth — `auth.users`  
-**Multi-tenancy:** All tables scoped by `tenant_id` → `organizations.id`  
-**PK Standard:** UUID (`gen_random_uuid()`) on all tables  
-**Import Bridge:** `knack_id text unique` on all migrated tables  
-**Updated At:** Managed by `public.set_updated_at()` trigger function  
+**Last Updated:** May 2026
+**Stack:** Supabase (PostgreSQL), RLS enabled on all tables
+**Auth:** Supabase Auth — `auth.users`
+**Multi-tenancy:** All tables scoped by `tenant_id` → `organizations.id`
+**PK Standard:** UUID (`gen_random_uuid()`) on all tables
+**Import Bridge:** `knack_id text unique` on all migrated tables
+**Updated At:** Managed by `public.set_updated_at()` trigger function
 
 ---
 
@@ -14,7 +14,7 @@
 ---
 
 ### `public.organizations`
-**Module:** Core Infrastructure  
+**Module:** Core Infrastructure
 **Description:** Top-level tenant records. One row per organization using Serenius.
 
 | Column | Type | Constraints |
@@ -26,13 +26,13 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 2 (WellSpring, Shore Christian)  
-**RLS:** Readable by all authenticated users  
+**Record Count:** 2 (WellSpring, Shore Christian)
+**RLS:** Readable by all authenticated users
 
 ---
 
 ### `public.organization_branding`
-**Module:** Core Infrastructure  
+**Module:** Core Infrastructure
 **Description:** Per-tenant branding — colors, logos, CSS custom properties injected at runtime.
 
 | Column | Type | Constraints |
@@ -54,14 +54,14 @@
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
 
-**Record Count:** 2  
-**RLS:** Readable by all authenticated users  
-**Color fallback chain:** `sidebar_background_color` → `primary_color` → `sidebar_color` → default navy  
+**Record Count:** 2
+**RLS:** Readable by all authenticated users
+**Color fallback chain:** `sidebar_background_color` → `primary_color` → `sidebar_color` → default navy
 
 ---
 
 ### `public.organization_settings`
-**Module:** Core Infrastructure  
+**Module:** Core Infrastructure
 **Description:** Feature flags, module gating, and API keys per tenant.
 
 | Column | Type | Constraints |
@@ -75,13 +75,13 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 2  
-**RLS:** Tenant isolation  
+**Record Count:** 2
+**RLS:** Tenant isolation
 
 ---
 
 ### `public.organization_mail`
-**Module:** Core Infrastructure  
+**Module:** Core Infrastructure
 **Description:** Per-tenant outbound email configuration.
 
 | Column | Type | Constraints |
@@ -94,13 +94,13 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 2  
-**RLS:** Tenant isolation  
+**Record Count:** 2
+**RLS:** Tenant isolation
 
 ---
 
 ### `public.organization_storage_settings`
-**Module:** Core Infrastructure / Setup  
+**Module:** Core Infrastructure / Setup
 **Description:** Organization-wide storage connector configuration. One row per tenant. Provider change requires assisted migration.
 
 | Column | Type | Constraints |
@@ -120,15 +120,15 @@
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
 
-**Record Count:** 0 (seeded per tenant on Setup)  
-**Indexes:** tenant_id · provider · (tenant_id, provider)  
-**RLS:** SELECT — all tenant members · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
-**No OAuth token columns** — tokens live in `organization_storage_credentials`  
+**Record Count:** 0 (seeded per tenant on Setup)
+**Indexes:** tenant_id · provider · (tenant_id, provider)
+**RLS:** SELECT — all tenant members · INSERT/UPDATE/DELETE — tenant_admin + superadmin
+**No OAuth token columns** — tokens live in `organization_storage_credentials`
 
 ---
 
 ### `public.organization_storage_credentials`
-**Module:** Core Infrastructure / Setup  
+**Module:** Core Infrastructure / Setup
 **Security:** ⚠️ SENSITIVE — OAuth token material. Normal authenticated users CANNOT read this table.
 
 | Column | Type | Constraints |
@@ -147,15 +147,15 @@
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
 | | | UNIQUE (tenant_id, provider) |
 
-**Record Count:** 0  
-**Indexes:** tenant_id · (tenant_id, provider) · provider  
-**RLS:** superadmin-only policy. Service role bypasses for OAuth routes.  
-**Do NOT expose via:** views · client-facing generated types · anon key API routes  
+**Record Count:** 0
+**Indexes:** tenant_id · (tenant_id, provider) · provider
+**RLS:** superadmin-only policy. Service role bypasses for OAuth routes.
+**Do NOT expose via:** views · client-facing generated types · anon key API routes
 
 ---
 
 ### `public.user_profiles`
-**Module:** Core Infrastructure  
+**Module:** Core Infrastructure
 **Description:** Maps Supabase auth users to tenants. Links to user_roles for permissions. `is_admin` was dropped — role system handles all permissions.
 
 | Column | Type | Constraints |
@@ -166,8 +166,8 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 2  
-**RLS:** Users see only their own profile  
+**Record Count:** 2
+**RLS:** Users see only their own profile
 
 **Live identity model (source of truth):**
 
@@ -186,7 +186,7 @@
 ---
 
 ### `public.roles`
-**Module:** Core Infrastructure / Setup  
+**Module:** Core Infrastructure / Setup
 **Description:** Global platform-managed role definitions. Shared across all tenants.
 
 | Column | Type | Constraints |
@@ -198,14 +198,14 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 14  
-**RLS:** Readable by all authenticated users · Writable by superadmin only  
-**Seeded roles:** superadmin · tenant_admin · leadership · accounting · donor_management · project_management · marketing · family_connect · program_leadership · house_parent · house_assistant · empowerment · readonly · volunteer  
+**Record Count:** 14
+**RLS:** Readable by all authenticated users · Writable by superadmin only
+**Seeded roles:** superadmin · tenant_admin · leadership · accounting · donor_management · project_management · marketing · family_connect · program_leadership · house_parent · house_assistant · empowerment · readonly · volunteer
 
 ---
 
 ### `public.user_roles`
-**Module:** Core Infrastructure / Setup  
+**Module:** Core Infrastructure / Setup
 **Description:** Junction table mapping users to roles within a tenant. A user can have multiple roles. `tenant_id = null` = platform-level role.
 
 | Column | Type | Constraints |
@@ -217,14 +217,14 @@
 | created_at | timestamptz | DEFAULT now() |
 | | | UNIQUE (user_id, tenant_id, role_id) |
 
-**Record Count:** 2 (ward@wsrv.org — tenant_admin/WellSpring · wardmac72@gmail.com — superadmin/null)  
-**Indexes:** user_id · tenant_id · role_id  
-**RLS:** Users see own assignments · tenant_admin/superadmin manage their scope  
+**Record Count:** 2 (ward@wsrv.org — tenant_admin/WellSpring · wardmac72@gmail.com — superadmin/null)
+**Indexes:** user_id · tenant_id · role_id
+**RLS:** Users see own assignments · tenant_admin/superadmin manage their scope
 
 ---
 
 ### `public.record_attachments`
-**Module:** Core Infrastructure (shared across all modules)  
+**Module:** Core Infrastructure (shared across all modules)
 **Description:** Generic polymorphic attachment metadata. Files live in tenant's configured storage provider. Serenius stores metadata and links only.
 
 | Column | Type | Constraints |
@@ -246,11 +246,11 @@
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
 
-**Record Count:** 0  
-**Indexes:** tenant_id · (tenant_id, record_type, record_id) · storage_provider · uploaded_by · created_at DESC  
-**RLS:** All tenant members can read/insert/update/delete · superadmin sees all  
-**Current record_type values:** partner · partner_contact · partner_communication · partner_in_kind_gift · partner_statement · financial_gift · pledge · partner_email  
-**Future record_type values:** family_connect · resident · child · export · document  
+**Record Count:** 0
+**Indexes:** tenant_id · (tenant_id, record_type, record_id) · storage_provider · uploaded_by · created_at DESC
+**RLS:** All tenant members can read/insert/update/delete · superadmin sees all
+**Current record_type values:** partner · partner_contact · partner_communication · partner_in_kind_gift · partner_statement · financial_gift · pledge · partner_email
+**Future record_type values:** family_connect · resident · child · export · document
 
 ---
 
@@ -259,7 +259,7 @@
 ---
 
 ### `public.partners`
-**Module:** Partners  
+**Module:** Partners
 **Description:** Primary donor/partner records. One record per giving family or church organization.
 
 | Column | Type | Constraints |
@@ -289,16 +289,16 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 64  
-**Indexes:** tenant_id · knack_id · (tenant_id, assigned_to)  
-**RLS:** Tenant isolation  
-**Referenced By:** partner_contacts · pledges · financial_gifts · partner_statements · partner_in_kind_gifts · partner_communications · partner_email_opens  
-**UI Pattern:** `assigned_to` renders as a staff dropdown — query `select id, display_name from user_profiles where tenant_id = current_tenant_id()`  
+**Record Count:** 64
+**Indexes:** tenant_id · knack_id · (tenant_id, assigned_to)
+**RLS:** Tenant isolation
+**Referenced By:** partner_contacts · pledges · financial_gifts · partner_statements · partner_in_kind_gifts · partner_communications · partner_email_opens
+**UI Pattern:** `assigned_to` renders as a staff dropdown — query `select id, display_name from user_profiles where tenant_id = current_tenant_id()`
 
 ---
 
 ### `public.partner_contacts`
-**Module:** Partners  
+**Module:** Partners
 **Description:** Individual people linked to a partner. Multiple contacts per partner (husband, wife, adult children, etc.)
 
 | Column | Type | Constraints |
@@ -341,17 +341,17 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 85  
-**Indexes:** tenant_id · partner_id · knack_id  
-**RLS:** Tenant isolation  
-**email_segment values:** 'Donors, All US' · 'Prospects' · 'Staff' · 'Test Emails' · 'New Donor' · 'New Prospect' · 'iMessage Test' · 'Mission Trips'  
-**Future FKs:** family_connect_id → family_connect.id · sponsored_children → residents.id  
-**Referenced By:** partner_email_opens.partner_contact_id  
+**Record Count:** 85
+**Indexes:** tenant_id · partner_id · knack_id
+**RLS:** Tenant isolation
+**email_segment values:** 'Donors, All US' · 'Prospects' · 'Staff' · 'Test Emails' · 'New Donor' · 'New Prospect' · 'iMessage Test' · 'Mission Trips'
+**Future FKs:** family_connect_id → family_connect.id · sponsored_children → residents.id
+**Referenced By:** partner_email_opens.partner_contact_id
 
 ---
 
 ### `public.pledges`
-**Module:** Partners  
+**Module:** Partners
 **Description:** Recurring giving commitments from a partner. 'Increased' status = new pledge replaced this one at a higher amount — preserves audit trail.
 
 | Column | Type | Constraints |
@@ -376,15 +376,15 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 13  
-**Indexes:** tenant_id · partner_id · status  
-**RLS:** Tenant isolation  
-**Referenced By:** financial_gifts.pledge_id  
+**Record Count:** 13
+**Indexes:** tenant_id · partner_id · status
+**RLS:** Tenant isolation
+**Referenced By:** financial_gifts.pledge_id
 
 ---
 
 ### `public.financial_gifts`
-**Module:** Partners  
+**Module:** Partners
 **Description:** Individual gift transactions. May be linked to a pledge or standalone.
 
 | Column | Type | Constraints |
@@ -411,16 +411,16 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 258  
-**Indexes:** tenant_id · partner_id · pledge_id · gl_master_account_id · gl_sub_account_id · date_given · giving_year  
-**RLS:** Tenant isolation  
-**Linked gifts:** 184 linked to a pledge · 74 standalone  
-**Future FKs:** bank_deposit → bank_deposits.id  
+**Record Count:** 258
+**Indexes:** tenant_id · partner_id · pledge_id · gl_master_account_id · gl_sub_account_id · date_given · giving_year
+**RLS:** Tenant isolation
+**Linked gifts:** 184 linked to a pledge · 74 standalone
+**Future FKs:** bank_deposit → bank_deposits.id
 
 ---
 
 ### `public.partner_statements`
-**Module:** Partners  
+**Module:** Partners
 **Description:** Annual giving statement packages per partner. Each record holds links to 3 Google Drive documents for one year.
 
 | Column | Type | Constraints |
@@ -441,15 +441,15 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 28  
-**Indexes:** tenant_id · partner_id · year  
-**RLS:** Tenant isolation  
-**UI Pattern:** `<a href={url}>{label}</a>` — fall back to column name if label is null  
+**Record Count:** 28
+**Indexes:** tenant_id · partner_id · year
+**RLS:** Tenant isolation
+**UI Pattern:** `<a href={url}>{label}</a>` — fall back to column name if label is null
 
 ---
 
 ### `public.partner_in_kind_gifts`
-**Module:** Partners  
+**Module:** Partners
 **Description:** Non-cash gifts donated by a partner.
 
 | Column | Type | Constraints |
@@ -472,15 +472,15 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 5  
-**Indexes:** tenant_id · partner_id · date_given · (tenant_id, partner_id, date_given DESC)  
-**RLS:** Tenant isolation  
-**Future FK:** asset_id → assets.id *(In-Kind/Assets module)*  
+**Record Count:** 5
+**Indexes:** tenant_id · partner_id · date_given · (tenant_id, partner_id, date_given DESC)
+**RLS:** Tenant isolation
+**Future FK:** asset_id → assets.id *(In-Kind/Assets module)*
 
 ---
 
 ### `public.partner_communications`
-**Module:** Partners  
+**Module:** Partners
 **Description:** Logged communication interactions with a partner. Supports follow-up task assignment to other staff.
 
 | Column | Type | Constraints |
@@ -505,15 +505,15 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 1  
-**Indexes:** tenant_id · partner_id · communication_date · partial index on open follow-ups  
-**RLS:** Tenant isolation  
-**Referenced By:** partner_communication_followups.communication_id  
+**Record Count:** 1
+**Indexes:** tenant_id · partner_id · communication_date · partial index on open follow-ups
+**RLS:** Tenant isolation
+**Referenced By:** partner_communication_followups.communication_id
 
 ---
 
 ### `public.partner_communication_followups`
-**Module:** Partners  
+**Module:** Partners
 **Description:** Assigned follow-up tasks spawned from a communication. Allows delegation to other staff. One communication can have multiple tasks.
 
 | Column | Type | Constraints |
@@ -532,15 +532,15 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 0  
-**Indexes:** tenant_id · communication_id · assigned_to · partial index on open tasks  
-**RLS:** Tenant isolation  
-**UI Pattern:** "My Tasks" — query where `assigned_to = current user profile id AND completed = false`  
+**Record Count:** 0
+**Indexes:** tenant_id · communication_id · assigned_to · partial index on open tasks
+**RLS:** Tenant isolation
+**UI Pattern:** "My Tasks" — query where `assigned_to = current user profile id AND completed = false`
 
 ---
 
 ### `public.partner_emails`
-**Module:** Partners / Communications  
+**Module:** Partners / Communications
 **Description:** Broadcast email campaign records — Serenius's built-in email system. One record per email send. Media attachments stored as JSONB array. HTML content stored as text; new workflow uses `record_attachments` for HTML files.
 
 | Column | Type | Constraints |
@@ -583,18 +583,25 @@
 | last_error_at | timestamptz | nullable — timestamp of last error |
 | send_job_id | text | nullable — background worker job correlation ID |
 | test_recipients_snapshot | jsonb | DEFAULT '[]' — test recipient emails at send time |
+| template_id | uuid | nullable → communication_email_templates.id SET NULL |
+| rendered_html_snapshot | text | nullable — final rendered HTML at send time |
+| rendered_text_snapshot | text | nullable — final rendered plain text at send time |
+| brand_settings_snapshot | jsonb | DEFAULT '{}' — brand kit snapshot at send time |
+| readiness_status | email_readiness_enum | DEFAULT 'not_ready' ('not_ready', 'ready', 'approved', 'sent') |
+| approved_by | uuid | nullable → auth.users.id SET NULL |
+| approved_at | timestamptz | nullable |
 
-**Record Count:** 38  
-**Indexes:** tenant_id · knack_email_id · (tenant_id, sending_status) · delivery_datetime · (tenant_id, sender_provider) · scheduled_at (partial, not null)  
-**RLS:** Tenant isolation  
-**Referenced By:** partner_email_opens.partner_email_id  
-**Media pattern:** `media_attachments` jsonb array for historical Knack data · new workflow uses `record_attachments` table  
-**HTML pattern:** Upload HTML file → store via `record_attachments` → UI fetches and renders preview  
+**Record Count:** 38
+**Indexes:** tenant_id · knack_email_id · (tenant_id, sending_status) · delivery_datetime · (tenant_id, sender_provider) · scheduled_at (partial, not null) · template_id (partial, not null) · (tenant_id, readiness_status)
+**RLS:** Tenant isolation
+**Referenced By:** partner_email_opens.partner_email_id
+**Media pattern:** `media_attachments` jsonb array for historical Knack data · new workflow uses `record_attachments` table
+**HTML pattern:** Upload HTML file → store via `record_attachments` → UI fetches and renders preview
 
 ---
 
 ### `public.partner_email_opens`
-**Module:** Partners / Communications  
+**Module:** Partners / Communications
 **Description:** Individual delivery + open tracking per contact per email. One row per contact per email send. `first_opened = null` = delivered but never opened. `partner_contact_id` null for contacts with knack_id > 85 — backfillable via Knack API using `knack_contact_id`.
 
 | Column | Type | Constraints |
@@ -620,23 +627,192 @@
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 492  
-**Indexes:** tenant_id · partner_email_id · partner_id · partner_contact_id · sent_at · knack_email_id · partial index on opened records only  
-**RLS:** Tenant isolation  
-**Additional columns added (communications module):**  
-`tracking_token` uuid UNIQUE DEFAULT gen_random_uuid() — powers `/api/email/open/[tracking_token].png`  
-On hit: increment `open_count`, set `first_opened` if null, update `last_opened`, record device metadata  
-**Open stats:** 267 opened · 225 delivered never opened  
-**Backfill path:** `knack_contact_id` → Knack API → `partner_contacts.knack_id` → populate `partner_contact_id`  
+**Record Count:** 492
+**Indexes:** tenant_id · partner_email_id · partner_id · partner_contact_id · sent_at · knack_email_id · partial index on opened records only
+**RLS:** Tenant isolation
+**Additional columns added (communications module):**
+`tracking_token` uuid UNIQUE DEFAULT gen_random_uuid() — powers `/api/email/open/[tracking_token].png`
+On hit: increment `open_count`, set `first_opened` if null, update `last_opened`, record device metadata
+**Open stats:** 267 opened · 225 delivered never opened
+**Backfill path:** `knack_contact_id` → Knack API → `partner_contacts.knack_id` → populate `partner_contact_id`
 
 ---
 
+
+---
+
+### `public.communication_email_templates`
+**Module:** Communications
+**Description:** Tenant-level reusable campaign email templates. Clone to iterate — version history deferred to v2. HTML/media files stored in `record_attachments` with `record_type = 'email_template'`.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PRIMARY KEY |
+| tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE |
+| name | text | NOT NULL |
+| description | text | nullable |
+| template_type | template_type_enum | NOT NULL DEFAULT 'general' |
+| status | template_status_enum | NOT NULL DEFAULT 'draft' |
+| is_default | boolean | NOT NULL DEFAULT false |
+| subject_default | text | nullable |
+| preheader_default | text | nullable |
+| html_template | text | nullable |
+| plain_text_template | text | nullable |
+| design_json | jsonb | DEFAULT '{}' — future block editor state |
+| thumbnail_url | text | nullable — preview image URL |
+| created_by | uuid | → auth.users.id SET NULL |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| updated_at | timestamptz | NOT NULL DEFAULT now() |
+
+**Record Count:** 0
+**Indexes:** tenant_id · (tenant_id, status) · (tenant_id, template_type)
+**RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin
+**template_type values:** ministry_update · new_donor · new_prospect · imessage · general · custom
+**template_status values:** draft · active · archived
+
+---
+
+### `public.communication_email_brand_settings`
+**Module:** Communications
+**Description:** Tenant email brand kit. One row per tenant. Controls header, footer, colors, typography, social links, and CAN-SPAM legal identity for email rendering.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PRIMARY KEY |
+| tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE · UNIQUE |
+| logo_url | text | nullable — email-specific override; falls back to organization_branding.logo_url if null |
+| logo_width | integer | nullable |
+| header_html | text | nullable |
+| footer_html | text | nullable |
+| primary_color | text | DEFAULT '#3D5A80' |
+| accent_color | text | DEFAULT '#EE6C4D' |
+| button_color | text | DEFAULT '#3D5A80' |
+| button_text_color | text | DEFAULT '#FFFFFF' |
+| background_color | text | DEFAULT '#FFFFFF' |
+| text_color | text | DEFAULT '#333333' |
+| default_font | text | DEFAULT 'Arial, sans-serif' |
+| default_signature | text | nullable — HTML signature block |
+| default_donation_url | text | nullable |
+| preference_center_url | text | nullable — base URL override; default is Serenius-hosted /mail/preferences/{token} |
+| social_links | jsonb | DEFAULT '{}' — {facebook, instagram, youtube, twitter, website} |
+| organization_name | text | nullable — CAN-SPAM required |
+| mailing_address | text | nullable — CAN-SPAM required |
+| city | text | nullable |
+| state | text | nullable |
+| zip | text | nullable |
+| country | text | DEFAULT 'US' |
+| phone | text | nullable |
+| website_url | text | nullable |
+| unsubscribe_text | text | DEFAULT 'Unsubscribe or manage preferences' |
+| created_by | uuid | → auth.users.id SET NULL |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| updated_at | timestamptz | NOT NULL DEFAULT now() |
+
+**Record Count:** 0 (seeded per tenant on Setup)
+**Indexes:** tenant_id
+**RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin
+**Logo fallback:** `logo_url` → `organization_branding.logo_url` → none
+**Preference center:** Serenius-hosted at `/mail/preferences/{token}` by default; `preference_center_url` is an override
+
+---
+
+### `public.email_opt_out_tokens`
+**Module:** Communications
+**Security:** ⚠️ SENSITIVE — hash-only token storage. Raw token never persisted. Service role + superadmin only.
+**Description:** Per-recipient opt-out tokens for campaign footer unsubscribe links. On receipt: sha256(raw_token) → lookup token_hash → mark used_at → write partner_email_suppressions.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PRIMARY KEY |
+| tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE |
+| partner_contact_id | uuid | → partner_contacts.id SET NULL (nullable) |
+| partner_email_id | uuid | → partner_emails.id SET NULL (nullable) |
+| email | text | NOT NULL |
+| token_hash | text | NOT NULL UNIQUE — sha256 of raw token only |
+| expires_at | timestamptz | nullable |
+| used_at | timestamptz | nullable — set when opt-out is processed |
+| suppression_type | suppression_type_enum | NOT NULL DEFAULT 'unsubscribed' |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+
+**Record Count:** 0
+**Indexes:** token_hash · tenant_id · partner_contact_id (partial) · token_hash WHERE used_at IS NULL (active lookups)
+**RLS:** superadmin-only policy. API route uses service role for token lookup and suppression write.
+**Do NOT expose via:** client queries · views · generated public types
+**Flow:** Raw token in URL → server hashes → lookup token_hash → mark used_at → insert partner_email_suppressions
+
+---
+
+### `public.email_send_jobs`
+**Module:** Communications
+**Description:** Audit record for every send attempt (test or final). Answers "what was sent and when?" Separate from partner_email_opens (engagement) and email_send_recipients (per-recipient delivery).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PRIMARY KEY |
+| tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE |
+| partner_email_id | uuid | → partner_emails.id SET NULL |
+| job_type | send_job_type_enum | NOT NULL ('test', 'final', 'scheduled') |
+| status | send_job_status_enum | NOT NULL DEFAULT 'queued' ('queued', 'running', 'completed', 'failed', 'canceled') |
+| requested_by | uuid | → auth.users.id SET NULL |
+| scheduled_at | timestamptz | nullable |
+| started_at | timestamptz | nullable |
+| completed_at | timestamptz | nullable |
+| provider | mail_provider_type | nullable — provider used |
+| sender_email | text | nullable — from address snapshot |
+| sender_name | text | nullable — from name snapshot |
+| recipient_count | integer | DEFAULT 0 |
+| sent_count | integer | DEFAULT 0 |
+| failed_count | integer | DEFAULT 0 |
+| suppressed_count | integer | DEFAULT 0 |
+| skipped_count | integer | DEFAULT 0 |
+| last_error | text | nullable |
+| segment_snapshot | text | nullable — segment at send time |
+| campaign_version_snapshot | text | nullable — campaign version at send time |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| updated_at | timestamptz | NOT NULL DEFAULT now() |
+
+**Record Count:** 0
+**Indexes:** tenant_id · partner_email_id · (tenant_id, status) · requested_by
+**RLS:** SELECT — tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin
+**Referenced By:** email_send_recipients.job_id
+
+---
+
+### `public.email_send_recipients`
+**Module:** Communications
+**Description:** Per-recipient delivery audit rows. One row per recipient per send job. Answers "did we send it?" Separate from partner_email_opens which answers "did they open it?" Join on partner_contact_id + partner_email_id.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PRIMARY KEY |
+| tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE |
+| job_id | uuid | NOT NULL → email_send_jobs.id CASCADE DELETE |
+| partner_email_id | uuid | → partner_emails.id SET NULL |
+| partner_contact_id | uuid | → partner_contacts.id SET NULL (null for test recipients) |
+| opt_out_token_id | uuid | → email_opt_out_tokens.id SET NULL |
+| email | text | NOT NULL |
+| display_name | text | nullable |
+| recipient_type | send_recipient_type_enum | NOT NULL DEFAULT 'contact' ('test', 'contact') |
+| status | send_recipient_status_enum | NOT NULL DEFAULT 'queued' |
+| provider_message_id | text | nullable — provider delivery ID |
+| sent_at | timestamptz | nullable |
+| error | text | nullable |
+| tracking_token | uuid | UNIQUE DEFAULT gen_random_uuid() |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| updated_at | timestamptz | NOT NULL DEFAULT now() |
+
+**Record Count:** 0
+**Indexes:** tenant_id · job_id · partner_email_id · partner_contact_id (partial) · tracking_token · (job_id, status)
+**RLS:** SELECT — tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin
+**status values:** queued · sent · failed · suppressed · skipped
+
+---
 ## GL / FINANCIAL CONFIGURATION
 
 ---
 
 ### `public.gl_master_accounts`
-**Module:** Banking/Finance (config)  
+**Module:** Banking/Finance (config)
 **Description:** Parent-level chart of accounts. Each tenant manages their own set.
 
 | Column | Type | Constraints |
@@ -655,15 +831,15 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 15  
-**Indexes:** tenant_id · (tenant_id, number)  
-**RLS:** Tenant isolation  
-**Referenced By:** gl_sub_accounts · financial_gifts · gift_category_settings  
+**Record Count:** 15
+**Indexes:** tenant_id · (tenant_id, number)
+**RLS:** Tenant isolation
+**Referenced By:** gl_sub_accounts · financial_gifts · gift_category_settings
 
 ---
 
 ### `public.gl_sub_accounts`
-**Module:** Banking/Finance (config)  
+**Module:** Banking/Finance (config)
 **Description:** Child-level accounts linked to a master. Budget tracking lives here. Actuals computed via queries.
 
 | Column | Type | Constraints |
@@ -687,15 +863,15 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 106  
-**Indexes:** tenant_id · gl_master_account_id · (tenant_id, number)  
-**RLS:** Tenant isolation  
-**Referenced By:** financial_gifts · gift_category_settings  
+**Record Count:** 106
+**Indexes:** tenant_id · gl_master_account_id · (tenant_id, number)
+**RLS:** Tenant isolation
+**Referenced By:** financial_gifts · gift_category_settings
 
 ---
 
 ### `public.gift_category_settings`
-**Module:** Partners / Banking/Finance (config)  
+**Module:** Partners / Banking/Finance (config)
 **Description:** Tenant-level config mapping gift "towards" categories to GL accounts. Auto-populates GL fields when a gift is recorded.
 
 | Column | Type | Constraints |
@@ -711,10 +887,10 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | created_at | timestamptz | DEFAULT now() |
 | updated_at | timestamptz | DEFAULT now() |
 
-**Record Count:** 10 (WellSpring seed)  
-**RLS:** Tenant isolation  
-**Seeded categories:** Child Sponsorship · General Fund · Girls Empowerment · Hope Matching Campaign · House Sponsor · Land/Building Project · Mission Trip · Other - See Notes · Pathways Sponsorship · Rescue Care  
-**All mapped to:** 20000 - Direct Contributions Revenue / 20100 - Individual Contributions  
+**Record Count:** 10 (WellSpring seed)
+**RLS:** Tenant isolation
+**Seeded categories:** Child Sponsorship · General Fund · Girls Empowerment · Hope Matching Campaign · House Sponsor · Land/Building Project · Mission Trip · Other - See Notes · Pathways Sponsorship · Rescue Care
+**All mapped to:** 20000 - Direct Contributions Revenue / 20100 - Individual Contributions
 
 ---
 
@@ -726,11 +902,11 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 ---
 
 ### `public.organization_mail_settings`
-**Module:** Communications  
+**Module:** Communications
 **Description:** Tenant-level marketing email sender configuration. One row per tenant per provider. Controls the outbound mail sender for campaigns. Separate from `organization_mail` (legacy simple config retained for compatibility).
 
-**Relationship to `organization_mail`:**  
-- `organization_mail` = legacy simple config (from_name, from_email, reply_to). Retained, not dropped.  
+**Relationship to `organization_mail`:**
+- `organization_mail` = legacy simple config (from_name, from_email, reply_to). Retained, not dropped.
 - `organization_mail_settings` = full provider config for marketing mail sender. New sending code uses this table.
 
 | Column | Type | Constraints |
@@ -755,16 +931,16 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
 | | | UNIQUE (tenant_id, provider) |
 
-**Record Count:** 0  
-**Indexes:** tenant_id · provider  
-**RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
-**send_mode values:** disabled (no sends) · test_only (test recipients only) · live (real sends enabled)  
-**⚠️ Real sending not yet active in UI**  
+**Record Count:** 0
+**Indexes:** tenant_id · provider
+**RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin
+**send_mode values:** disabled (no sends) · test_only (test recipients only) · live (real sends enabled)
+**⚠️ Real sending not yet active in UI**
 
 ---
 
 ### `public.organization_mail_credentials`
-**Module:** Communications  
+**Module:** Communications
 **Security:** ⚠️ SENSITIVE — OAuth token material. Normal authenticated users CANNOT read this table.
 
 | Column | Type | Constraints |
@@ -784,15 +960,15 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
 | | | UNIQUE (tenant_id, provider) |
 
-**Record Count:** 0  
-**Indexes:** tenant_id · (tenant_id, provider)  
-**RLS:** superadmin-only policy. Service role bypasses for OAuth routes.  
-**Do NOT expose via:** views · client-facing types · anon key API routes  
+**Record Count:** 0
+**Indexes:** tenant_id · (tenant_id, provider)
+**RLS:** superadmin-only policy. Service role bypasses for OAuth routes.
+**Do NOT expose via:** views · client-facing types · anon key API routes
 
 ---
 
 ### `public.organization_mail_test_recipients`
-**Module:** Communications  
+**Module:** Communications
 **Description:** Tenant-configured test email addresses used during test send workflow. Checked before any live send is enabled.
 
 | Column | Type | Constraints |
@@ -807,14 +983,14 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
 
-**Record Count:** 0  
-**Indexes:** tenant_id · partial index on active recipients  
-**RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
+**Record Count:** 0
+**Indexes:** tenant_id · partial index on active recipients
+**RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin
 
 ---
 
 ### `public.partner_email_suppressions`
-**Module:** Communications  
+**Module:** Communications
 **Description:** Per-contact/per-email suppression list. Must be checked before any real send. Created now for compliance — sending UI not yet active.
 
 | Column | Type | Constraints |
@@ -831,10 +1007,10 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
 
-**Record Count:** 0  
-**Indexes:** tenant_id · (tenant_id, lower(email)) · partner_contact_id (partial, not null)  
-**RLS:** SELECT — tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
-**suppression_type values:** unsubscribed · bounced · complained · manually_suppressed · invalid_email  
+**Record Count:** 0
+**Indexes:** tenant_id · (tenant_id, lower(email)) · partner_contact_id (partial, not null)
+**RLS:** SELECT — tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin
+**suppression_type values:** unsubscribed · bounced · complained · manually_suppressed · invalid_email
 
 ---
 
@@ -875,6 +1051,17 @@ organizations
   ├── organization_mail_credentials       (tenant_id — SENSITIVE)
   ├── organization_mail_test_recipients   (tenant_id)
   └── partner_email_suppressions          (tenant_id)
+        └── → partner_contacts            (partner_contact_id — nullable)
+  ├── communication_email_templates        (tenant_id)
+  │     └── partner_emails                (template_id — nullable)
+  ├── communication_email_brand_settings   (tenant_id — unique)
+  ├── email_opt_out_tokens                 (tenant_id — SENSITIVE/hash-only)
+  │     ├── → partner_contacts            (partner_contact_id — nullable)
+  │     └── → partner_emails              (partner_email_id — nullable)
+  ├── email_send_jobs                      (tenant_id)
+  │     └── email_send_recipients         (job_id)
+  │           ├── → partner_contacts      (partner_contact_id — nullable)
+  │           └── → email_opt_out_tokens  (opt_out_token_id — nullable)
         └── → partner_contacts            (partner_contact_id — nullable)
         ├── → gl_master_accounts        (gl_master_account_id)
         └── → gl_sub_accounts           (gl_sub_account_id)
@@ -928,6 +1115,13 @@ financial_gifts
 | email_message_status (expanded) | + Building · Scheduled · Failed |
 | mail_provider_type | google_workspace · microsoft_365 · custom_smtp · amazon_ses |
 | suppression_type_enum | unsubscribed · bounced · complained · manually_suppressed · invalid_email |
+| template_status_enum | draft · active · archived |
+| template_type_enum | ministry_update · new_donor · new_prospect · imessage · general · custom |
+| send_job_status_enum | queued · running · completed · failed · canceled |
+| send_job_type_enum | test · final · scheduled |
+| send_recipient_status_enum | queued · sent · failed · suppressed · skipped |
+| send_recipient_type_enum | test · contact |
+| email_readiness_enum | not_ready · ready · approved · sent |
 
 ---
 
@@ -962,6 +1156,11 @@ financial_gifts
 | organization_mail_credentials | 0 |
 | organization_mail_test_recipients | 0 |
 | partner_email_suppressions | 0 |
+| communication_email_templates | 0 |
+| communication_email_brand_settings | 0 |
+| email_opt_out_tokens | 0 |
+| email_send_jobs | 0 |
+| email_send_recipients | 0 |
 | **TOTAL** | **1,140** |
 
 ---
