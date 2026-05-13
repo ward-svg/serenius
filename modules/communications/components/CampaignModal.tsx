@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import SereniusModal from "@/components/ui/SereniusModal";
 import RecordAttachments from "@/components/attachments/RecordAttachments";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -14,7 +14,6 @@ import type {
 import {
   CAMPAIGN_VERSION_OPTIONS,
   COMMUNICATION_TYPE_OPTIONS,
-  EMAIL_STYLE_OPTIONS,
 } from "../constants";
 
 interface Props {
@@ -321,6 +320,32 @@ function RecipientEstimateCard({
   );
 }
 
+function MetaItem({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.4 }}>{value}</div>
+    </div>
+  );
+}
+
+function campaignBadgeStyle(status: string): React.CSSProperties {
+  const s = status.toLowerCase();
+  if (s.includes("complete") || s.includes("sent") || s.includes("success")) {
+    return { background: "#dcfce7", color: "#15803d" };
+  }
+  if (s.includes("cancel") || s.includes("fail")) {
+    return { background: "#fee2e2", color: "#b91c1c" };
+  }
+  if (s.includes("process") || s.includes("scheduled") || s.includes("ready")) {
+    return { background: "#dbeafe", color: "#1d4ed8" };
+  }
+  if (s.includes("test")) {
+    return { background: "#fef3c7", color: "#92400e" };
+  }
+  return { background: "#f3f4f6", color: "#6b7280" };
+}
+
 function ReadinessItem({ ok, text }: { ok: boolean; text: string }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, lineHeight: 1.4 }}>
@@ -578,26 +603,53 @@ export default function CampaignModal({
             <div className="section-header">
               <span className="section-title">Campaign Details</span>
             </div>
-              <div style={{ padding: "0 18px 8px" }}>
-              <DetailRow label="Sending Status" value={prettyText(viewCampaign?.sending_status)} />
-              <DetailRow label="Message Status" value={prettyText(viewCampaign?.message_status)} />
-              <DetailRow label="Communication Type" value={prettyText(viewCampaign?.communication_type)} />
-              <DetailRow label="Email Style" value={prettyText(viewCampaign?.email_style)} />
-              <DetailRow label="Segment" value={prettyText(viewCampaign?.segment)} />
-              <DetailRow label="Campaign Version" value={prettyText(viewCampaign?.campaign_version)} />
-              <DetailRow label="Subject" value={prettyText(viewCampaign?.subject)} />
-              <DetailRow label="Delivery Date/Time" value={formatDateTime(viewCampaign?.delivery_datetime)} />
-              <DetailRow label="Email Sent At" value={formatDateTime(viewCampaign?.email_sent_at)} />
-              <DetailRow label="Sent Type" value={prettyText(viewCampaign?.sent_type)} />
-              <DetailRow label="Total Emails Sent" value={viewCampaign?.total_emails_sent ?? "—"} />
-              <DetailRow label="Original Opens" value={viewCampaign?.original_opens ?? "—"} />
-              <DetailRow label="Total Touches" value={viewCampaign?.total_touches ?? "—"} />
+            <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
+              {/* Subject — prominent */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Subject</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: viewCampaign?.subject ? "#111827" : "#d1d5db", lineHeight: 1.4 }}>
+                  {viewCampaign?.subject || "No subject set"}
+                </div>
+              </div>
+
+              {/* Status + classification badges */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {viewCampaign?.communication_type && (
+                  <span className="badge badge-info">{viewCampaign.communication_type}</span>
+                )}
+                {viewCampaign?.segment && (
+                  <span className="badge" style={{ background: "#f3f4f6", color: "#374151" }}>{viewCampaign.segment}</span>
+                )}
+                {viewCampaign?.campaign_version && (
+                  <span className="badge" style={{ background: "#ede9fe", color: "#5b21b6" }}>{viewCampaign.campaign_version}</span>
+                )}
+                {viewCampaign?.sending_status && (
+                  <span className="badge" style={campaignBadgeStyle(viewCampaign.sending_status)}>{viewCampaign.sending_status}</span>
+                )}
+                {viewCampaign?.message_status && (
+                  <span className="badge" style={campaignBadgeStyle(viewCampaign.message_status)}>{viewCampaign.message_status}</span>
+                )}
+              </div>
+
+              {/* Compact metadata grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
+                <MetaItem label="Content Mode" value={viewCampaign?.email_style === "Rich Text" ? "Serenius Builder" : (viewCampaign?.email_style || "—")} />
+                <MetaItem label="Created" value={formatDateTime(viewCampaign?.created_at)} />
+                <MetaItem label="Delivery" value={formatDateTime(viewCampaign?.delivery_datetime)} />
+                <MetaItem label="Email Sent At" value={formatDateTime(viewCampaign?.email_sent_at)} />
+                <MetaItem label="Sent Type" value={prettyText(viewCampaign?.sent_type)} />
+                <MetaItem label="Total Sent" value={viewCampaign?.total_emails_sent ?? "—"} />
+                <MetaItem label="Opens" value={viewCampaign?.original_opens ?? "—"} />
+                <MetaItem label="Touches" value={viewCampaign?.total_touches ?? "—"} />
+              </div>
             </div>
           </div>
 
           <div className="section-card" style={{ marginBottom: 0 }}>
             <div className="section-header">
-              <span className="section-title">HTML / Message Preview</span>
+              <span className="section-title">
+                {viewCampaign?.message_raw_html ? "HTML Preview" : viewCampaign?.message ? "Message Preview" : "Campaign Preview"}
+              </span>
             </div>
             <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
               {viewCampaign?.html_file_url && (
@@ -818,18 +870,15 @@ export default function CampaignModal({
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Email Style</label>
+                    <label className="form-label">Content Mode</label>
                     <select
                       className="form-input"
                       value={formData.email_style}
                       onChange={(e) => handleChange("email_style", e.target.value)}
                       disabled={!isCreate && !canEdit}
                     >
-                      {EMAIL_STYLE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
+                      <option value="Raw HTML">Raw HTML</option>
+                      <option value="Rich Text">Serenius Builder</option>
                     </select>
                   </div>
                 </div>
@@ -878,28 +927,34 @@ export default function CampaignModal({
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Message</label>
-                  <textarea
-                    className="form-input"
-                    rows={5}
-                    value={formData.message}
-                    onChange={(e) => handleChange("message", e.target.value)}
-                    disabled={!isCreate && !canEdit}
-                  />
-                </div>
+                {formData.email_style !== "Raw HTML" && (
+                  <div className="form-group">
+                    <label className="form-label">Message</label>
+                    <textarea
+                      className="form-input"
+                      rows={5}
+                      value={formData.message}
+                      onChange={(e) => handleChange("message", e.target.value)}
+                      disabled={!isCreate && !canEdit}
+                    />
+                    <div className="form-helper">Builder/template block editing will mature here. For now, this stores campaign message content.</div>
+                  </div>
+                )}
 
-                <div className="form-group">
-                  <label className="form-label">Raw HTML</label>
-                  <textarea
-                    className="form-input"
-                    rows={8}
-                    value={formData.message_raw_html}
-                    onChange={(e) => handleChange("message_raw_html", e.target.value)}
-                    placeholder="<html>..."
-                    disabled={!isCreate && !canEdit}
-                  />
-                </div>
+                {formData.email_style === "Raw HTML" && (
+                  <div className="form-group">
+                    <label className="form-label">Raw HTML</label>
+                    <textarea
+                      className="form-input"
+                      rows={8}
+                      value={formData.message_raw_html}
+                      onChange={(e) => handleChange("message_raw_html", e.target.value)}
+                      placeholder="<html>..."
+                      disabled={!isCreate && !canEdit}
+                    />
+                    <div className="form-helper">Paste full email-safe HTML. Serenius will use this as the campaign body.</div>
+                  </div>
+                )}
 
                 <div className="form-row">
                   <div className="form-group">
