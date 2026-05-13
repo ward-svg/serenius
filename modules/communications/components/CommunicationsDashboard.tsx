@@ -244,6 +244,7 @@ export default function CommunicationsDashboard({
   opens,
   contacts,
   suppressions,
+  testRecipients,
   canManage,
 }: Props) {
   const [campaigns, setCampaigns] = useState<PartnerEmailCampaign[]>(initialCampaigns);
@@ -255,6 +256,11 @@ export default function CommunicationsDashboard({
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [previewCampaign, setPreviewCampaign] = useState<PartnerEmailCampaign | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const activeTestRecipientCount = useMemo(
+    () => testRecipients.filter((r) => r.is_active).length,
+    [testRecipients],
+  );
 
   const totalOpenEvents = opens.reduce((sum, row) => sum + (row.open_count ?? 0), 0);
   const totalTouchRollups = campaigns.reduce((sum, c) => sum + (c.total_touches ?? 0), 0);
@@ -656,6 +662,7 @@ export default function CommunicationsDashboard({
           tenantId={orgId}
           slug={slug}
           mailSettings={mailSettings}
+          testRecipientCount={activeTestRecipientCount}
           contacts={contacts}
           suppressions={suppressions}
           campaign={selectedCampaign}

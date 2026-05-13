@@ -21,6 +21,7 @@ interface Props {
   slug: string;
   tenantId: string;
   mailSettings: MailSettingsSummary | null;
+  testRecipientCount: number;
   contacts: PartnerContactEstimate[];
   suppressions: PartnerEmailSuppression[];
   campaign: PartnerEmailCampaign | null;
@@ -320,9 +321,21 @@ function RecipientEstimateCard({
   );
 }
 
+function ReadinessItem({ ok, text }: { ok: boolean; text: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, lineHeight: 1.4 }}>
+      <span style={{ fontWeight: 700, flexShrink: 0, color: ok ? "#15803d" : "#9ca3af", width: 12 }}>
+        {ok ? "✓" : "✗"}
+      </span>
+      <span style={{ color: ok ? "#374151" : "#6b7280" }}>{text}</span>
+    </div>
+  );
+}
+
 export default function CampaignModal({
   tenantId,
   mailSettings,
+  testRecipientCount,
   contacts,
   suppressions,
   campaign,
@@ -341,12 +354,15 @@ export default function CampaignModal({
   const [formData, setFormData] = useState<FormData>(
     campaign ? mapCampaignToFormData(campaign) : buildDefaultFormData(),
   );
+  const [testSending, setTestSending] = useState(false);
+  const [testSendResult, setTestSendResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setCurrentMode(mode);
     setCurrentCampaign(campaign);
     setError(null);
     setFormData(campaign ? mapCampaignToFormData(campaign) : buildDefaultFormData());
+    setTestSendResult(null);
   }, [campaign, mode]);
 
   const canEdit = canManage && !isLockedCampaign(currentCampaign);
@@ -497,10 +513,46 @@ export default function CampaignModal({
     onSaved(savedCampaign)
   }
 
+  async function handleTestSend() {
+    if (!currentCampaign?.id) return;
+    setTestSending(true);
+    setTestSendResult(null);
+    try {
+      const res = await fetch(`/api/mail/google/campaign-test-send?tenantId=${tenantId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaign_id: currentCampaign.id }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setCurrentCampaign((prev) => (prev ? { ...prev, message_status: "Test Sent" } : prev));
+        setTestSendResult({
+          ok: true,
+          message: `Test sent to ${data.recipients_sent} recipient${data.recipients_sent === 1 ? "" : "s"}.`,
+        });
+      } else {
+        setTestSendResult({ ok: false, message: data.error || "Test send failed." });
+      }
+    } catch {
+      setTestSendResult({ ok: false, message: "Network error. Please try again." });
+    } finally {
+      setTestSending(false);
+    }
+  }
+
   const isReadOnlyCampaign = !isCreate && !canEdit
 
   if (!isCreate && currentMode === "view") {
     const viewCampaign = currentCampaign
+
+    const hasSubject = !!(viewCampaign?.subject?.trim());
+    const hasContent = !!(viewCampaign?.message_raw_html?.trim() || viewCampaign?.message?.trim());
+    const mailReady =
+      mailSettings?.connection_status === "connected" &&
+      mailSettings?.is_enabled === true &&
+      mailSettings?.send_mode === "test_only";
+    const hasTestRecipients = testRecipientCount > 0;
+    const canTestSend = hasSubject && hasContent && !!mailReady && hasTestRecipients;
 
     return (
       <SereniusModal
@@ -626,6 +678,59 @@ export default function CampaignModal({
               </div>
             </div>
           )}
+
+          {/* Send Test Email */}
+          <div className="section-card" style={{ marginBottom: 0 }}>
+            <div className="section-header">
+              <span className="section-title">Send Test Email</span>
+            </div>
+            <div style={{ padding: "16px 18px 18px", display: "grid", gap: 12 }}>
+              <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5, margin: 0 }}>
+                Sends this campaign only to configured test recipients. No partner or contact lists are included.
+              </p>
+              <div style={{ display: "grid", gap: 5 }}>
+                <ReadinessItem ok={hasSubject} text="Subject" />
+                <ReadinessItem ok={hasContent} text="Message content (HTML or plain text)" />
+                <ReadinessItem
+                  ok={!!mailReady}
+                  text={
+                    mailSettings
+                      ? `Mail sender connected, enabled, and set to Test Only (current: ${mailSettings.send_mode ?? "not set"})`
+                      : "Mail sender not configured — set up in Setup → Integrations"
+                  }
+                />
+                <ReadinessItem
+                  ok={hasTestRecipients}
+                  text={
+                    hasTestRecipients
+                      ? `${testRecipientCount} active test recipient${testRecipientCount === 1 ? "" : "s"} configured`
+                      : "No active test recipients — add them in Setup → Integrations"
+                  }
+                />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={!canTestSend || testSending}
+                  onClick={handleTestSend}
+                >
+                  {testSending ? "Sending…" : "Send Test Email"}
+                </button>
+                {testSendResult && (
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: testSendResult.ok ? "#15803d" : "#b91c1c",
+                    }}
+                  >
+                    {testSendResult.message}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </SereniusModal>
     );
