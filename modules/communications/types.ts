@@ -51,6 +51,7 @@ export interface PartnerEmailCampaign {
   original_opens: number | null
   total_touches: number | null
   clear_partner_emails: string | null
+  design_json: Record<string, unknown>
   created_by: string | null
   created_at: string
   updated_at: string

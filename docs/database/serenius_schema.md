@@ -583,6 +583,7 @@
 | last_error_at | timestamptz | nullable — timestamp of last error |
 | send_job_id | text | nullable — background worker job correlation ID |
 | test_recipients_snapshot | jsonb | DEFAULT '[]' — test recipient emails at send time |
+| design_json | jsonb | NOT NULL DEFAULT '{}' — structured Serenius Builder block state |
 | template_id | uuid | nullable → communication_email_templates.id SET NULL |
 | rendered_html_snapshot | text | nullable — final rendered HTML at send time |
 | rendered_text_snapshot | text | nullable — final rendered plain text at send time |

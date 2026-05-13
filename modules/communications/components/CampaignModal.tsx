@@ -39,6 +39,7 @@ type FormData = {
   message: string;
   message_raw_html: string;
   delivery_datetime: string;
+  design_json: Record<string, unknown>;
 };
 
 function formatDateTime(dateStr: string | null | undefined): string {
@@ -138,6 +139,7 @@ function buildDefaultFormData(): FormData {
     message: "",
     message_raw_html: "",
     delivery_datetime: "",
+    design_json: {},
   };
 }
 
@@ -151,6 +153,9 @@ function mapCampaignToFormData(campaign: PartnerEmailCampaign): FormData {
     message: campaign.message ?? "",
     message_raw_html: campaign.message_raw_html ?? "",
     delivery_datetime: normalizeDateTimeInput(campaign.delivery_datetime),
+    design_json: (campaign.design_json && typeof campaign.design_json === "object" && !Array.isArray(campaign.design_json))
+      ? campaign.design_json
+      : {},
   };
 }
 
@@ -491,6 +496,7 @@ export default function CampaignModal({
       delivery_datetime: formData.delivery_datetime
         ? new Date(formData.delivery_datetime).toISOString()
         : null,
+      design_json: formData.design_json,
     }
 
     const { data: authResult } = await supabase.auth.getUser()
