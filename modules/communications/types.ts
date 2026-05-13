@@ -102,11 +102,10 @@ export interface CommunicationsPageData {
 }
 
 export type CampaignListFilter =
-  | 'all'
-  | 'draft-building'
-  | 'in-process-ready'
+  | 'working-scheduled'
   | 'completed'
   | 'failed-canceled'
+  | 'all'
 
 export type CampaignFormMode = 'create' | 'view' | 'edit'
 
@@ -160,4 +159,4 @@ export interface EmailBrandSettings {
   updated_at: string
 }
 
-export type CommWorkspaceTab = 'campaigns' | 'templates' | 'brandkit'
+export type CommWorkspaceTab = 'campaigns' | 'templates' | 'brandkit' | 'delivery-setup'

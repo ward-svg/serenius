@@ -744,3 +744,136 @@ tr:last-child td,
   color: #9ca3af;
   margin-top: 3px;
 }
+
+.form-select {
+  padding: 8px 10px;
+  border: 1px solid #e0e0db;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  outline: none;
+  transition: border 0.15s;
+  width: 100%;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.form-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.form-textarea {
+  padding: 8px 10px;
+  border: 1px solid #e0e0db;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  outline: none;
+  transition: border 0.15s;
+  width: 100%;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.form-textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.form-helper {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 3px;
+}
+
+.form-error {
+  font-size: 12px;
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+/* ── Campaign card list ── */
+
+.campaign-card {
+  display: grid;
+  grid-template-columns: 348px 1fr;
+  gap: 0;
+  border-bottom: 1px solid #f0f0eb;
+  transition: background 0.1s;
+}
+
+.campaign-card:last-child {
+  border-bottom: none;
+}
+
+.campaign-card:hover {
+  background: var(--table-row-hover-bg);
+}
+
+.campaign-preview-col {
+  border-right: 1px solid #f0f0eb;
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.campaign-meta-col {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.campaign-sort-select {
+  padding: 6px 10px;
+  border: 1px solid #e0e0db;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #374151;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.campaign-sort-select:focus {
+  border-color: var(--color-primary);
+}
+
+.campaign-preview-btn {
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: zoom-in;
+  display: block;
+  border-radius: 6px;
+  transition: opacity 0.15s;
+}
+
+.campaign-preview-btn:hover {
+  opacity: 0.82;
+}
+
+.campaign-preview-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (max-width: 760px) {
+  .campaign-card {
+    grid-template-columns: 1fr;
+  }
+  .campaign-preview-col {
+    border-right: none;
+    border-bottom: 1px solid #f0f0eb;
+  }
+}

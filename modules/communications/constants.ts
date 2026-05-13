@@ -15,11 +15,10 @@ export const CAMPAIGN_FILTERS: {
   key: CampaignListFilter
   label: string
 }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'draft-building', label: 'Draft / Building' },
-  { key: 'in-process-ready', label: 'In Process / Ready' },
+  { key: 'working-scheduled', label: 'Working / Scheduled' },
   { key: 'completed', label: 'Completed' },
   { key: 'failed-canceled', label: 'Failed / Canceled' },
+  { key: 'all', label: 'All' },
 ]
 
 export const CONTACT_CAMPAIGN_VERSION_OPTIONS = ['A', 'B', 'Skip'] as const

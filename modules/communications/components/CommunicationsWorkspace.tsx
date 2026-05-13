@@ -10,6 +10,7 @@ import type {
 import CommunicationsDashboard from "./CommunicationsDashboard";
 import TemplatesTab from "./TemplatesTab";
 import BrandKitTab from "./BrandKitTab";
+import DeliverySetupTab from "./DeliverySetupTab";
 
 interface Props extends CommunicationsPageData {
   canManage: boolean;
@@ -55,6 +56,13 @@ export default function CommunicationsWorkspace(props: Props) {
         >
           Brand Kit
         </button>
+        <button
+          type="button"
+          className={`tab${activeTab === "delivery-setup" ? " active" : ""}`}
+          onClick={() => setActiveTab("delivery-setup")}
+        >
+          Delivery Setup
+        </button>
       </div>
 
       {activeTab === "campaigns" && <CommunicationsDashboard {...props} />}
@@ -72,6 +80,13 @@ export default function CommunicationsWorkspace(props: Props) {
           brandSettings={brandSettings}
           canManage={props.canManage}
           onSaved={setBrandSettings}
+        />
+      )}
+      {activeTab === "delivery-setup" && (
+        <DeliverySetupTab
+          slug={props.slug}
+          mailSettings={props.mailSettings}
+          testRecipients={props.testRecipients}
         />
       )}
     </div>
