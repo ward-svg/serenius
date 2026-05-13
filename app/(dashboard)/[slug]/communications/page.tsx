@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getCommunicationsPageData } from "@/modules/communications/queries";
-import CommunicationsDashboard from "@/modules/communications/components/CommunicationsDashboard";
+import CommunicationsWorkspace from "@/modules/communications/components/CommunicationsWorkspace";
 
 export const revalidate = 0;
 
@@ -29,5 +29,5 @@ export default async function CommunicationsPage({
 
   const canManage = superRes === true || tenantAdminRes === true;
 
-  return <CommunicationsDashboard {...data} canManage={canManage} />;
+  return <CommunicationsWorkspace {...data} canManage={canManage} />;
 }

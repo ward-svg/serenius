@@ -24,6 +24,32 @@ export const CAMPAIGN_FILTERS: {
 
 export const CONTACT_CAMPAIGN_VERSION_OPTIONS = ['A', 'B', 'Skip'] as const
 
+export const TEMPLATE_TYPE_LABELS: Record<string, string> = {
+  ministry_update: 'Ministry Update',
+  new_donor: 'New Donor',
+  new_prospect: 'New Prospect',
+  imessage: 'iMessage',
+  general: 'General',
+  custom: 'Custom',
+}
+
+export const TEMPLATE_TYPE_OPTIONS = [
+  'ministry_update',
+  'new_donor',
+  'new_prospect',
+  'imessage',
+  'general',
+  'custom',
+] as const
+
+export const TEMPLATE_STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  active: 'Active',
+  archived: 'Archived',
+}
+
+export const TEMPLATE_STATUS_OPTIONS = ['draft', 'active', 'archived'] as const
+
 export const CONTACT_EMAIL_SEGMENT_SUGGESTIONS = [
   'Donors, All US',
   'Prospects',

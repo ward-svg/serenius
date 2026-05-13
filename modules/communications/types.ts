@@ -97,6 +97,8 @@ export interface CommunicationsPageData {
   opens: PartnerEmailOpenSummary[]
   contacts: PartnerContactEstimate[]
   suppressions: PartnerEmailSuppression[]
+  templates: EmailTemplate[]
+  brandSettings: EmailBrandSettings | null
 }
 
 export type CampaignListFilter =
@@ -107,3 +109,55 @@ export type CampaignListFilter =
   | 'failed-canceled'
 
 export type CampaignFormMode = 'create' | 'view' | 'edit'
+
+export interface EmailTemplate {
+  id: string
+  tenant_id: string
+  name: string
+  description: string | null
+  template_type: string
+  status: string
+  is_default: boolean
+  subject_default: string | null
+  preheader_default: string | null
+  html_template: string | null
+  plain_text_template: string | null
+  thumbnail_url: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailBrandSettings {
+  id: string
+  tenant_id: string
+  logo_url: string | null
+  logo_width: number | null
+  header_html: string | null
+  footer_html: string | null
+  primary_color: string
+  accent_color: string
+  button_color: string
+  button_text_color: string
+  background_color: string
+  text_color: string
+  default_font: string
+  default_signature: string | null
+  default_donation_url: string | null
+  preference_center_url: string | null
+  social_links: Record<string, string> | null
+  organization_name: string | null
+  mailing_address: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+  country: string
+  phone: string | null
+  website_url: string | null
+  unsubscribe_text: string
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CommWorkspaceTab = 'campaigns' | 'templates' | 'brandkit'

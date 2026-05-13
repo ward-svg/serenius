@@ -259,22 +259,7 @@ export default function CommunicationsDashboard({
   }
 
   return (
-    <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-      <div className="page-header">
-        <div>
-          <div className="page-title">Communications</div>
-          <div className="page-subtitle">
-            Marketing emails, campaign history, and engagement tracking.
-          </div>
-        </div>
-
-        {canManage ? (
-          <button className="btn btn-primary" onClick={openNewCampaign}>
-            New Campaign
-          </button>
-        ) : null}
-      </div>
-
+    <>
       <div
         style={{
           display: "grid",
@@ -583,7 +568,7 @@ export default function CommunicationsDashboard({
           onSaved={handleSavedCampaign}
         />
       ) : null}
-    </div>
+    </>
   )
 }
 

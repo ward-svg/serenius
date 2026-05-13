@@ -20,6 +20,8 @@ export async function getCommunicationsPageData(
     { data: opens },
     { data: contacts },
     { data: suppressions },
+    { data: templates },
+    { data: brandSettings },
   ] = await Promise.all([
     supabase
       .from('organization_mail_settings')
@@ -59,6 +61,20 @@ export async function getCommunicationsPageData(
         'id, tenant_id, partner_contact_id, email, suppression_type, source, reason, suppressed_at',
       )
       .eq('tenant_id', tenant.org.id),
+    supabase
+      .from('communication_email_templates')
+      .select(
+        'id, tenant_id, name, description, template_type, status, is_default, subject_default, preheader_default, html_template, plain_text_template, thumbnail_url, created_by, created_at, updated_at',
+      )
+      .eq('tenant_id', tenant.org.id)
+      .order('name'),
+    supabase
+      .from('communication_email_brand_settings')
+      .select(
+        'id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, created_by, created_at, updated_at',
+      )
+      .eq('tenant_id', tenant.org.id)
+      .maybeSingle(),
   ])
 
   return {
@@ -71,5 +87,7 @@ export async function getCommunicationsPageData(
     opens: (opens ?? []) as CommunicationsPageData['opens'],
     contacts: (contacts ?? []) as CommunicationsPageData['contacts'],
     suppressions: (suppressions ?? []) as CommunicationsPageData['suppressions'],
+    templates: (templates ?? []) as CommunicationsPageData['templates'],
+    brandSettings: (brandSettings ?? null) as CommunicationsPageData['brandSettings'],
   }
 }
