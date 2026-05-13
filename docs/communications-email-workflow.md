@@ -224,7 +224,26 @@ Likely columns: `id`, `tenant_id`, `token` (uuid, unique), `email`, `partner_con
 
 ---
 
-## 9. Next Implementation Milestones
+## 9. Public Email Asset Storage
+
+Public media assets (images for email templates and campaigns) are uploaded through the Serenius server and served from `https://assets.serenius.app`.
+
+**Architecture boundaries — never violate:**
+- Browser clients never write directly to `assets.serenius.app`. All uploads go through `POST /api/communications/assets/upload`.
+- SFTP credentials are server-side env vars only (`ASSETS_SFTP_HOST`, `ASSETS_SFTP_USER`, `ASSETS_SFTP_PASSWORD`, `ASSETS_SFTP_PORT`, `ASSETS_SFTP_BASE_PATH`). They are never returned to clients.
+- Uploaded assets are public HTTPS files — anyone with the URL can access them. Do not upload private or sensitive content through this route.
+
+**Allowed MIME types (v1):** image/jpeg · image/png · image/gif · image/webp
+
+**Not allowed for tenant uploads:** image/svg+xml · text/html · application/javascript · anything not in the allowlist
+
+**Public URL pattern:** `https://assets.serenius.app/t/{tenantSlug}/email/{assetId}/{safeFileName}`
+
+**Metadata** is recorded in `communication_email_assets` after a confirmed SFTP upload. If the upload fails, no DB row is written.
+
+---
+
+## 10. Next Implementation Milestones
 
 Recommended sequencing. Each milestone is a safe, shippable slice.
 
