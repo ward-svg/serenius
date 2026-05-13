@@ -240,6 +240,7 @@ export default function CommunicationsDashboard({
   slug,
   orgId,
   mailSettings,
+  brandSettings,
   campaigns: initialCampaigns,
   opens,
   contacts,
@@ -662,6 +663,7 @@ export default function CommunicationsDashboard({
           tenantId={orgId}
           slug={slug}
           mailSettings={mailSettings}
+          brandSettings={brandSettings}
           testRecipientCount={activeTestRecipientCount}
           contacts={contacts}
           suppressions={suppressions}

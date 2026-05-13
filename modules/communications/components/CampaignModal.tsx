@@ -6,11 +6,15 @@ import RecordAttachments from "@/components/attachments/RecordAttachments";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type {
   CampaignFormMode,
+  EmailBrandSettings,
   MailSettingsSummary,
   PartnerContactEstimate,
   PartnerEmailCampaign,
   PartnerEmailSuppression,
 } from "../types";
+import type { EmailBuilderDesign } from "../email-builder-types";
+import { hasBuilderBlocks, parseDesign, renderEmailBuilderHtml } from "../email-builder-renderer";
+import BlockComposer from "./BlockComposer";
 import {
   CAMPAIGN_VERSION_OPTIONS,
   COMMUNICATION_TYPE_OPTIONS,
@@ -26,6 +30,7 @@ interface Props {
   campaign: PartnerEmailCampaign | null;
   mode: CampaignFormMode;
   canManage: boolean;
+  brandSettings?: EmailBrandSettings | null;
   onClose: () => void;
   onSaved: (campaign: PartnerEmailCampaign) => void;
 }
@@ -371,6 +376,7 @@ export default function CampaignModal({
   campaign,
   mode,
   canManage,
+  brandSettings,
   slug,
   onClose,
   onSaved,
@@ -386,6 +392,12 @@ export default function CampaignModal({
   );
   const [testSending, setTestSending] = useState(false);
   const [testSendResult, setTestSendResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [showBuilderPreview, setShowBuilderPreview] = useState(false);
+
+  const parsedDesign: EmailBuilderDesign = useMemo(
+    () => parseDesign(formData.design_json),
+    [formData.design_json],
+  );
 
   useEffect(() => {
     setCurrentMode(mode);
@@ -393,6 +405,7 @@ export default function CampaignModal({
     setError(null);
     setFormData(campaign ? mapCampaignToFormData(campaign) : buildDefaultFormData());
     setTestSendResult(null);
+    setShowBuilderPreview(false);
   }, [campaign, mode]);
 
   const canEdit = canManage && !isLockedCampaign(currentCampaign);
@@ -467,6 +480,13 @@ export default function CampaignModal({
     setFormData((prev) => ({
       ...prev,
       [field]: value,
+    } as FormData));
+  }
+
+  function updateDesignJson(design: EmailBuilderDesign) {
+    setFormData((prev) => ({
+      ...prev,
+      design_json: design as unknown as Record<string, unknown>,
     }));
   }
 
@@ -492,7 +512,11 @@ export default function CampaignModal({
       campaign_version: formData.campaign_version || null,
       subject: formData.subject || null,
       message: formData.message || null,
-      message_raw_html: formData.message_raw_html || null,
+      message_raw_html: formData.email_style !== "Raw HTML"
+        ? (hasBuilderBlocks(parsedDesign)
+            ? renderEmailBuilderHtml(parsedDesign, brandSettings ?? null)
+            : (formData.message_raw_html || null))
+        : (formData.message_raw_html || null),
       delivery_datetime: formData.delivery_datetime
         ? new Date(formData.delivery_datetime).toISOString()
         : null,
@@ -933,19 +957,6 @@ export default function CampaignModal({
                   />
                 </div>
 
-                {formData.email_style !== "Raw HTML" && (
-                  <div className="form-group">
-                    <label className="form-label">Message</label>
-                    <textarea
-                      className="form-input"
-                      rows={5}
-                      value={formData.message}
-                      onChange={(e) => handleChange("message", e.target.value)}
-                      disabled={!isCreate && !canEdit}
-                    />
-                    <div className="form-helper">Builder/template block editing will mature here. For now, this stores campaign message content.</div>
-                  </div>
-                )}
 
                 {formData.email_style === "Raw HTML" && (
                   <div className="form-group">
@@ -989,6 +1000,36 @@ export default function CampaignModal({
                 )}
               </div>
             </div>
+          {formData.email_style !== "Raw HTML" && (
+            <>
+              <BlockComposer
+                design={parsedDesign}
+                brandSettings={brandSettings ?? null}
+                canEdit={isCreate || canEdit}
+                onChange={updateDesignJson}
+              />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ fontSize: 12, padding: "4px 12px" }}
+                  onClick={() => setShowBuilderPreview((v) => !v)}
+                >
+                  {showBuilderPreview ? "Hide Preview" : "Show Preview"}
+                </button>
+              </div>
+              {showBuilderPreview && (
+                <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+                  <iframe
+                    srcDoc={renderEmailBuilderHtml(parsedDesign, brandSettings ?? null)}
+                    sandbox=""
+                    style={{ width: "100%", height: 420, border: 0, display: "block" }}
+                    title="Builder preview"
+                  />
+                </div>
+              )}
+            </>
+          )}
           </div>
 
           <div style={{ display: "grid", gap: 16 }}>
