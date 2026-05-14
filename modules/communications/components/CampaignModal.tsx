@@ -397,8 +397,6 @@ export default function CampaignModal({
   );
   const [testSending, setTestSending] = useState(false);
   const [testSendResult, setTestSendResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [showBuilderPreview, setShowBuilderPreview] = useState(false);
-
   const parsedDesign: EmailBuilderDesign = useMemo(
     () => parseDesign(formData.design_json),
     [formData.design_json],
@@ -410,7 +408,6 @@ export default function CampaignModal({
     setError(null);
     setFormData(campaign ? mapCampaignToFormData(campaign) : buildDefaultFormData());
     setTestSendResult(null);
-    setShowBuilderPreview(false);
   }, [campaign, mode]);
 
   const canEdit = canManage && !isLockedCampaign(currentCampaign);
@@ -832,7 +829,7 @@ export default function CampaignModal({
           : "Update draft or in-process campaign details."
       }
       onClose={onClose}
-      maxWidth={1140}
+      maxWidth={formData.email_style !== "Raw HTML" ? 1440 : 1140}
       contentPadding={0}
       showCloseButton={isCreate}
       closeOnOverlayClick={isCreate}
@@ -870,21 +867,191 @@ export default function CampaignModal({
         </>
       }
     >
-      <div style={{ padding: 24 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 1fr)",
-            gap: 20,
-            alignItems: "start",
-          }}
-        >
-          <div style={{ display: "grid", gap: 16 }}>
+      <div style={{ padding: 24, display: "grid", gap: 20 }}>
+        {formData.email_style !== "Raw HTML" ? (
+          <>
+            {/* Builder mode: details + composer left, sticky live preview right */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) min(460px, 42%)",
+                gap: 20,
+                alignItems: "start",
+              }}
+            >
+              <div style={{ display: "grid", gap: 16 }}>
+                <div className="section-card" style={{ marginBottom: 0 }}>
+                  <div className="section-header">
+                    <span className="section-title">Campaign Details</span>
+                  </div>
+                  <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Communication Type</label>
+                        <select
+                          className="form-input"
+                          value={formData.communication_type}
+                          onChange={(e) => handleChange("communication_type", e.target.value)}
+                          disabled={!isCreate && !canEdit}
+                        >
+                          <option value="">Select...</option>
+                          {COMMUNICATION_TYPE_OPTIONS.map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Content Mode</label>
+                        <select
+                          className="form-input"
+                          value={formData.email_style}
+                          onChange={(e) => handleChange("email_style", e.target.value)}
+                          disabled={!isCreate && !canEdit}
+                        >
+                          <option value="Raw HTML">Raw HTML</option>
+                          <option value="Rich Text">Serenius Builder</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Segment</label>
+                        <input
+                          className="form-input"
+                          type="text"
+                          value={formData.segment}
+                          onChange={(e) => handleChange("segment", e.target.value)}
+                          placeholder="Donors, All US"
+                          disabled={!isCreate && !canEdit}
+                        />
+                        <div className="form-helper">Used for recipient estimation.</div>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Campaign Version</label>
+                        <select
+                          className="form-input"
+                          value={formData.campaign_version}
+                          onChange={(e) => handleChange("campaign_version", e.target.value)}
+                          disabled={!isCreate && !canEdit}
+                        >
+                          {CAMPAIGN_VERSION_OPTIONS.map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Subject</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        value={formData.subject}
+                        onChange={(e) => handleChange("subject", e.target.value)}
+                        disabled={!isCreate && !canEdit}
+                      />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Delivery Date/Time</label>
+                        <input
+                          className="form-input"
+                          type="datetime-local"
+                          value={formData.delivery_datetime}
+                          onChange={(e) => handleChange("delivery_datetime", e.target.value)}
+                          disabled={!isCreate && !canEdit}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Status Note</label>
+                        <div className="empty-state" style={{ textAlign: "left" }}>
+                          Real sending is not active yet.
+                        </div>
+                      </div>
+                    </div>
+                    {error && (
+                      <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div>
+                    )}
+                  </div>
+                </div>
+
+                <BlockComposer
+                  design={parsedDesign}
+                  brandSettings={brandSettings ?? null}
+                  emailAssets={emailAssets ?? []}
+                  tenantId={tenantId}
+                  canEdit={isCreate || canEdit}
+                  onChange={updateDesignJson}
+                  onAssetUploaded={(asset) =>
+                    onAssetsChange?.([asset, ...(emailAssets ?? [])])
+                  }
+                />
+              </div>
+
+              {/* Live preview — sticky within the modal scroll area */}
+              <div style={{ position: "sticky", top: 0 }}>
+                <div className="section-card" style={{ marginBottom: 0, border: "1px solid #e5e7eb" }}>
+                  <div className="section-header">
+                    <span className="section-title">Live Preview</span>
+                  </div>
+                  <div style={{ padding: "8px 12px 12px" }}>
+                    <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+                      <iframe
+                        srcDoc={renderEmailBuilderHtml(parsedDesign, brandSettings ?? null)}
+                        sandbox=""
+                        style={{ width: "100%", height: 680, border: 0, display: "block", pointerEvents: "none" }}
+                        title="Live Preview"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Below-fold: recipient estimate + compact mail sender */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+              <RecipientEstimateCard
+                contacts={contacts}
+                suppressions={suppressions}
+                segment={formData.segment}
+                campaignVersion={formData.campaign_version}
+              />
+              <div className="section-card" style={{ marginBottom: 0, border: "1px solid #e5e7eb" }}>
+                <div className="section-header">
+                  <span className="section-title">Mail Sender</span>
+                </div>
+                <div style={{ padding: "12px 18px 14px" }}>
+                  {mailSettings ? (
+                    <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.6 }}>
+                      {[mailSettings.connection_status, mailSettings.send_mode, mailSettings.from_email]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  ) : (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Mail sender not configured.</p>
+                      <a href={`/${slug}/setup?tab=integrations`} className="action-link" style={{ fontSize: 12 }}>
+                        Configure in Setup → Integrations
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Raw HTML mode: existing two-column layout */
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 1fr)",
+              gap: 20,
+              alignItems: "start",
+            }}
+          >
             <div className="section-card" style={{ marginBottom: 0 }}>
               <div className="section-header">
                 <span className="section-title">Campaign Details</span>
               </div>
-
               <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
                 <div className="form-row">
                   <div className="form-group">
@@ -897,13 +1064,10 @@ export default function CampaignModal({
                     >
                       <option value="">Select...</option>
                       {COMMUNICATION_TYPE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
+                        <option key={option} value={option}>{option}</option>
                       ))}
                     </select>
                   </div>
-
                   <div className="form-group">
                     <label className="form-label">Content Mode</label>
                     <select
@@ -917,7 +1081,6 @@ export default function CampaignModal({
                     </select>
                   </div>
                 </div>
-
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Segment</label>
@@ -929,11 +1092,8 @@ export default function CampaignModal({
                       placeholder="Donors, All US"
                       disabled={!isCreate && !canEdit}
                     />
-                    <div className="form-helper">
-                      Used for recipient estimation.
-                    </div>
+                    <div className="form-helper">Used for recipient estimation.</div>
                   </div>
-
                   <div className="form-group">
                     <label className="form-label">Campaign Version</label>
                     <select
@@ -943,14 +1103,11 @@ export default function CampaignModal({
                       disabled={!isCreate && !canEdit}
                     >
                       {CAMPAIGN_VERSION_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
+                        <option key={option} value={option}>{option}</option>
                       ))}
                     </select>
                   </div>
                 </div>
-
                 <div className="form-group">
                   <label className="form-label">Subject</label>
                   <input
@@ -961,23 +1118,18 @@ export default function CampaignModal({
                     disabled={!isCreate && !canEdit}
                   />
                 </div>
-
-
-                {formData.email_style === "Raw HTML" && (
-                  <div className="form-group">
-                    <label className="form-label">Raw HTML</label>
-                    <textarea
-                      className="form-input"
-                      rows={8}
-                      value={formData.message_raw_html}
-                      onChange={(e) => handleChange("message_raw_html", e.target.value)}
-                      placeholder="<html>..."
-                      disabled={!isCreate && !canEdit}
-                    />
-                    <div className="form-helper">Paste full email-safe HTML. Serenius will use this as the campaign body.</div>
-                  </div>
-                )}
-
+                <div className="form-group">
+                  <label className="form-label">Raw HTML</label>
+                  <textarea
+                    className="form-input"
+                    rows={8}
+                    value={formData.message_raw_html}
+                    onChange={(e) => handleChange("message_raw_html", e.target.value)}
+                    placeholder="<html>..."
+                    disabled={!isCreate && !canEdit}
+                  />
+                  <div className="form-helper">Paste full email-safe HTML. Serenius will use this as the campaign body.</div>
+                </div>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Delivery Date/Time</label>
@@ -989,7 +1141,6 @@ export default function CampaignModal({
                       disabled={!isCreate && !canEdit}
                     />
                   </div>
-
                   <div className="form-group">
                     <label className="form-label">Status Note</label>
                     <div className="empty-state" style={{ textAlign: "left" }}>
@@ -997,91 +1148,41 @@ export default function CampaignModal({
                     </div>
                   </div>
                 </div>
-
                 {error && (
-                  <div style={{ color: "#b91c1c", fontSize: 13 }}>
-                    {error}
-                  </div>
+                  <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div>
                 )}
               </div>
             </div>
-          {formData.email_style !== "Raw HTML" && (
-            <>
-              <BlockComposer
-                design={parsedDesign}
-                brandSettings={brandSettings ?? null}
-                emailAssets={emailAssets ?? []}
-                tenantId={tenantId}
-                canEdit={isCreate || canEdit}
-                onChange={updateDesignJson}
-                onAssetUploaded={(asset) =>
-                  onAssetsChange?.([asset, ...(emailAssets ?? [])])
-                }
+
+            <div style={{ display: "grid", gap: 16 }}>
+              <RecipientEstimateCard
+                contacts={contacts}
+                suppressions={suppressions}
+                segment={formData.segment}
+                campaignVersion={formData.campaign_version}
               />
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  style={{ fontSize: 12, padding: "4px 12px" }}
-                  onClick={() => setShowBuilderPreview((v) => !v)}
-                >
-                  {showBuilderPreview ? "Hide Preview" : "Show Preview"}
-                </button>
-              </div>
-              {showBuilderPreview && (
-                <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
-                  <iframe
-                    srcDoc={renderEmailBuilderHtml(parsedDesign, brandSettings ?? null)}
-                    sandbox=""
-                    style={{ width: "100%", height: 420, border: 0, display: "block" }}
-                    title="Builder preview"
-                  />
+              <div className="section-card" style={{ marginBottom: 0, border: "1px solid #e5e7eb" }}>
+                <div className="section-header">
+                  <span className="section-title">Mail Sender</span>
                 </div>
-              )}
-            </>
-          )}
-          </div>
-
-          <div style={{ display: "grid", gap: 16 }}>
-            <RecipientEstimateCard
-              contacts={contacts}
-              suppressions={suppressions}
-              segment={formData.segment}
-              campaignVersion={formData.campaign_version}
-            />
-
-            <div className="section-card" style={{ marginBottom: 0 }}>
-              <div className="section-header">
-                <span className="section-title">Mail Sender Status</span>
-              </div>
-              <div style={{ padding: "16px 18px 18px", display: "grid", gap: 8 }}>
-                {mailSettings ? (
-                  <>
-                    <DetailRow label="Provider" value={prettyText(mailSettings.provider)} />
-                    <DetailRow label="Display Name" value={prettyText(mailSettings.display_name)} />
-                    <DetailRow label="From Name" value={prettyText(mailSettings.from_name)} />
-                    <DetailRow label="From Email" value={prettyText(mailSettings.from_email)} />
-                    <DetailRow label="Reply To" value={prettyText(mailSettings.reply_to)} />
-                    <DetailRow label="Connection Status" value={prettyText(mailSettings.connection_status)} />
-                    <DetailRow label="Send Mode" value={prettyText(mailSettings.send_mode)} />
-                    <DetailRow label="Provider Account Email" value={prettyText(mailSettings.provider_account_email)} />
-                    <DetailRow label="Enabled" value={mailSettings.is_enabled ? "Yes" : "No"} />
-                  </>
-                ) : (
-                  <>
-                    <div className="empty-state">Mail sender is not configured yet.</div>
-                  </>
-                )}
+                <div style={{ padding: "12px 18px 14px" }}>
+                  {mailSettings ? (
+                    <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.6 }}>
+                      {[mailSettings.connection_status, mailSettings.send_mode, mailSettings.from_email]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  ) : (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Mail sender not configured.</p>
+                      <a href={`/${slug}/setup?tab=integrations`} className="action-link" style={{ fontSize: 12 }}>
+                        Configure in Setup → Integrations
+                      </a>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {mailSettings == null && (
-          <div style={{ marginTop: 12 }}>
-            <a href={`/${slug}/setup?tab=integrations`} className="action-link">
-              Configure in Setup → Integrations
-            </a>
           </div>
         )}
       </div>
