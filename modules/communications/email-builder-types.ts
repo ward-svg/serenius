@@ -8,6 +8,7 @@ export interface HeaderBlock {
   tagline: string;
   alignment: 'left' | 'center' | 'right';
   backgroundColor: string;
+  taglineOffset?: number;
 }
 
 export interface HeroBlock {

@@ -177,10 +177,34 @@ function HeaderEditor({
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {/* Logo preview */}
+      {/* ── Header Background Color ── */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Header Background Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="color"
+            value={block.backgroundColor || "#1a56db"}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            disabled={disabled}
+            style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
+          />
+          <input
+            type="text"
+            className="form-input"
+            value={block.backgroundColor}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            disabled={disabled}
+            placeholder="#1a56db"
+            style={{ fontFamily: "monospace" }}
+          />
+        </div>
+        <div className="form-helper">Sets the header band color.</div>
+      </div>
+
+      {/* ── Logo ── preview + identity + width in one row */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Logo</label>
-        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 12, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 120px", gap: 12, alignItems: "start" }}>
           {/* Checkerboard box — makes white/transparent logos visible */}
           <div
             style={{
@@ -245,36 +269,35 @@ function HeaderEditor({
               Set in Brand Kit → Logo. Use "Use as Logo" to assign an uploaded asset.
             </span>
           </div>
+          {/* Logo width — lives with the logo section */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Logo Width (px)</label>
+            <input
+              type="number"
+              className="form-input"
+              value={block.logoWidth}
+              onChange={(e) => onPatch({ logoWidth: Number(e.target.value) || 180 })}
+              disabled={disabled}
+              min={40}
+              max={600}
+            />
+          </div>
         </div>
       </div>
-      {/* Tagline + Width */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Tagline</label>
-          <input
-            type="text"
-            className="form-input"
-            value={block.tagline}
-            onChange={(e) => onPatch({ tagline: e.target.value })}
-            disabled={disabled}
-            placeholder="Optional tagline below the logo"
-          />
-        </div>
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Width (px)</label>
-          <input
-            type="number"
-            className="form-input"
-            value={block.logoWidth}
-            onChange={(e) => onPatch({ logoWidth: Number(e.target.value) || 180 })}
-            disabled={disabled}
-            min={40}
-            max={600}
-          />
-        </div>
+
+      {/* ── Tagline ── text, alignment, and offset together */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Tagline</label>
+        <input
+          type="text"
+          className="form-input"
+          value={block.tagline}
+          onChange={(e) => onPatch({ tagline: e.target.value })}
+          disabled={disabled}
+          placeholder="Optional tagline below the logo"
+        />
       </div>
-      {/* Alignment + Background Color */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Alignment</label>
           <AlignSelect
@@ -284,16 +307,18 @@ function HeaderEditor({
           />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Background Color</label>
+          <label className="form-label">Tagline Offset (px)</label>
           <input
-            type="text"
+            type="number"
             className="form-input"
-            value={block.backgroundColor}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#1a56db"
-            style={{ fontFamily: "monospace" }}
+            value={block.taglineOffset ?? 0}
+            onChange={(e) => onPatch({ taglineOffset: Math.max(0, Number(e.target.value) || 0) })}
+            disabled={disabled || block.alignment === "center"}
+            min={0}
+            max={200}
+            step={5}
           />
+          <div className="form-helper">Nudges the tagline when alignment is Left or Right.</div>
         </div>
       </div>
     </div>

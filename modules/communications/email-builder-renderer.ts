@@ -61,8 +61,15 @@ function renderHeader(block: HeaderBlock, brand: EmailBrandSettings | null): str
     ? `<img src="${esc(safeUrl(logoUrl))}" width="${Number(logoWidth)}" alt="${esc(orgName || 'Logo')}" style="display:block;${align === 'center' ? 'margin:0 auto;' : ''}border:0;max-width:100%;">`
     : (orgName ? `<p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;font-family:${esc(font)};">${esc(orgName)}</p>` : '');
 
+  const taglineOffset = align !== 'center' ? Math.max(0, block.taglineOffset ?? 0) : 0;
+  const taglineOffsetStyle = align === 'left' && taglineOffset > 0
+    ? `padding-left:${taglineOffset}px;`
+    : align === 'right' && taglineOffset > 0
+    ? `padding-right:${taglineOffset}px;`
+    : '';
+
   const taglineHtml = block.tagline
-    ? `<p style="margin:6px 0 0;font-size:13px;color:#ffffff;font-family:${esc(font)};opacity:0.85;">${esc(block.tagline)}</p>`
+    ? `<p style="margin:6px 0 0;font-size:13px;color:#ffffff;font-family:${esc(font)};opacity:0.85;${taglineOffsetStyle}">${esc(block.tagline)}</p>`
     : '';
 
   return `<tr>
