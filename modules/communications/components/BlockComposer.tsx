@@ -50,6 +50,9 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         tagline: "",
         alignment: "center",
         backgroundColor: brand?.primary_color ?? "#1a56db",
+        taglineColor: brand?.button_text_color ?? "#ffffff",
+        taglineSize: 13,
+        taglineFontRole: "body" as const,
       };
     case "hero":
       return {
@@ -566,6 +569,57 @@ function HeaderEditor({
           placeholder="Optional tagline below the logo"
         />
       </div>
+
+      {/* ── Tagline Style ── size | color | font */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 56px" }}>
+          <label className="form-label">Size</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.taglineSize ?? 13}
+            min={10}
+            max={24}
+            step={1}
+            onChange={(e) => onPatch({ taglineSize: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
+          <div>
+            <label className="form-label">Color</label>
+            <input
+              type="color"
+              value={block.taglineColor || "#ffffff"}
+              onChange={(e) => onPatch({ taglineColor: e.target.value })}
+              disabled={disabled}
+              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" } as const}
+            />
+          </div>
+          <input
+            type="text"
+            className="form-input"
+            value={block.taglineColor ?? ""}
+            onChange={(e) => onPatch({ taglineColor: e.target.value })}
+            disabled={disabled}
+            placeholder="#ffffff"
+            style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">Font</label>
+          <select
+            className="form-input"
+            value={block.taglineFontRole ?? "body"}
+            onChange={(e) => onPatch({ taglineFontRole: e.target.value as HeaderBlock["taglineFontRole"] })}
+            disabled={disabled}
+          >
+            <option value="body">Body</option>
+            <option value="heading">Heading</option>
+          </select>
+        </div>
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Alignment</label>

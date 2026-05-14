@@ -9,6 +9,9 @@ export interface HeaderBlock {
   alignment: 'left' | 'center' | 'right';
   backgroundColor: string;
   taglineOffset?: number;
+  taglineColor?: string;
+  taglineSize?: number;
+  taglineFontRole?: 'heading' | 'body';
 }
 
 export interface HeroBlock {

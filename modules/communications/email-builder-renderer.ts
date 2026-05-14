@@ -69,8 +69,12 @@ function renderHeader(block: HeaderBlock, brand: EmailBrandSettings | null): str
     ? `padding-right:${taglineOffset}px;`
     : '';
 
+  const taglineFont = (block.taglineFontRole ?? 'body') === 'heading' ? headingFont : bodyFont;
+  const taglineSize = typeof block.taglineSize === 'number' ? block.taglineSize : 13;
+  const taglineColor = block.taglineColor || brand?.button_text_color || '#ffffff';
+
   const taglineHtml = block.tagline
-    ? `<p style="margin:6px 0 0;font-size:13px;color:#ffffff;font-family:${esc(bodyFont)};opacity:0.85;${taglineOffsetStyle}">${esc(block.tagline)}</p>`
+    ? `<p style="margin:6px 0 0;font-size:${taglineSize}px;color:${esc(taglineColor)};font-family:${esc(taglineFont)};${taglineOffsetStyle}">${esc(block.tagline)}</p>`
     : '';
 
   return `<tr>
@@ -300,6 +304,7 @@ export function applyBrandDefaultsToDesign(
           logoUrl: brand.logo_url || block.logoUrl || '',
           logoWidth: brand.logo_width || block.logoWidth || 180,
           backgroundColor: brand.primary_color || block.backgroundColor,
+          taglineColor: brand.button_text_color || block.taglineColor,
         };
       case 'hero':
         return {
