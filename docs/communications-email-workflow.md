@@ -173,6 +173,20 @@ Do not jump directly to a heavy WYSIWYG or drag-and-drop builder. Build in safe,
 - Brand Kit values are injected into template placeholders and into the required footer at send time.
 - Brand Kit is managed under Communications, not Setup.
 
+### 7.3 Create Campaign from Template (Implemented — Raw HTML)
+
+Templates function as **launchpads**, not live-linked parents. Creating a campaign from a template copies the template's content into the new `partner_emails` row at creation time. After that point, the campaign and the template are fully independent:
+
+- Later edits to the template do not affect existing campaigns that were created from it.
+- Later edits to the campaign do not affect the original template.
+- `partner_emails.template_id` records which template was used (nullable, SET NULL on template delete — for future reporting/analytics only).
+
+**V1 scope:**
+- Supported: Raw HTML templates (`html_template`, `subject_default`).
+- Fields copied on create: `subject_default → subject`, `html_template → message_raw_html`, `email_style` forced to `"Raw HTML"`.
+- `preheader_default` is not copied — `partner_emails` has no preheader column (deferred).
+- Builder (`design_json`) template support is deferred to a later app wiring/UI slice. `communication_email_templates` now has both `email_style` (text, NOT NULL DEFAULT 'Raw HTML') and `design_json` (jsonb) columns — the schema prerequisites are in place. What remains is UI wiring: surfacing a Builder editor in `TemplateModal` and handling `design_json` copy-on-create in `CampaignModal`.
+
 **Phase 3 — Simple Block Editor**
 - Structured email layout stored as design JSON (blocks: header, text, image, button, divider, footer).
 - Server renders design JSON to email-safe HTML at send time.

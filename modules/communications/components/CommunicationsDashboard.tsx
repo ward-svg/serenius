@@ -264,6 +264,7 @@ export default function CommunicationsDashboard({
   contacts,
   suppressions,
   testRecipients,
+  templates,
   canManage,
   onAssetsChange,
 }: Props) {
@@ -884,6 +885,7 @@ export default function CommunicationsDashboard({
           testRecipientCount={activeTestRecipientCount}
           contacts={contacts}
           suppressions={suppressions}
+          templates={templates}
           campaign={selectedCampaign}
           mode={modalMode}
           canManage={canManage && !modalForcedReadOnly}

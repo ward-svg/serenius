@@ -8,6 +8,7 @@ import type {
   CampaignFormMode,
   CommunicationEmailAsset,
   EmailBrandSettings,
+  EmailTemplate,
   MailSettingsSummary,
   PartnerContactEstimate,
   PartnerEmailCampaign,
@@ -19,6 +20,7 @@ import BlockComposer from "./BlockComposer";
 import {
   CAMPAIGN_VERSION_OPTIONS,
   COMMUNICATION_TYPE_OPTIONS,
+  TEMPLATE_TYPE_LABELS,
 } from "../constants";
 
 interface Props {
@@ -28,6 +30,7 @@ interface Props {
   testRecipientCount: number;
   contacts: PartnerContactEstimate[];
   suppressions: PartnerEmailSuppression[];
+  templates?: EmailTemplate[];
   campaign: PartnerEmailCampaign | null;
   mode: CampaignFormMode;
   canManage: boolean;
@@ -444,6 +447,7 @@ export default function CampaignModal({
   testRecipientCount,
   contacts,
   suppressions,
+  templates = [],
   campaign,
   mode,
   canManage,
@@ -470,6 +474,19 @@ export default function CampaignModal({
   );
   const [previewHeight, setPreviewHeight] = useState(680);
   const [rawHtmlPreviewDoc, setRawHtmlPreviewDoc] = useState<string>(campaign?.message_raw_html ?? "");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+
+  const activeTemplates = useMemo(
+    () =>
+      templates
+        .filter((t) => t.status === "active")
+        .sort((a, b) => {
+          const ta = TEMPLATE_TYPE_LABELS[a.template_type] ?? a.template_type;
+          const tb = TEMPLATE_TYPE_LABELS[b.template_type] ?? b.template_type;
+          return ta !== tb ? ta.localeCompare(tb) : a.name.localeCompare(b.name);
+        }),
+    [templates],
+  );
 
   const parsedDesign: EmailBuilderDesign = useMemo(
     () => parseDesign(formData.design_json),
@@ -608,6 +625,22 @@ export default function CampaignModal({
     } as FormData));
   }
 
+  function handleTemplateChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const id = e.target.value;
+    setSelectedTemplateId(id);
+    if (!id) return;
+    const tpl = activeTemplates.find((t) => t.id === id);
+    if (!tpl) return;
+    setFormData((prev) => ({
+      ...prev,
+      email_style: "Raw HTML",
+      subject: tpl.subject_default ?? prev.subject,
+      message_raw_html: tpl.html_template ?? "",
+      design_json: {},
+    }));
+    setRawHtmlPreviewDoc(tpl.html_template ?? "");
+  }
+
   function updateDesignJson(design: EmailBuilderDesign) {
     setFormData((prev) => ({
       ...prev,
@@ -671,6 +704,7 @@ export default function CampaignModal({
             total_emails_sent: 0,
             original_opens: 0,
             total_touches: 0,
+            template_id: selectedTemplateId || null,
             created_by: authResult.user?.id ?? null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -990,6 +1024,32 @@ export default function CampaignModal({
       }
     >
       <div style={{ padding: "24px 24px 128px", display: "grid", gap: 20 }}>
+        {isCreate && activeTemplates.length > 0 ? (
+          <div className="section-card" style={{ marginBottom: 0 }}>
+            <div style={{ padding: "14px 18px 16px" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
+                Start from Template
+              </div>
+              <select
+                className="form-input"
+                value={selectedTemplateId}
+                onChange={handleTemplateChange}
+                style={{ marginBottom: 8 }}
+              >
+                <option value="">Blank campaign</option>
+                {activeTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {TEMPLATE_TYPE_LABELS[t.template_type] ?? t.template_type} — {t.name}
+                  </option>
+                ))}
+              </select>
+              <p style={{ fontSize: 11, color: "#6b7280", margin: 0, lineHeight: 1.5 }}>
+                Templates are copied into the campaign. Editing this campaign will not change the original template.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {formData.email_style !== "Raw HTML" ? (
           <>
             {/* Builder mode: details + composer left, sticky live preview right */}

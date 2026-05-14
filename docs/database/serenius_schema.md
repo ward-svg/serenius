@@ -661,6 +661,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | html_template | text | nullable |
 | plain_text_template | text | nullable |
 | design_json | jsonb | DEFAULT '{}' — future block editor state |
+| email_style | text | NOT NULL DEFAULT 'Raw HTML' · CHECK ('Raw HTML', 'Rich Text') — matches partner_emails.email_style conventions |
 | thumbnail_url | text | nullable — preview image URL |
 | created_by | uuid | → auth.users.id SET NULL |
 | created_at | timestamptz | NOT NULL DEFAULT now() |
@@ -669,6 +670,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 **Record Count:** 0  
 **Indexes:** tenant_id · (tenant_id, status) · (tenant_id, template_type)  
 **RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
+**RLS note:** marketing/content role may be added in a future slice to allow template create/edit without full tenant_admin access.
 **template_type values:** ministry_update · new_donor · new_prospect · imessage · general · custom  
 **template_status values:** draft · active · archived  
 
