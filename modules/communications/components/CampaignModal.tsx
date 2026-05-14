@@ -397,6 +397,10 @@ export default function CampaignModal({
   );
   const [testSending, setTestSending] = useState(false);
   const [testSendResult, setTestSendResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [campaignDetailsOpen, setCampaignDetailsOpen] = useState<boolean>(() =>
+    mode === "create" || !(campaign?.communication_type && campaign?.segment && campaign?.subject)
+  );
+
   const parsedDesign: EmailBuilderDesign = useMemo(
     () => parseDesign(formData.design_json),
     [formData.design_json],
@@ -408,7 +412,18 @@ export default function CampaignModal({
     setError(null);
     setFormData(campaign ? mapCampaignToFormData(campaign) : buildDefaultFormData());
     setTestSendResult(null);
+    setCampaignDetailsOpen(
+      mode === "create" || !(campaign?.communication_type && campaign?.segment && campaign?.subject)
+    );
   }, [campaign, mode]);
+
+  useEffect(() => {
+    if (error) setCampaignDetailsOpen(true);
+  }, [error]);
+
+  function collapseAllSections() {
+    setCampaignDetailsOpen(false);
+  }
 
   const canEdit = canManage && !isLockedCampaign(currentCampaign);
 
@@ -881,9 +896,20 @@ export default function CampaignModal({
             >
               <div style={{ display: "grid", gap: 16 }}>
                 <div className="section-card" style={{ marginBottom: 0 }}>
-                  <div className="section-header">
-                    <span className="section-title">Campaign Details</span>
+                  <div
+                    className="section-header"
+                    onClick={() => setCampaignDetailsOpen(v => !v)}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    <span className="section-title" style={{ flex: 1 }}>Campaign Details</span>
+                    {!campaignDetailsOpen && (
+                      <span style={{ fontSize: 11, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 280 }}>
+                        {[formData.subject, formData.segment].filter(Boolean).join(" · ") || "Incomplete"}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 11, color: "#6b7280", flexShrink: 0 }}>{campaignDetailsOpen ? "▲" : "▼"}</span>
                   </div>
+                  {campaignDetailsOpen && (
                   <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
                     <div className="form-row">
                       <div className="form-group">
@@ -924,7 +950,6 @@ export default function CampaignModal({
                           placeholder="Donors, All US"
                           disabled={!isCreate && !canEdit}
                         />
-                        <div className="form-helper">Used for recipient estimation.</div>
                       </div>
                       <div className="form-group">
                         <label className="form-label">Campaign Version</label>
@@ -939,6 +964,21 @@ export default function CampaignModal({
                           ))}
                         </select>
                       </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+                      {!estimate.ready ? (
+                        <span>Select a segment to estimate recipients.</span>
+                      ) : (
+                        <span>
+                          {"Estimated Recipients: "}
+                          <strong style={{ color: estimate.estimatedRecipients > 0 ? "#374151" : "#9ca3af" }}>
+                            {estimate.estimatedRecipients}
+                          </strong>
+                          <span style={{ marginLeft: 8, color: "#9ca3af" }}>
+                            · {estimate.suppressedCount} suppressed · {estimate.noEmailCount} no email · {estimate.skippedCount} skipped
+                          </span>
+                        </span>
+                      )}
                     </div>
                     <div className="form-group">
                       <label className="form-label">Subject</label>
@@ -972,6 +1012,7 @@ export default function CampaignModal({
                       <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div>
                     )}
                   </div>
+                  )}
                 </div>
 
                 <BlockComposer
@@ -984,6 +1025,7 @@ export default function CampaignModal({
                   onAssetUploaded={(asset) =>
                     onAssetsChange?.([asset, ...(emailAssets ?? [])])
                   }
+                  onInteract={collapseAllSections}
                 />
               </div>
 
@@ -1007,36 +1049,6 @@ export default function CampaignModal({
               </div>
             </div>
 
-            {/* Below-fold: recipient estimate + compact mail sender */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-              <RecipientEstimateCard
-                contacts={contacts}
-                suppressions={suppressions}
-                segment={formData.segment}
-                campaignVersion={formData.campaign_version}
-              />
-              <div className="section-card" style={{ marginBottom: 0, border: "1px solid #e5e7eb" }}>
-                <div className="section-header">
-                  <span className="section-title">Mail Sender</span>
-                </div>
-                <div style={{ padding: "12px 18px 14px" }}>
-                  {mailSettings ? (
-                    <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.6 }}>
-                      {[mailSettings.connection_status, mailSettings.send_mode, mailSettings.from_email]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  ) : (
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Mail sender not configured.</p>
-                      <a href={`/${slug}/setup?tab=integrations`} className="action-link" style={{ fontSize: 12 }}>
-                        Configure in Setup → Integrations
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </>
         ) : (
           /* Raw HTML mode: existing two-column layout */

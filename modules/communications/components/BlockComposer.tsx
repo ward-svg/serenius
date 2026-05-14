@@ -21,6 +21,7 @@ interface Props {
   canEdit: boolean;
   onChange: (design: EmailBuilderDesign) => void;
   onAssetUploaded?: (asset: CommunicationEmailAsset) => void;
+  onInteract?: () => void;
 }
 
 const BLOCK_LABELS: Record<EmailBuilderBlock["type"], string> = {
@@ -1062,7 +1063,7 @@ function BlockCard({
 
 const BLOCK_TYPES: EmailBuilderBlock["type"][] = ["header", "hero", "story", "highlight", "cta"];
 
-export default function BlockComposer({ design, brandSettings, emailAssets, tenantId, canEdit, onChange, onAssetUploaded }: Props) {
+export default function BlockComposer({ design, brandSettings, emailAssets, tenantId, canEdit, onChange, onAssetUploaded, onInteract }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function updateBlock(id: string, patch: Record<string, unknown>) {
@@ -1070,6 +1071,7 @@ export default function BlockComposer({ design, brandSettings, emailAssets, tena
       b.id === id ? ({ ...b, ...patch } as EmailBuilderBlock) : b,
     );
     onChange({ ...design, blocks: newBlocks });
+    onInteract?.();
   }
 
   function moveUp(idx: number) {
@@ -1095,6 +1097,7 @@ export default function BlockComposer({ design, brandSettings, emailAssets, tena
     const newBlock = createBlock(type, brandSettings);
     onChange({ ...design, blocks: [...design.blocks, newBlock] });
     setExpandedId(newBlock.id);
+    onInteract?.();
   }
 
   function handleApplyBrandDefaults() {
@@ -1103,6 +1106,7 @@ export default function BlockComposer({ design, brandSettings, emailAssets, tena
       "Apply the current Brand Kit logo, colors, and defaults to this campaign's builder blocks? Text content will be preserved. Save the campaign to keep the changes."
     )) return;
     onChange(applyBrandDefaultsToDesign(design, brandSettings));
+    onInteract?.();
   }
 
   return (
@@ -1156,7 +1160,7 @@ export default function BlockComposer({ design, brandSettings, emailAssets, tena
                 brandSettings={brandSettings}
                 emailAssets={emailAssets}
                 tenantId={tenantId}
-                onExpand={() => setExpandedId((prev) => (prev === block.id ? null : block.id))}
+                onExpand={() => { setExpandedId((prev) => (prev === block.id ? null : block.id)); onInteract?.(); }}
                 onMoveUp={() => moveUp(idx)}
                 onMoveDown={() => moveDown(idx)}
                 onRemove={() => removeBlock(block.id)}
