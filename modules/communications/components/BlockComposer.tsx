@@ -52,8 +52,8 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         eyebrow: "",
         headline: "",
         subtitle: "",
-        backgroundColor: brand?.accent_color ?? "#f3f4f6",
-        textColor: brand?.text_color ?? "#111827",
+        backgroundColor: brand?.primary_color ?? "#1a56db",
+        textColor: brand?.button_text_color ?? "#ffffff",
         alignment: "center",
       };
     case "story":
@@ -163,15 +163,20 @@ function HeaderEditor({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Logo URL</label>
-          <input
-            type="text"
-            className="form-input"
-            value={block.logoUrl}
-            onChange={(e) => onPatch({ logoUrl: e.target.value })}
-            disabled={disabled}
-            placeholder="https://assets.serenius.app/…/logo.png"
-          />
-          <div className="form-helper">Paste a public image URL. Use Brand Kit → Assets to upload.</div>
+          {block.logoUrl ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <img
+                src={block.logoUrl}
+                alt="Logo preview"
+                style={{ height: 32, maxWidth: 100, objectFit: "contain", border: "1px solid #e5e7eb", borderRadius: 4, background: "#f9fafb", padding: "3px 6px", flexShrink: 0 }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+              <span style={{ fontSize: 12, color: "#6b7280", wordBreak: "break-all", flex: 1 }}>{block.logoUrl}</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: "#9ca3af", padding: "4px 0" }}>No logo — inherits from Brand Kit.</div>
+          )}
+          <div className="form-helper">Set in Brand Kit → Logo. Use "Use as Logo" to assign an uploaded asset.</div>
         </div>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Width (px)</label>

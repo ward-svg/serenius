@@ -73,8 +73,8 @@ function renderHeader(block: HeaderBlock, brand: EmailBrandSettings | null): str
 }
 
 function renderHero(block: HeroBlock, brand: EmailBrandSettings | null): string {
-  const bg = block.backgroundColor || brand?.accent_color || '#f3f4f6';
-  const color = block.textColor || brand?.text_color || '#111827';
+  const bg = block.backgroundColor || brand?.primary_color || '#1a56db';
+  const color = block.textColor || brand?.button_text_color || '#ffffff';
   const align = block.alignment || 'center';
   const font = brand?.default_font || 'Arial, sans-serif';
 

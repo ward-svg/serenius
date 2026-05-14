@@ -354,14 +354,30 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
           <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16 }}>
             <div className="form-group">
               <label className="form-label">Logo URL</label>
-              <input
-                type="text"
-                className="form-input"
-                value={form.logo_url}
-                onChange={(e) => field("logo_url", e.target.value)}
-                placeholder="https://…/logo.png"
-              />
-              <div className="form-helper">If blank, falls back to the logo set in organization_branding.</div>
+              {form.logo_url ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <img
+                    src={form.logo_url}
+                    alt="Logo preview"
+                    style={{ height: 40, maxWidth: 120, objectFit: "contain", border: "1px solid #e5e7eb", borderRadius: 6, background: "#f9fafb", padding: "4px 8px" }}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                  <span style={{ fontSize: 12, color: "#6b7280", wordBreak: "break-all", flex: 1 }}>{form.logo_url}</span>
+                  {canManage && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ fontSize: 12, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0 }}
+                      onClick={() => field("logo_url", "")}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: "#9ca3af", padding: "7px 0" }}>No logo selected.</div>
+              )}
+              <div className="form-helper">Set via "Use as Logo" in the Public Email Assets section below.</div>
             </div>
             <div className="form-group">
               <label className="form-label">Logo Width (px)</label>
