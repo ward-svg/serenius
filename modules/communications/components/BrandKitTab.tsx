@@ -594,6 +594,7 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
       tenantId={tenantId}
       assets={emailAssets}
       canManage={canManage}
+      brandSettings={brandSettings}
       onAssetsChange={onAssetsChange}
       onUseAsLogo={handleUseAsLogo}
     />

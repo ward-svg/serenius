@@ -11,11 +11,12 @@ import type {
   StoryBlock,
 } from "../email-builder-types";
 import { applyBrandDefaultsToDesign } from "../email-builder-renderer";
-import type { EmailBrandSettings } from "../types";
+import type { CommunicationEmailAsset, EmailBrandSettings } from "../types";
 
 interface Props {
   design: EmailBuilderDesign;
   brandSettings: EmailBrandSettings | null;
+  emailAssets: CommunicationEmailAsset[];
   canEdit: boolean;
   onChange: (design: EmailBuilderDesign) => void;
 }
@@ -152,32 +153,112 @@ function ItemsList({
 
 function HeaderEditor({
   block,
+  brandSettings,
+  emailAssets,
   disabled,
   onPatch,
 }: {
   block: HeaderBlock;
+  brandSettings: EmailBrandSettings | null;
+  emailAssets: CommunicationEmailAsset[];
   disabled: boolean;
   onPatch: (patch: Partial<HeaderBlock>) => void;
 }) {
+  const matchedAsset = block.logoUrl
+    ? emailAssets.find((a) => a.public_url === block.logoUrl) ?? null
+    : null;
+  const assetName = matchedAsset
+    ? (matchedAsset.original_file_name ?? matchedAsset.file_name)
+    : null;
+  const isPrimaryLogo =
+    !!block.logoUrl &&
+    !!brandSettings?.logo_url &&
+    block.logoUrl === brandSettings.logo_url;
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Logo URL</label>
-          {block.logoUrl ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {/* Logo preview */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Logo</label>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 12, alignItems: "start" }}>
+          {/* Checkerboard box — makes white/transparent logos visible */}
+          <div
+            style={{
+              width: 120,
+              height: 64,
+              border: "1px solid #d1d5db",
+              borderRadius: 6,
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              backgroundColor: "#e5e7eb",
+              backgroundImage: [
+                "linear-gradient(45deg, #d1d5db 25%, transparent 25%)",
+                "linear-gradient(-45deg, #d1d5db 25%, transparent 25%)",
+                "linear-gradient(45deg, transparent 75%, #d1d5db 75%)",
+                "linear-gradient(-45deg, transparent 75%, #d1d5db 75%)",
+              ].join(", "),
+              backgroundSize: "12px 12px",
+              backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0px",
+            }}
+          >
+            {block.logoUrl ? (
               <img
                 src={block.logoUrl}
                 alt="Logo preview"
-                style={{ height: 32, maxWidth: 100, objectFit: "contain", border: "1px solid #e5e7eb", borderRadius: 4, background: "#f9fafb", padding: "3px 6px", flexShrink: 0 }}
+                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
               />
-              <span style={{ fontSize: 12, color: "#6b7280", wordBreak: "break-all", flex: 1 }}>{block.logoUrl}</span>
-            </div>
-          ) : (
-            <div style={{ fontSize: 13, color: "#9ca3af", padding: "4px 0" }}>No logo — inherits from Brand Kit.</div>
-          )}
-          <div className="form-helper">Set in Brand Kit → Logo. Use "Use as Logo" to assign an uploaded asset.</div>
+            ) : (
+              <span style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", padding: 6 }}>No logo</span>
+            )}
+          </div>
+          {/* Logo identity panel */}
+          <div style={{ display: "grid", gap: 4, paddingTop: 2 }}>
+            {block.logoUrl ? (
+              <>
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: "fit-content",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    background: isPrimaryLogo ? "#dcfce7" : "#dbeafe",
+                    color: isPrimaryLogo ? "#166534" : "#1d4ed8",
+                    borderRadius: 9999,
+                    padding: "1px 8px",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {isPrimaryLogo ? "✓ Primary Logo" : "Campaign Logo"}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#111827", lineHeight: 1.3 }}>
+                  {assetName ?? "Saved campaign logo"}
+                </span>
+              </>
+            ) : (
+              <span style={{ fontSize: 12, color: "#9ca3af" }}>No logo selected</span>
+            )}
+            <span style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.4 }}>
+              Set in Brand Kit → Logo. Use "Use as Logo" to assign an uploaded asset.
+            </span>
+          </div>
+        </div>
+      </div>
+      {/* Tagline + Width */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Tagline</label>
+          <input
+            type="text"
+            className="form-input"
+            value={block.tagline}
+            onChange={(e) => onPatch({ tagline: e.target.value })}
+            disabled={disabled}
+            placeholder="Optional tagline below the logo"
+          />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Width (px)</label>
@@ -192,17 +273,7 @@ function HeaderEditor({
           />
         </div>
       </div>
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Tagline</label>
-        <input
-          type="text"
-          className="form-input"
-          value={block.tagline}
-          onChange={(e) => onPatch({ tagline: e.target.value })}
-          disabled={disabled}
-          placeholder="Optional tagline below the logo"
-        />
-      </div>
+      {/* Alignment + Background Color */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Alignment</label>
@@ -498,6 +569,8 @@ function BlockCard({
   total,
   expanded,
   disabled,
+  brandSettings,
+  emailAssets,
   onExpand,
   onMoveUp,
   onMoveDown,
@@ -509,6 +582,8 @@ function BlockCard({
   total: number;
   expanded: boolean;
   disabled: boolean;
+  brandSettings: EmailBrandSettings | null;
+  emailAssets: CommunicationEmailAsset[];
   onExpand: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -617,6 +692,8 @@ function BlockCard({
           {block.type === "header" && (
             <HeaderEditor
               block={block}
+              brandSettings={brandSettings}
+              emailAssets={emailAssets}
               disabled={disabled}
               onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
             />
@@ -661,7 +738,7 @@ function BlockCard({
 
 const BLOCK_TYPES: EmailBuilderBlock["type"][] = ["header", "hero", "story", "highlight", "cta"];
 
-export default function BlockComposer({ design, brandSettings, canEdit, onChange }: Props) {
+export default function BlockComposer({ design, brandSettings, emailAssets, canEdit, onChange }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function updateBlock(id: string, patch: Record<string, unknown>) {
@@ -752,6 +829,8 @@ export default function BlockComposer({ design, brandSettings, canEdit, onChange
                 total={design.blocks.length}
                 expanded={expandedId === block.id}
                 disabled={!canEdit}
+                brandSettings={brandSettings}
+                emailAssets={emailAssets}
                 onExpand={() => setExpandedId((prev) => (prev === block.id ? null : block.id))}
                 onMoveUp={() => moveUp(idx)}
                 onMoveDown={() => moveDown(idx)}

@@ -6,6 +6,7 @@ import RecordAttachments from "@/components/attachments/RecordAttachments";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type {
   CampaignFormMode,
+  CommunicationEmailAsset,
   EmailBrandSettings,
   MailSettingsSummary,
   PartnerContactEstimate,
@@ -31,6 +32,7 @@ interface Props {
   mode: CampaignFormMode;
   canManage: boolean;
   brandSettings?: EmailBrandSettings | null;
+  emailAssets?: CommunicationEmailAsset[];
   onClose: () => void;
   onSaved: (campaign: PartnerEmailCampaign) => void;
 }
@@ -377,6 +379,7 @@ export default function CampaignModal({
   mode,
   canManage,
   brandSettings,
+  emailAssets,
   slug,
   onClose,
   onSaved,
@@ -1005,6 +1008,7 @@ export default function CampaignModal({
               <BlockComposer
                 design={parsedDesign}
                 brandSettings={brandSettings ?? null}
+                emailAssets={emailAssets ?? []}
                 canEdit={isCreate || canEdit}
                 onChange={updateDesignJson}
               />

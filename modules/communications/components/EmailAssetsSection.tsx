@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { CommunicationEmailAsset } from "../types";
+import type { CommunicationEmailAsset, EmailBrandSettings } from "../types";
 
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -31,6 +31,7 @@ interface Props {
   tenantId: string;
   assets: CommunicationEmailAsset[];
   canManage: boolean;
+  brandSettings?: EmailBrandSettings | null;
   onAssetsChange: (assets: CommunicationEmailAsset[]) => void;
   onUseAsLogo: (url: string) => void;
 }
@@ -64,6 +65,7 @@ export default function EmailAssetsSection({
   tenantId,
   assets,
   canManage,
+  brandSettings,
   onAssetsChange,
   onUseAsLogo,
 }: Props) {
@@ -283,11 +285,16 @@ export default function EmailAssetsSection({
               gap: 12,
             }}
           >
-            {assets.map((asset) => (
+            {assets.map((asset) => {
+              const isPrimaryLogo =
+                asset.asset_type === "logo" &&
+                !!brandSettings?.logo_url &&
+                asset.public_url === brandSettings.logo_url;
+              return (
               <div
                 key={asset.id}
                 style={{
-                  border: "1px solid #e5e7eb",
+                  border: isPrimaryLogo ? "1px solid #86efac" : "1px solid #e5e7eb",
                   borderRadius: 10,
                   overflow: "hidden",
                   background: "#fff",
@@ -295,15 +302,23 @@ export default function EmailAssetsSection({
                   flexDirection: "column",
                 }}
               >
-                {/* Thumbnail */}
+                {/* Thumbnail — checkerboard makes white/transparent PNGs visible */}
                 <div
                   style={{
-                    background: "#f3f4f6",
                     height: 110,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     overflow: "hidden",
+                    backgroundColor: "#e5e7eb",
+                    backgroundImage: [
+                      "linear-gradient(45deg, #d1d5db 25%, transparent 25%)",
+                      "linear-gradient(-45deg, #d1d5db 25%, transparent 25%)",
+                      "linear-gradient(45deg, transparent 75%, #d1d5db 75%)",
+                      "linear-gradient(-45deg, transparent 75%, #d1d5db 75%)",
+                    ].join(", "),
+                    backgroundSize: "12px 12px",
+                    backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0px",
                   }}
                 >
                   <img
@@ -341,6 +356,20 @@ export default function EmailAssetsSection({
                     >
                       {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
                     </span>
+                    {isPrimaryLogo && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          background: "#dcfce7",
+                          color: "#166534",
+                          borderRadius: 9999,
+                          padding: "1px 7px",
+                        }}
+                      >
+                        ✓ Primary Logo
+                      </span>
+                    )}
                   </div>
 
                   <div style={{ fontSize: 11, color: "#6b7280", display: "grid", gap: 1, marginTop: 2 }}>
@@ -380,18 +409,27 @@ export default function EmailAssetsSection({
                     Open ↗
                   </a>
                   {asset.asset_type === "logo" && canManage && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      style={{ fontSize: 11, padding: "3px 8px", color: "#1d4ed8" }}
-                      onClick={() => onUseAsLogo(asset.public_url)}
-                    >
-                      Use as Logo
-                    </button>
+                    isPrimaryLogo ? (
+                      <span
+                        style={{ fontSize: 11, padding: "3px 8px", color: "#166534", fontWeight: 600 }}
+                      >
+                        ✓ In use
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ fontSize: 11, padding: "3px 8px", color: "#1d4ed8" }}
+                        onClick={() => onUseAsLogo(asset.public_url)}
+                      >
+                        Use as Logo
+                      </button>
+                    )
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
