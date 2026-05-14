@@ -26,8 +26,11 @@ export interface HeroBlock {
   eyebrowColor?: string;
   eyebrowSize?: number;
   eyebrowUppercase?: boolean;
+  eyebrowFontRole?: 'heading' | 'body';
   headlineColor?: string;
+  headlineFontRole?: 'heading' | 'body';
   subtitleColor?: string;
+  subtitleFontRole?: 'heading' | 'body';
 }
 
 export interface StoryBlock {

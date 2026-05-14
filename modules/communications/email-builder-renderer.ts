@@ -92,18 +92,21 @@ function renderHero(block: HeroBlock, brand: EmailBrandSettings | null): string 
   const eyebrowColor = block.eyebrowColor || textColorFallback;
   const eyebrowSize = typeof block.eyebrowSize === 'number' ? block.eyebrowSize : 11;
   const eyebrowUppercase = block.eyebrowUppercase !== false;
+  const eyebrowFont = (block.eyebrowFontRole ?? 'body') === 'heading' ? headingFont : bodyFont;
   const headlineColor = block.headlineColor || textColorFallback;
+  const headlineFont = (block.headlineFontRole ?? 'heading') === 'heading' ? headingFont : bodyFont;
   const subtitleColor = block.subtitleColor || textColorFallback;
+  const subtitleFont = (block.subtitleFontRole ?? 'body') === 'heading' ? headingFont : bodyFont;
 
   const parts: string[] = [];
   if (block.eyebrow) {
-    parts.push(`<p style="margin:0 0 8px;font-size:${eyebrowSize}px;font-family:${esc(bodyFont)};color:${esc(eyebrowColor)};${eyebrowUppercase ? 'text-transform:uppercase;' : ''}letter-spacing:0.1em;font-weight:600;">${esc(block.eyebrow)}</p>`);
+    parts.push(`<p style="margin:0 0 8px;font-size:${eyebrowSize}px;font-family:${esc(eyebrowFont)};color:${esc(eyebrowColor)};${eyebrowUppercase ? 'text-transform:uppercase;' : ''}letter-spacing:0.1em;font-weight:600;">${esc(block.eyebrow)}</p>`);
   }
   if (block.headline) {
-    parts.push(`<h1 style="margin:0 0 12px;font-size:${headlineSize}px;font-family:${esc(headingFont)};color:${esc(headlineColor)};font-weight:700;line-height:1.2;">${esc(block.headline)}</h1>`);
+    parts.push(`<h1 style="margin:0 0 12px;font-size:${headlineSize}px;font-family:${esc(headlineFont)};color:${esc(headlineColor)};font-weight:700;line-height:1.2;">${esc(block.headline)}</h1>`);
   }
   if (block.subtitle) {
-    parts.push(`<p style="margin:0;font-size:${subtitleSize}px;font-family:${esc(bodyFont)};color:${esc(subtitleColor)};line-height:1.5;">${esc(block.subtitle)}</p>`);
+    parts.push(`<p style="margin:0;font-size:${subtitleSize}px;font-family:${esc(subtitleFont)};color:${esc(subtitleColor)};line-height:1.5;">${esc(block.subtitle)}</p>`);
   }
 
   return `<tr>
