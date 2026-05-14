@@ -9,6 +9,7 @@ import {
   type SortValue,
 } from "@/lib/ui/sort";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import SereniusModal from "@/components/ui/SereniusModal";
 import CampaignModal from "./CampaignModal";
 import CampaignPreviewModal from "./CampaignPreviewModal";
 import type {
@@ -93,6 +94,11 @@ function canTrashCampaign(campaign: PartnerEmailCampaign): boolean {
   if (campaign.email_sent_at !== null) return false;
   if ((campaign.total_emails_sent ?? 0) > 0) return false;
   return true;
+}
+
+function canPermanentDeleteCampaign(campaign: PartnerEmailCampaign): boolean {
+  if (campaign.deleted_at === null) return false;
+  return canTrashCampaign(campaign);
 }
 
 function classifyCampaign(campaign: PartnerEmailCampaign): CampaignListFilter {
@@ -273,6 +279,9 @@ export default function CommunicationsDashboard({
   const [trashingId, setTrashingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [modalForcedReadOnly, setModalForcedReadOnly] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PartnerEmailCampaign | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const activeTestRecipientCount = useMemo(
     () => testRecipients.filter((r) => r.is_active).length,
@@ -465,6 +474,32 @@ export default function CommunicationsDashboard({
     }
   }
 
+  async function handlePermanentDelete() {
+    if (!deleteTarget) return;
+    setDeletingId(deleteTarget.id);
+    setDeleteError(null);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("partner_emails")
+        .delete()
+        .eq("id", deleteTarget.id)
+        .eq("tenant_id", deleteTarget.tenant_id);
+      if (error) throw error;
+      setCampaigns((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setDeleteError(
+        msg.includes("foreign key") || msg.includes("violates")
+          ? "This campaign has related records that prevent deletion. Contact support to clean up linked rows before retrying."
+          : "Failed to permanently delete campaign. Please try again.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <>
       {/* Summary stats */}
@@ -638,14 +673,35 @@ export default function CommunicationsDashboard({
                         {campaign.deleted_at !== null ? "View" : "View/Edit"}
                       </button>
                       {campaign.deleted_at !== null ? (
-                        <button
-                          type="button"
-                          className="action-link"
-                          onClick={() => handleRestoreCampaign(campaign)}
-                          disabled={restoringId === campaign.id}
-                        >
-                          {restoringId === campaign.id ? "Restoring…" : "Restore"}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            className="action-link"
+                            onClick={() => handleRestoreCampaign(campaign)}
+                            disabled={restoringId === campaign.id}
+                          >
+                            {restoringId === campaign.id ? "Restoring…" : "Restore"}
+                          </button>
+                          {canManage ? (
+                            canPermanentDeleteCampaign(campaign) ? (
+                              <button
+                                type="button"
+                                className="action-link"
+                                style={{ color: "#b91c1c" }}
+                                onClick={() => { setDeleteError(null); setDeleteTarget(campaign); }}
+                              >
+                                Delete Permanently
+                              </button>
+                            ) : (
+                              <span
+                                style={{ fontSize: 12, color: "#9ca3af" }}
+                                title="Sent campaigns are kept for delivery history and cannot be permanently deleted."
+                              >
+                                Delete Permanently
+                              </span>
+                            )
+                          ) : null}
+                        </>
                       ) : canManage && canTrashCampaign(campaign) ? (
                         <button
                           type="button"
@@ -786,6 +842,65 @@ export default function CommunicationsDashboard({
           campaign={previewCampaign}
           onClose={() => setPreviewCampaign(null)}
         />
+      ) : null}
+
+      {deleteTarget ? (
+        <SereniusModal
+          title="Permanently delete campaign?"
+          maxWidth={480}
+          closeOnOverlayClick={deletingId === null}
+          closeOnEscape={deletingId === null}
+          onClose={() => { if (!deletingId) { setDeleteTarget(null); setDeleteError(null); } }}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => { setDeleteTarget(null); setDeleteError(null); }}
+                disabled={deletingId !== null}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                style={{
+                  background: "#dc2626",
+                  color: "#fff",
+                  border: "none",
+                  opacity: deletingId !== null ? 0.6 : 1,
+                }}
+                onClick={handlePermanentDelete}
+                disabled={deletingId !== null}
+              >
+                {deletingId !== null ? "Deleting…" : "Delete Permanently"}
+              </button>
+            </>
+          }
+        >
+          <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
+            You are getting ready to permanently delete{" "}
+            <strong>
+              &ldquo;{deleteTarget.subject || "this campaign"}&rdquo;
+            </strong>
+            . This cannot be undone.
+          </p>
+          {deleteError ? (
+            <p
+              style={{
+                marginTop: 12,
+                fontSize: 13,
+                color: "#b91c1c",
+                background: "#fef2f2",
+                border: "1px solid #fecaca",
+                borderRadius: 6,
+                padding: "8px 12px",
+              }}
+            >
+              {deleteError}
+            </p>
+          ) : null}
+        </SereniusModal>
       ) : null}
     </>
   );
