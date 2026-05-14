@@ -207,25 +207,35 @@ function renderHighlight(block: HighlightBlock, brand: EmailBrandSettings | null
 }
 
 function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
-  const headingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
-  const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
-  const btnColor = brand?.button_color || '#1a56db';
-  const btnText = brand?.button_text_color || '#ffffff';
-  const text = brand?.text_color || '#111827';
-  const primary = brand?.primary_color || '#1a56db';
-  const accent = brand?.accent_color || '#e8f0fe';
+  const brandHeadingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
+  const brandBodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
+  const bg = block.backgroundColor || '#ffffff';
+  const panelBg = block.accentColor || brand?.accent_color || '#e8f0fe';
+  const accentText = block.accentColor || brand?.primary_color || '#1a56db';
+  const textColor = block.textColor || brand?.text_color || '#111827';
+  const btnBg = block.buttonColor || brand?.button_color || brand?.primary_color || '#1a56db';
+  const btnTxt = block.buttonTextColor || brand?.button_text_color || '#ffffff';
+  const hFont = (block.headingFontRole ?? 'heading') === 'heading' ? brandHeadingFont : brandBodyFont;
+  const bFont = (block.bodyFontRole ?? 'body') === 'heading' ? brandHeadingFont : brandBodyFont;
+  const align = block.alignment || 'center';
+  // Preserve current per-variant sizes for old blocks that lack these fields
+  const headingSizeFallback = block.variant === 'panel' ? 18 : 17;
+  const headingSize = typeof block.headingSize === 'number' ? block.headingSize : headingSizeFallback;
+  const bodySize = typeof block.bodySize === 'number' ? block.bodySize : 14;
+  const paddingYFallback = block.variant === 'panel' ? 16 : 24;
+  const paddingY = typeof block.paddingY === 'number' ? block.paddingY : paddingYFallback;
   const href = safeUrl(block.buttonUrl || brand?.default_donation_url || '');
   const items = block.items.filter(Boolean);
 
   const btnHtml = block.buttonText
-    ? `<a href="${esc(href)}" style="display:inline-block;background-color:${esc(btnColor)};color:${esc(btnText)};font-family:${esc(bodyFont)};font-size:15px;font-weight:700;padding:12px 28px;text-decoration:none;border-radius:6px;">${esc(block.buttonText)}</a>`
+    ? `<a href="${esc(href)}" style="display:inline-block;background-color:${esc(btnBg)};color:${esc(btnTxt)};font-family:${esc(bFont)};font-size:15px;font-weight:700;padding:12px 28px;text-decoration:none;border-radius:6px;">${esc(block.buttonText)}</a>`
     : '';
 
   if (block.variant === 'button') {
     return `<tr>
-  <td style="padding:24px 30px;background-color:#ffffff;text-align:center;">
-    ${block.heading ? `<p style="margin:0 0 8px;font-size:17px;font-weight:700;font-family:${esc(headingFont)};color:${esc(text)};">${esc(block.heading)}</p>` : ''}
-    ${block.body ? `<p style="margin:0 0 16px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
+  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;text-align:${align};">
+    ${block.heading ? `<p style="margin:0 0 8px;font-size:${headingSize}px;font-weight:700;font-family:${esc(hFont)};color:${esc(textColor)};">${esc(block.heading)}</p>` : ''}
+    ${block.body ? `<p style="margin:0 0 16px;font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};line-height:1.5;">${esc(block.body)}</p>` : ''}
     ${btnHtml}
   </td>
 </tr>`;
@@ -233,13 +243,13 @@ function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
 
   if (block.variant === 'offer') {
     const itemsHtml = items.length
-      ? `<ul style="margin:0 0 16px;padding:0;list-style:none;">${items.map((i) => `<li style="font-size:13px;font-family:${esc(bodyFont)};color:${esc(text)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
+      ? `<ul style="margin:0 0 16px;padding:0;list-style:none;">${items.map((i) => `<li style="font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
       : '';
     return `<tr>
-  <td style="padding:24px 30px;background-color:#ffffff;text-align:center;">
-    ${block.heading ? `<p style="margin:0 0 8px;font-size:17px;font-weight:700;font-family:${esc(headingFont)};color:${esc(text)};">${esc(block.heading)}</p>` : ''}
-    ${block.amount ? `<p style="margin:0 0 8px;font-size:36px;font-weight:800;font-family:${esc(headingFont)};color:${esc(primary)};">${esc(block.amount)}</p>` : ''}
-    ${block.body ? `<p style="margin:0 0 16px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
+  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;text-align:${align};">
+    ${block.heading ? `<p style="margin:0 0 8px;font-size:${headingSize}px;font-weight:700;font-family:${esc(hFont)};color:${esc(textColor)};">${esc(block.heading)}</p>` : ''}
+    ${block.amount ? `<p style="margin:0 0 8px;font-size:36px;font-weight:800;font-family:${esc(hFont)};color:${esc(accentText)};">${esc(block.amount)}</p>` : ''}
+    ${block.body ? `<p style="margin:0 0 16px;font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};line-height:1.5;">${esc(block.body)}</p>` : ''}
     ${itemsHtml}
     ${btnHtml}
   </td>
@@ -248,14 +258,14 @@ function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
 
   // panel
   const itemsHtml = items.length
-    ? `<ul style="margin:0 0 16px;padding:0 0 0 18px;">${items.map((i) => `<li style="font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
+    ? `<ul style="margin:0 0 16px;padding:0 0 0 18px;">${items.map((i) => `<li style="font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
     : '';
   return `<tr>
-  <td style="padding:16px 30px;background-color:#ffffff;">
+  <td style="padding:${paddingY}px 30px;background-color:#ffffff;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="background-color:${esc(accent)};border-radius:8px;padding:24px;text-align:center;">
-        ${block.heading ? `<p style="margin:0 0 8px;font-size:18px;font-weight:700;font-family:${esc(headingFont)};color:${esc(primary)};">${esc(block.heading)}</p>` : ''}
-        ${block.body ? `<p style="margin:0 0 16px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
+      <td style="background-color:${esc(panelBg)};border-radius:8px;padding:24px;text-align:${align};">
+        ${block.heading ? `<p style="margin:0 0 8px;font-size:${headingSize}px;font-weight:700;font-family:${esc(hFont)};color:${esc(accentText)};">${esc(block.heading)}</p>` : ''}
+        ${block.body ? `<p style="margin:0 0 16px;font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};line-height:1.5;">${esc(block.body)}</p>` : ''}
         ${itemsHtml}
         ${btnHtml}
       </td>
@@ -303,6 +313,10 @@ export function applyBrandDefaultsToDesign(
       case 'cta':
         return {
           ...block,
+          accentColor: brand.accent_color || block.accentColor,
+          textColor: brand.text_color || block.textColor,
+          buttonColor: brand.button_color || brand.primary_color || block.buttonColor,
+          buttonTextColor: brand.button_text_color || block.buttonTextColor,
           buttonUrl: block.buttonUrl || brand.default_donation_url || '',
         };
       case 'story':

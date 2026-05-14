@@ -110,6 +110,17 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         buttonUrl: brand?.default_donation_url ?? "",
         amount: "",
         items: [],
+        backgroundColor: "#ffffff",
+        accentColor: brand?.accent_color ?? "#e8f0fe",
+        textColor: brand?.text_color ?? "#111827",
+        buttonColor: brand?.button_color || brand?.primary_color || "#1a56db",
+        buttonTextColor: brand?.button_text_color ?? "#ffffff",
+        headingSize: 18,
+        bodySize: 14,
+        headingFontRole: "heading",
+        bodyFontRole: "body",
+        alignment: "center",
+        paddingY: 24,
       };
   }
 }
@@ -1181,16 +1192,51 @@ function CtaEditor({
   disabled: boolean;
   onPatch: (patch: Partial<CtaBlock>) => void;
 }) {
+  const chipStyle = { width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 } as const;
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {/* A. CTA Style */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Background Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="color" value={block.backgroundColor || "#ffffff"} onChange={(e) => onPatch({ backgroundColor: e.target.value })} disabled={disabled} style={chipStyle} />
+          <input type="text" className="form-input" value={block.backgroundColor ?? ""} onChange={(e) => onPatch({ backgroundColor: e.target.value })} disabled={disabled} placeholder="#ffffff" style={{ fontFamily: "monospace" }} />
+        </div>
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Accent / Panel Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="color" value={block.accentColor || "#e8f0fe"} onChange={(e) => onPatch({ accentColor: e.target.value })} disabled={disabled} style={chipStyle} />
+          <input type="text" className="form-input" value={block.accentColor ?? ""} onChange={(e) => onPatch({ accentColor: e.target.value })} disabled={disabled} placeholder="#e8f0fe" style={{ fontFamily: "monospace" }} />
+        </div>
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Text Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="color" value={block.textColor || "#111827"} onChange={(e) => onPatch({ textColor: e.target.value })} disabled={disabled} style={chipStyle} />
+          <input type="text" className="form-input" value={block.textColor ?? ""} onChange={(e) => onPatch({ textColor: e.target.value })} disabled={disabled} placeholder="#111827" style={{ fontFamily: "monospace" }} />
+        </div>
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Button Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="color" value={block.buttonColor || "#1a56db"} onChange={(e) => onPatch({ buttonColor: e.target.value })} disabled={disabled} style={chipStyle} />
+          <input type="text" className="form-input" value={block.buttonColor ?? ""} onChange={(e) => onPatch({ buttonColor: e.target.value })} disabled={disabled} placeholder="#1a56db" style={{ fontFamily: "monospace" }} />
+        </div>
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Button Text Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="color" value={block.buttonTextColor || "#ffffff"} onChange={(e) => onPatch({ buttonTextColor: e.target.value })} disabled={disabled} style={chipStyle} />
+          <input type="text" className="form-input" value={block.buttonTextColor ?? ""} onChange={(e) => onPatch({ buttonTextColor: e.target.value })} disabled={disabled} placeholder="#ffffff" style={{ fontFamily: "monospace" }} />
+        </div>
+      </div>
+
+      {/* B. Content */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Variant</label>
-        <select
-          className="form-input"
-          value={block.variant}
-          onChange={(e) => onPatch({ variant: e.target.value as CtaBlock["variant"] })}
-          disabled={disabled}
-        >
+        <select className="form-input" value={block.variant} onChange={(e) => onPatch({ variant: e.target.value as CtaBlock["variant"] })} disabled={disabled}>
           <option value="button">Button — centered heading and CTA button</option>
           <option value="panel">Panel — accent background with heading and button</option>
           <option value="offer">Offer — large amount display with donation button</option>
@@ -1198,71 +1244,69 @@ function CtaEditor({
       </div>
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Heading</label>
-        <input
-          type="text"
-          className="form-input"
-          value={block.heading}
-          onChange={(e) => onPatch({ heading: e.target.value })}
-          disabled={disabled}
-          placeholder="Support WellSpring this month"
-        />
+        <input type="text" className="form-input" value={block.heading} onChange={(e) => onPatch({ heading: e.target.value })} disabled={disabled} placeholder="Support WellSpring this month" />
       </div>
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Body</label>
-        <textarea
-          className="form-textarea"
-          rows={2}
-          value={block.body}
-          onChange={(e) => onPatch({ body: e.target.value })}
-          disabled={disabled}
-          placeholder="Brief supporting text."
-        />
+        <textarea className="form-textarea" rows={2} value={block.body} onChange={(e) => onPatch({ body: e.target.value })} disabled={disabled} placeholder="Brief supporting text." />
       </div>
       {block.variant === "offer" && (
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Amount</label>
-          <input
-            type="text"
-            className="form-input"
-            value={block.amount}
-            onChange={(e) => onPatch({ amount: e.target.value })}
-            disabled={disabled}
-            placeholder="$50 / month"
-          />
+          <input type="text" className="form-input" value={block.amount} onChange={(e) => onPatch({ amount: e.target.value })} disabled={disabled} placeholder="$50 / month" />
         </div>
       )}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Button Text</label>
-          <input
-            type="text"
-            className="form-input"
-            value={block.buttonText}
-            onChange={(e) => onPatch({ buttonText: e.target.value })}
-            disabled={disabled}
-            placeholder="Donate Now"
-          />
+          <input type="text" className="form-input" value={block.buttonText} onChange={(e) => onPatch({ buttonText: e.target.value })} disabled={disabled} placeholder="Donate Now" />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Button URL</label>
-          <input
-            type="text"
-            className="form-input"
-            value={block.buttonUrl}
-            onChange={(e) => onPatch({ buttonUrl: e.target.value })}
-            disabled={disabled}
-            placeholder="https://…"
-          />
+          <input type="text" className="form-input" value={block.buttonUrl} onChange={(e) => onPatch({ buttonUrl: e.target.value })} disabled={disabled} placeholder="https://…" />
           <div className="form-helper">Defaults to Brand Kit donation URL if blank.</div>
         </div>
       </div>
       {(block.variant === "panel" || block.variant === "offer") && (
-        <ItemsList
-          items={block.items}
-          disabled={disabled}
-          onChange={(items) => onPatch({ items })}
-        />
+        <ItemsList items={block.items} disabled={disabled} onChange={(items) => onPatch({ items })} />
       )}
+
+      {/* C. Text Style */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 64px" }}>
+          <label className="form-label">H. Size</label>
+          <input type="number" className="form-input" value={block.headingSize ?? 18} min={14} max={36} step={1} onChange={(e) => onPatch({ headingSize: Number(e.target.value) })} disabled={disabled} />
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">H. Font</label>
+          <select className="form-input" value={block.headingFontRole ?? "heading"} onChange={(e) => onPatch({ headingFontRole: e.target.value as "heading" | "body" })} disabled={disabled}>
+            <option value="heading">Heading</option>
+            <option value="body">Body</option>
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 64px" }}>
+          <label className="form-label">B. Size</label>
+          <input type="number" className="form-input" value={block.bodySize ?? 14} min={12} max={24} step={1} onChange={(e) => onPatch({ bodySize: Number(e.target.value) })} disabled={disabled} />
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">B. Font</label>
+          <select className="form-input" value={block.bodyFontRole ?? "body"} onChange={(e) => onPatch({ bodyFontRole: e.target.value as "heading" | "body" })} disabled={disabled}>
+            <option value="body">Body</option>
+            <option value="heading">Heading</option>
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">Alignment</label>
+          <AlignSelect value={block.alignment ?? "center"} onChange={(v) => onPatch({ alignment: v as CtaBlock["alignment"] })} disabled={disabled} />
+        </div>
+      </div>
+
+      {/* D. Spacing */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Vertical Padding (px)</label>
+        <input type="number" className="form-input" value={block.paddingY ?? 24} min={12} max={72} step={4} onChange={(e) => onPatch({ paddingY: Number(e.target.value) })} disabled={disabled} style={{ maxWidth: 100 }} />
+        <div className="form-helper">Adds space above and below the CTA content.</div>
+      </div>
     </div>
   );
 }

@@ -73,6 +73,17 @@ export interface CtaBlock {
   buttonUrl: string;
   amount: string;
   items: string[];
+  backgroundColor?: string;
+  accentColor?: string;
+  textColor?: string;
+  buttonColor?: string;
+  buttonTextColor?: string;
+  headingSize?: number;
+  bodySize?: number;
+  headingFontRole?: 'heading' | 'body';
+  bodyFontRole?: 'heading' | 'body';
+  alignment?: 'left' | 'center' | 'right';
+  paddingY?: number;
 }
 
 export type EmailBuilderBlock = HeaderBlock | HeroBlock | StoryBlock | HighlightBlock | CtaBlock;
