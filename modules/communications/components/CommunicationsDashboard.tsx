@@ -282,6 +282,9 @@ export default function CommunicationsDashboard({
   const [deleteTarget, setDeleteTarget] = useState<PartnerEmailCampaign | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showEmptyTrashModal, setShowEmptyTrashModal] = useState(false);
+  const [emptyTrashDeleting, setEmptyTrashDeleting] = useState(false);
+  const [emptyTrashError, setEmptyTrashError] = useState<string | null>(null);
 
   const activeTestRecipientCount = useMemo(
     () => testRecipients.filter((r) => r.is_active).length,
@@ -310,6 +313,9 @@ export default function CommunicationsDashboard({
     }
     return counts;
   }, [campaigns]);
+
+  const trashedCampaigns = campaigns.filter((c) => c.deleted_at !== null);
+  const eligibleForEmptyTrash = trashedCampaigns.filter(canPermanentDeleteCampaign);
 
   const visibleCampaigns = useMemo(() => {
     let result: PartnerEmailCampaign[];
@@ -500,6 +506,38 @@ export default function CommunicationsDashboard({
     }
   }
 
+  async function handleEmptyTrash() {
+    const eligible = campaigns.filter(canPermanentDeleteCampaign);
+    const eligibleIds = eligible.map((c) => c.id);
+    if (eligibleIds.length === 0) {
+      setShowEmptyTrashModal(false);
+      return;
+    }
+    setEmptyTrashDeleting(true);
+    setEmptyTrashError(null);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("partner_emails")
+        .delete()
+        .in("id", eligibleIds)
+        .eq("tenant_id", orgId);
+      if (error) throw error;
+      const deletedSet = new Set(eligibleIds);
+      setCampaigns((prev) => prev.filter((c) => !deletedSet.has(c.id)));
+      setShowEmptyTrashModal(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setEmptyTrashError(
+        msg.includes("foreign key") || msg.includes("violates")
+          ? "Some campaigns have related records that prevent deletion. Contact support to clean up linked rows before retrying."
+          : "Failed to empty trash. Please try again.",
+      );
+    } finally {
+      setEmptyTrashDeleting(false);
+    }
+  }
+
   return (
     <>
       {/* Summary stats */}
@@ -545,9 +583,32 @@ export default function CommunicationsDashboard({
           <span className="section-count">{visibleCampaigns.length}</span>
           {canManage ? (
             <div className="section-actions">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={openNewCampaign}>
-                New Campaign
-              </button>
+              {activeFilter === "trash" && campaignCounts.trash > 0 ? (
+                eligibleForEmptyTrash.length > 0 ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{ color: "#b91c1c" }}
+                    onClick={() => { setEmptyTrashError(null); setShowEmptyTrashModal(true); }}
+                  >
+                    Empty Trash
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled
+                    title="No campaigns eligible for permanent deletion."
+                  >
+                    Empty Trash
+                  </button>
+                )
+              ) : null}
+              {activeFilter !== "trash" ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={openNewCampaign}>
+                  New Campaign
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -843,6 +904,66 @@ export default function CommunicationsDashboard({
           onClose={() => setPreviewCampaign(null)}
         />
       ) : null}
+
+      {showEmptyTrashModal ? (() => {
+        const ineligibleCount = trashedCampaigns.length - eligibleForEmptyTrash.length;
+        const bodyText =
+          ineligibleCount === 0
+            ? `You are getting ready to permanently delete ${eligibleForEmptyTrash.length} campaign(s). This cannot be undone.`
+            : `You are getting ready to permanently delete ${eligibleForEmptyTrash.length} campaign(s). ${ineligibleCount} sent campaign(s) will be kept for delivery history. This cannot be undone.`;
+        return (
+          <SereniusModal
+            title="Empty Trash?"
+            maxWidth={480}
+            closeOnOverlayClick={!emptyTrashDeleting}
+            closeOnEscape={!emptyTrashDeleting}
+            onClose={() => { if (!emptyTrashDeleting) { setShowEmptyTrashModal(false); setEmptyTrashError(null); } }}
+            footer={
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => { setShowEmptyTrashModal(false); setEmptyTrashError(null); }}
+                  disabled={emptyTrashDeleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  style={{
+                    background: "#dc2626",
+                    color: "#fff",
+                    border: "none",
+                    opacity: emptyTrashDeleting ? 0.6 : 1,
+                  }}
+                  onClick={handleEmptyTrash}
+                  disabled={emptyTrashDeleting}
+                >
+                  {emptyTrashDeleting ? "Deleting…" : "Empty Trash"}
+                </button>
+              </>
+            }
+          >
+            <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6 }}>{bodyText}</p>
+            {emptyTrashError ? (
+              <p
+                style={{
+                  marginTop: 12,
+                  fontSize: 13,
+                  color: "#b91c1c",
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  borderRadius: 6,
+                  padding: "8px 12px",
+                }}
+              >
+                {emptyTrashError}
+              </p>
+            ) : null}
+          </SereniusModal>
+        );
+      })() : null}
 
       {deleteTarget ? (
         <SereniusModal
