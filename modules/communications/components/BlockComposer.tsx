@@ -10,6 +10,7 @@ import type {
   HighlightBlock,
   StoryBlock,
 } from "../email-builder-types";
+import { applyBrandDefaultsToDesign } from "../email-builder-renderer";
 import type { EmailBrandSettings } from "../types";
 
 interface Props {
@@ -695,20 +696,45 @@ export default function BlockComposer({ design, brandSettings, canEdit, onChange
     setExpandedId(newBlock.id);
   }
 
+  function handleApplyBrandDefaults() {
+    if (!brandSettings) return;
+    if (!window.confirm(
+      "Apply the current Brand Kit logo, colors, and defaults to this campaign's builder blocks? Text content will be preserved. Save the campaign to keep the changes."
+    )) return;
+    onChange(applyBrandDefaultsToDesign(design, brandSettings));
+  }
+
   return (
     <div className="section-card" style={{ marginBottom: 0 }}>
       <div className="section-header">
         <span className="section-title">Serenius Builder</span>
-        {design.blocks.length > 0 && (
-          <span className="section-count">
-            {design.blocks.length} block{design.blocks.length === 1 ? "" : "s"}
-          </span>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {design.blocks.length > 0 && (
+            <span className="section-count">
+              {design.blocks.length} block{design.blocks.length === 1 ? "" : "s"}
+            </span>
+          )}
+          {brandSettings && canEdit && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ fontSize: 11, padding: "3px 10px" }}
+              onClick={handleApplyBrandDefaults}
+            >
+              Apply Brand Kit Defaults
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ padding: "12px 14px 16px", display: "grid", gap: 12 }}>
         <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
           Serenius Builder renders structured blocks into email-safe HTML. Add blocks below, then save to generate the rendered preview.
+          {brandSettings && canEdit && (
+            <span style={{ display: "block", marginTop: 4, fontSize: 11, color: "#9ca3af" }}>
+              Use "Apply Brand Kit Defaults" after Brand Kit changes to refresh an existing draft.
+            </span>
+          )}
         </p>
 
         {/* Block list */}

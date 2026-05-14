@@ -239,6 +239,38 @@ function renderBlock(block: EmailBuilderBlock, brand: EmailBrandSettings | null)
 // Public API
 // ---------------------------------------------------------------------------
 
+export function applyBrandDefaultsToDesign(
+  design: EmailBuilderDesign,
+  brand: EmailBrandSettings,
+): EmailBuilderDesign {
+  const blocks = design.blocks.map((block): EmailBuilderBlock => {
+    switch (block.type) {
+      case 'header':
+        return {
+          ...block,
+          logoUrl: brand.logo_url || block.logoUrl || '',
+          logoWidth: brand.logo_width || block.logoWidth || 180,
+          backgroundColor: brand.primary_color || block.backgroundColor,
+        };
+      case 'hero':
+        return {
+          ...block,
+          backgroundColor: brand.primary_color || block.backgroundColor,
+          textColor: brand.button_text_color || block.textColor,
+        };
+      case 'cta':
+        return {
+          ...block,
+          buttonUrl: block.buttonUrl || brand.default_donation_url || '',
+        };
+      case 'story':
+      case 'highlight':
+        return block;
+    }
+  });
+  return { ...design, blocks };
+}
+
 export function renderEmailBuilderHtml(
   design: EmailBuilderDesign,
   brand: EmailBrandSettings | null,
