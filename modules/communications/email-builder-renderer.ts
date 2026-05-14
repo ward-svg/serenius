@@ -1,6 +1,7 @@
 import type { EmailBrandSettings } from './types';
 import type {
   CtaBlock,
+  DividerBlock,
   EmailBuilderBlock,
   EmailBuilderDesign,
   HeaderBlock,
@@ -342,6 +343,27 @@ function renderImageBlock(block: ImageBlock, brand: EmailBrandSettings | null): 
 </tr>`;
 }
 
+function renderDivider(block: DividerBlock, brand: EmailBrandSettings | null): string {
+  const bg = block.backgroundColor || '#ffffff';
+  const lineColor = block.lineColor || brand?.accent_color || '#e5e7eb';
+  const lineStyle = block.lineStyle || 'solid';
+  const lineWidth = block.lineWidth || 'full';
+  const alignment = block.alignment || 'center';
+  const thickness = typeof block.thickness === 'number' ? block.thickness : 1;
+  const paddingY = typeof block.paddingY === 'number' ? block.paddingY : 16;
+
+  const widthPct = lineWidth === 'third' ? '33%' : lineWidth === 'half' ? '50%' : '100%';
+  const marginStyle = alignment === 'center' ? 'margin:0 auto;' : alignment === 'right' ? 'margin:0 0 0 auto;' : '';
+
+  return `<tr>
+  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="${widthPct}" style="width:${widthPct};${marginStyle}"><tr>
+      <td style="font-size:0;line-height:0;border-top:${thickness}px ${esc(lineStyle)} ${esc(lineColor)};">&nbsp;</td>
+    </tr></table>
+  </td>
+</tr>`;
+}
+
 function renderBlock(block: EmailBuilderBlock, brand: EmailBrandSettings | null): string {
   switch (block.type) {
     case 'header': return renderHeader(block, brand);
@@ -350,6 +372,7 @@ function renderBlock(block: EmailBuilderBlock, brand: EmailBrandSettings | null)
     case 'highlight': return renderHighlight(block, brand);
     case 'cta': return renderCta(block, brand);
     case 'image': return renderImageBlock(block, brand);
+    case 'divider': return renderDivider(block, brand);
   }
 }
 
@@ -406,6 +429,11 @@ export function applyBrandDefaultsToDesign(
           ...block,
           borderColor: brand.accent_color || block.borderColor,
           backgroundColor: block.backgroundColor || brand.background_color || '#ffffff',
+        };
+      case 'divider':
+        return {
+          ...block,
+          lineColor: brand.accent_color || block.lineColor,
         };
     }
   });

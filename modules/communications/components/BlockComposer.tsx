@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type {
   CtaBlock,
+  DividerBlock,
   EmailBuilderBlock,
   EmailBuilderDesign,
   HeaderBlock,
@@ -32,6 +33,7 @@ const BLOCK_LABELS: Record<EmailBuilderBlock["type"], string> = {
   highlight: "Highlight / List",
   cta: "CTA / Offer",
   image: "Image",
+  divider: "Divider",
 };
 
 function newId(): string {
@@ -139,6 +141,17 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         paddingY: 24,
         paddingX: 0,
         backgroundColor: "#ffffff",
+      };
+    case "divider":
+      return {
+        id, type,
+        lineStyle: "solid",
+        lineColor: brand?.accent_color ?? "#e5e7eb",
+        backgroundColor: "#ffffff",
+        lineWidth: "full",
+        alignment: "center",
+        thickness: 1,
+        paddingY: 16,
       };
   }
 }
@@ -1661,6 +1674,145 @@ function ImageEditor({
 // Block card
 // ---------------------------------------------------------------------------
 
+function DividerEditor({
+  block,
+  disabled,
+  onPatch,
+}: {
+  block: DividerBlock;
+  disabled: boolean;
+  onPatch: (patch: Partial<DividerBlock>) => void;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+          Divider Style
+        </div>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 160 }}>
+              <label className="form-label">Background Color</label>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  type="color"
+                  value={block.backgroundColor ?? "#ffffff"}
+                  disabled={disabled}
+                  onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+                  style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" } as const}
+                />
+                <input
+                  type="text"
+                  className="form-input"
+                  value={block.backgroundColor ?? "#ffffff"}
+                  disabled={disabled}
+                  onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+                  style={{ flex: 1, fontFamily: "monospace", fontSize: 12 }}
+                  maxLength={7}
+                />
+              </div>
+            </div>
+            <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 160 }}>
+              <label className="form-label">Line Color</label>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  type="color"
+                  value={block.lineColor ?? "#e5e7eb"}
+                  disabled={disabled}
+                  onChange={(e) => onPatch({ lineColor: e.target.value })}
+                  style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" } as const}
+                />
+                <input
+                  type="text"
+                  className="form-input"
+                  value={block.lineColor ?? "#e5e7eb"}
+                  disabled={disabled}
+                  onChange={(e) => onPatch({ lineColor: e.target.value })}
+                  style={{ flex: 1, fontFamily: "monospace", fontSize: 12 }}
+                  maxLength={7}
+                />
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div className="form-group" style={{ margin: 0, flex: 1 }}>
+              <label className="form-label">Line Style</label>
+              <select
+                className="form-input"
+                value={block.lineStyle ?? "solid"}
+                disabled={disabled}
+                onChange={(e) => onPatch({ lineStyle: e.target.value as DividerBlock["lineStyle"] })}
+              >
+                <option value="solid">Solid</option>
+                <option value="dashed">Dashed</option>
+                <option value="dotted">Dotted</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0, flex: "0 0 100px" }}>
+              <label className="form-label">Thickness</label>
+              <select
+                className="form-input"
+                value={String(block.thickness ?? 1)}
+                disabled={disabled}
+                onChange={(e) => onPatch({ thickness: Number(e.target.value) })}
+              >
+                <option value="1">1px</option>
+                <option value="2">2px</option>
+                <option value="3">3px</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+          Layout
+        </div>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div className="form-group" style={{ margin: 0, flex: 1 }}>
+              <label className="form-label">Line Width</label>
+              <select
+                className="form-input"
+                value={block.lineWidth ?? "full"}
+                disabled={disabled}
+                onChange={(e) => onPatch({ lineWidth: e.target.value as DividerBlock["lineWidth"] })}
+              >
+                <option value="third">One Third</option>
+                <option value="half">Half</option>
+                <option value="full">Full</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0, flex: 1 }}>
+              <label className="form-label">Alignment</label>
+              <AlignSelect
+                value={block.alignment ?? "center"}
+                onChange={(v) => onPatch({ alignment: v as DividerBlock["alignment"] })}
+                disabled={disabled}
+              />
+            </div>
+            <div className="form-group" style={{ margin: 0, flex: "0 0 100px" }}>
+              <label className="form-label">Top/Bottom Space</label>
+              <input
+                type="number"
+                className="form-input"
+                min={0}
+                max={64}
+                step={4}
+                value={block.paddingY ?? 16}
+                disabled={disabled}
+                onChange={(e) => onPatch({ paddingY: Math.max(0, Math.min(64, Number(e.target.value))) })}
+              />
+            </div>
+          </div>
+          <div className="form-helper">Adds room above and below the divider.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BlockCard({
   block,
   idx,
@@ -1747,6 +1899,7 @@ function BlockCard({
           {block.type === "highlight" && (block.heading || block.variant)}
           {block.type === "cta" && (block.heading || block.buttonText || "CTA")}
           {block.type === "image" && (block.layout === "one" ? "Single image" : block.layout === "two" ? "2-image row" : "3-image row")}
+          {block.type === "divider" && `${block.lineStyle ?? "solid"} line · ${block.lineWidth ?? "full"} width`}
         </span>
         <span style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0 }}>
           {expanded ? "▲" : "▼"}
@@ -1841,6 +1994,13 @@ function BlockCard({
               onAssetUploaded={onAssetUploaded}
             />
           )}
+          {block.type === "divider" && (
+            <DividerEditor
+              block={block}
+              disabled={disabled}
+              onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
+            />
+          )}
         </div>
       )}
     </div>
@@ -1851,7 +2011,7 @@ function BlockCard({
 // Main component
 // ---------------------------------------------------------------------------
 
-const BLOCK_TYPES: EmailBuilderBlock["type"][] = ["header", "hero", "story", "highlight", "cta", "image"];
+const BLOCK_TYPES: EmailBuilderBlock["type"][] = ["header", "hero", "story", "highlight", "cta", "image", "divider"];
 
 export default function BlockComposer({ design, brandSettings, emailAssets, tenantId, canEdit, onChange, onAssetUploaded, onInteract }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);

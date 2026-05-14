@@ -1,4 +1,4 @@
-export type EmailBuilderBlockType = 'header' | 'hero' | 'story' | 'highlight' | 'cta';
+export type EmailBuilderBlockType = 'header' | 'hero' | 'story' | 'highlight' | 'cta' | 'image' | 'divider';
 
 export interface HeaderBlock {
   id: string;
@@ -109,7 +109,19 @@ export interface ImageBlock {
   backgroundColor?: string;
 }
 
-export type EmailBuilderBlock = HeaderBlock | HeroBlock | StoryBlock | HighlightBlock | CtaBlock | ImageBlock;
+export interface DividerBlock {
+  id: string;
+  type: 'divider';
+  lineStyle?: 'solid' | 'dashed' | 'dotted';
+  lineColor?: string;
+  backgroundColor?: string;
+  lineWidth?: 'third' | 'half' | 'full';
+  alignment?: 'left' | 'center' | 'right';
+  thickness?: number;
+  paddingY?: number;
+}
+
+export type EmailBuilderBlock = HeaderBlock | HeroBlock | StoryBlock | HighlightBlock | CtaBlock | ImageBlock | DividerBlock;
 
 export interface EmailBuilderDesign {
   version: 1;
