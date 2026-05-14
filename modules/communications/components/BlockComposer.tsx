@@ -84,7 +84,22 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         paddingY: 28,
       };
     case "highlight":
-      return { id, type, variant: "callout", heading: "", body: "", items: [] };
+      return {
+        id, type,
+        variant: "callout",
+        heading: "",
+        body: "",
+        items: [],
+        backgroundColor: brand?.accent_color ?? "#e8f0fe",
+        accentColor: brand?.primary_color ?? "#1a56db",
+        textColor: brand?.text_color ?? "#111827",
+        headingSize: 18,
+        bodySize: 15,
+        headingFontRole: "heading",
+        bodyFontRole: "body",
+        alignment: "left",
+        paddingY: 24,
+      };
     case "cta":
       return {
         id, type,
@@ -962,8 +977,76 @@ function HighlightEditor({
   disabled: boolean;
   onPatch: (patch: Partial<HighlightBlock>) => void;
 }) {
+  const chipStyle = { width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 } as const;
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {/* A. Highlight Style */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Background Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="color"
+            value={block.backgroundColor || "#e8f0fe"}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            disabled={disabled}
+            style={chipStyle}
+          />
+          <input
+            type="text"
+            className="form-input"
+            value={block.backgroundColor ?? ""}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            disabled={disabled}
+            placeholder="#e8f0fe"
+            style={{ fontFamily: "monospace" }}
+          />
+        </div>
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Accent Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="color"
+            value={block.accentColor || "#1a56db"}
+            onChange={(e) => onPatch({ accentColor: e.target.value })}
+            disabled={disabled}
+            style={chipStyle}
+          />
+          <input
+            type="text"
+            className="form-input"
+            value={block.accentColor ?? ""}
+            onChange={(e) => onPatch({ accentColor: e.target.value })}
+            disabled={disabled}
+            placeholder="#1a56db"
+            style={{ fontFamily: "monospace" }}
+          />
+        </div>
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Text Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="color"
+            value={block.textColor || "#111827"}
+            onChange={(e) => onPatch({ textColor: e.target.value })}
+            disabled={disabled}
+            style={chipStyle}
+          />
+          <input
+            type="text"
+            className="form-input"
+            value={block.textColor ?? ""}
+            onChange={(e) => onPatch({ textColor: e.target.value })}
+            disabled={disabled}
+            placeholder="#111827"
+            style={{ fontFamily: "monospace" }}
+          />
+        </div>
+      </div>
+
+      {/* B. Content */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Variant</label>
         <select
@@ -1006,6 +1089,85 @@ function HighlightEditor({
           onChange={(items) => onPatch({ items })}
         />
       )}
+
+      {/* C. Text Style */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 64px" }}>
+          <label className="form-label">H. Size</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.headingSize ?? 18}
+            min={14}
+            max={32}
+            step={1}
+            onChange={(e) => onPatch({ headingSize: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">H. Font</label>
+          <select
+            className="form-input"
+            value={block.headingFontRole ?? "heading"}
+            onChange={(e) => onPatch({ headingFontRole: e.target.value as "heading" | "body" })}
+            disabled={disabled}
+          >
+            <option value="heading">Heading</option>
+            <option value="body">Body</option>
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 64px" }}>
+          <label className="form-label">B. Size</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.bodySize ?? 15}
+            min={12}
+            max={24}
+            step={1}
+            onChange={(e) => onPatch({ bodySize: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">B. Font</label>
+          <select
+            className="form-input"
+            value={block.bodyFontRole ?? "body"}
+            onChange={(e) => onPatch({ bodyFontRole: e.target.value as "heading" | "body" })}
+            disabled={disabled}
+          >
+            <option value="body">Body</option>
+            <option value="heading">Heading</option>
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">Alignment</label>
+          <AlignSelect
+            value={block.alignment ?? "left"}
+            onChange={(v) => onPatch({ alignment: v as HighlightBlock["alignment"] })}
+            disabled={disabled}
+          />
+        </div>
+      </div>
+
+      {/* D. Spacing */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Vertical Padding (px)</label>
+        <input
+          type="number"
+          className="form-input"
+          value={block.paddingY ?? 24}
+          min={12}
+          max={64}
+          step={4}
+          onChange={(e) => onPatch({ paddingY: Number(e.target.value) })}
+          disabled={disabled}
+          style={{ maxWidth: 100 }}
+        />
+        <div className="form-helper">Adds space above and below the highlight content.</div>
+      </div>
     </div>
   );
 }

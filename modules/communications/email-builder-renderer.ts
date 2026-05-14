@@ -145,20 +145,30 @@ function renderStory(block: StoryBlock, brand: EmailBrandSettings | null): strin
 }
 
 function renderHighlight(block: HighlightBlock, brand: EmailBrandSettings | null): string {
-  const headingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
-  const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
-  const primary = brand?.primary_color || '#1a56db';
-  const accent = brand?.accent_color || '#e8f0fe';
-  const text = brand?.text_color || '#111827';
+  const brandHeadingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
+  const brandBodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
+  const bgColor = block.backgroundColor || brand?.accent_color || '#e8f0fe';
+  const accentColor = block.accentColor || brand?.primary_color || '#1a56db';
+  const textColor = block.textColor || brand?.text_color || '#111827';
+  const hFont = (block.headingFontRole ?? 'heading') === 'heading' ? brandHeadingFont : brandBodyFont;
+  const bFont = (block.bodyFontRole ?? 'body') === 'heading' ? brandHeadingFont : brandBodyFont;
+  const align = block.alignment || 'left';
+  // Preserve current per-variant sizes for old blocks that lack these fields
+  const headingSizeFallback = block.variant === 'quote' ? 12 : block.variant === 'list' ? 17 : 16;
+  const bodySizeFallback = block.variant === 'quote' ? 15 : 14;
+  const headingSize = typeof block.headingSize === 'number' ? block.headingSize : headingSizeFallback;
+  const bodySize = typeof block.bodySize === 'number' ? block.bodySize : bodySizeFallback;
+  const paddingYFallback = block.variant === 'list' ? 24 : 16;
+  const paddingY = typeof block.paddingY === 'number' ? block.paddingY : paddingYFallback;
   const items = block.items.filter(Boolean);
 
   if (block.variant === 'quote') {
     return `<tr>
-  <td style="padding:16px 30px;background-color:#ffffff;">
+  <td style="padding:${paddingY}px 30px;background-color:#ffffff;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="border-left:4px solid ${esc(primary)};padding:12px 20px;background-color:${esc(accent)};">
-        ${block.heading ? `<p style="margin:0 0 6px;font-size:12px;font-weight:700;font-family:${esc(bodyFont)};color:${esc(primary)};text-transform:uppercase;letter-spacing:0.05em;">${esc(block.heading)}</p>` : ''}
-        ${block.body ? `<p style="margin:0;font-size:15px;font-family:${esc(headingFont)};color:${esc(text)};line-height:1.6;font-style:italic;">${esc(block.body)}</p>` : ''}
+      <td style="border-left:4px solid ${esc(accentColor)};padding:12px 20px;background-color:${esc(bgColor)};text-align:${align};">
+        ${block.heading ? `<p style="margin:0 0 6px;font-size:${headingSize}px;font-weight:700;font-family:${esc(hFont)};color:${esc(accentColor)};text-transform:uppercase;letter-spacing:0.05em;">${esc(block.heading)}</p>` : ''}
+        ${block.body ? `<p style="margin:0;font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};line-height:1.6;font-style:italic;">${esc(block.body)}</p>` : ''}
       </td>
     </tr></table>
   </td>
@@ -166,13 +176,14 @@ function renderHighlight(block: HighlightBlock, brand: EmailBrandSettings | null
   }
 
   if (block.variant === 'list') {
+    const listBg = block.backgroundColor || '#ffffff';
     const listHtml = items.length
-      ? `<ul style="margin:8px 0 0;padding:0 0 0 20px;">${items.map((i) => `<li style="margin:0 0 6px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(i)}</li>`).join('')}</ul>`
+      ? `<ul style="margin:8px 0 0;padding:0 0 0 20px;">${items.map((i) => `<li style="margin:0 0 6px;font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};line-height:1.5;">${esc(i)}</li>`).join('')}</ul>`
       : '';
     return `<tr>
-  <td style="padding:24px 30px;background-color:#ffffff;">
-    ${block.heading ? `<p style="margin:0 0 10px;font-size:17px;font-weight:700;font-family:${esc(headingFont)};color:${esc(text)};">${esc(block.heading)}</p>` : ''}
-    ${block.body ? `<p style="margin:0 0 8px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
+  <td bgcolor="${esc(listBg)}" style="background-color:${esc(listBg)};padding:${paddingY}px 30px;text-align:${align};">
+    ${block.heading ? `<p style="margin:0 0 10px;font-size:${headingSize}px;font-weight:700;font-family:${esc(hFont)};color:${esc(textColor)};">${esc(block.heading)}</p>` : ''}
+    ${block.body ? `<p style="margin:0 0 8px;font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};line-height:1.5;">${esc(block.body)}</p>` : ''}
     ${listHtml}
   </td>
 </tr>`;
@@ -180,14 +191,14 @@ function renderHighlight(block: HighlightBlock, brand: EmailBrandSettings | null
 
   // callout
   const itemsHtml = items.length
-    ? `<ul style="margin:10px 0 0;padding:0 0 0 18px;">${items.map((i) => `<li style="font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
+    ? `<ul style="margin:10px 0 0;padding:0 0 0 18px;">${items.map((i) => `<li style="font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
     : '';
   return `<tr>
-  <td style="padding:16px 30px;background-color:#ffffff;">
+  <td style="padding:${paddingY}px 30px;background-color:#ffffff;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="background-color:${esc(accent)};border:1px solid #d1d5db;border-radius:8px;padding:20px 24px;">
-        ${block.heading ? `<p style="margin:0 0 8px;font-size:16px;font-weight:700;font-family:${esc(headingFont)};color:${esc(primary)};">${esc(block.heading)}</p>` : ''}
-        ${block.body ? `<p style="margin:0;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.6;">${esc(block.body)}</p>` : ''}
+      <td style="background-color:${esc(bgColor)};border:1px solid #d1d5db;border-radius:8px;padding:20px 24px;text-align:${align};">
+        ${block.heading ? `<p style="margin:0 0 8px;font-size:${headingSize}px;font-weight:700;font-family:${esc(hFont)};color:${esc(accentColor)};">${esc(block.heading)}</p>` : ''}
+        ${block.body ? `<p style="margin:0;font-size:${bodySize}px;font-family:${esc(bFont)};color:${esc(textColor)};line-height:1.6;">${esc(block.body)}</p>` : ''}
         ${itemsHtml}
       </td>
     </tr></table>
@@ -300,7 +311,12 @@ export function applyBrandDefaultsToDesign(
           textColor: brand.text_color || block.textColor,
         };
       case 'highlight':
-        return block;
+        return {
+          ...block,
+          backgroundColor: brand.accent_color || block.backgroundColor,
+          accentColor: brand.primary_color || block.accentColor,
+          textColor: brand.text_color || block.textColor,
+        };
     }
   });
   return { ...design, blocks };

@@ -52,6 +52,15 @@ export interface HighlightBlock {
   heading: string;
   body: string;
   items: string[];
+  backgroundColor?: string;
+  accentColor?: string;
+  textColor?: string;
+  headingSize?: number;
+  bodySize?: number;
+  headingFontRole?: 'heading' | 'body';
+  bodyFontRole?: 'heading' | 'body';
+  alignment?: 'left' | 'center' | 'right';
+  paddingY?: number;
 }
 
 export interface CtaBlock {
