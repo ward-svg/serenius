@@ -23,6 +23,11 @@ export interface HeroBlock {
   paddingY?: number;
   headlineSize?: number;
   subtitleSize?: number;
+  eyebrowColor?: string;
+  eyebrowSize?: number;
+  eyebrowUppercase?: boolean;
+  headlineColor?: string;
+  subtitleColor?: string;
 }
 
 export interface StoryBlock {

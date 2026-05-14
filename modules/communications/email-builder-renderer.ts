@@ -82,23 +82,28 @@ function renderHeader(block: HeaderBlock, brand: EmailBrandSettings | null): str
 
 function renderHero(block: HeroBlock, brand: EmailBrandSettings | null): string {
   const bg = block.backgroundColor || brand?.primary_color || '#1a56db';
-  const color = block.textColor || brand?.button_text_color || '#ffffff';
+  const textColorFallback = block.textColor || brand?.button_text_color || '#ffffff';
   const align = block.alignment || 'center';
   const headingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
   const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
   const paddingY = typeof block.paddingY === 'number' ? block.paddingY : 40;
   const headlineSize = typeof block.headlineSize === 'number' ? block.headlineSize : 28;
   const subtitleSize = typeof block.subtitleSize === 'number' ? block.subtitleSize : 16;
+  const eyebrowColor = block.eyebrowColor || textColorFallback;
+  const eyebrowSize = typeof block.eyebrowSize === 'number' ? block.eyebrowSize : 11;
+  const eyebrowUppercase = block.eyebrowUppercase !== false;
+  const headlineColor = block.headlineColor || textColorFallback;
+  const subtitleColor = block.subtitleColor || textColorFallback;
 
   const parts: string[] = [];
   if (block.eyebrow) {
-    parts.push(`<p style="margin:0 0 8px;font-size:11px;font-family:${esc(bodyFont)};color:${esc(color)};text-transform:uppercase;letter-spacing:0.1em;font-weight:600;opacity:0.7;">${esc(block.eyebrow)}</p>`);
+    parts.push(`<p style="margin:0 0 8px;font-size:${eyebrowSize}px;font-family:${esc(bodyFont)};color:${esc(eyebrowColor)};${eyebrowUppercase ? 'text-transform:uppercase;' : ''}letter-spacing:0.1em;font-weight:600;">${esc(block.eyebrow)}</p>`);
   }
   if (block.headline) {
-    parts.push(`<h1 style="margin:0 0 12px;font-size:${headlineSize}px;font-family:${esc(headingFont)};color:${esc(color)};font-weight:700;line-height:1.2;">${esc(block.headline)}</h1>`);
+    parts.push(`<h1 style="margin:0 0 12px;font-size:${headlineSize}px;font-family:${esc(headingFont)};color:${esc(headlineColor)};font-weight:700;line-height:1.2;">${esc(block.headline)}</h1>`);
   }
   if (block.subtitle) {
-    parts.push(`<p style="margin:0;font-size:${subtitleSize}px;font-family:${esc(bodyFont)};color:${esc(color)};line-height:1.5;opacity:0.85;">${esc(block.subtitle)}</p>`);
+    parts.push(`<p style="margin:0;font-size:${subtitleSize}px;font-family:${esc(bodyFont)};color:${esc(subtitleColor)};line-height:1.5;">${esc(block.subtitle)}</p>`);
   }
 
   return `<tr>
@@ -271,6 +276,9 @@ export function applyBrandDefaultsToDesign(
           ...block,
           backgroundColor: brand.primary_color || block.backgroundColor,
           textColor: brand.button_text_color || block.textColor,
+          eyebrowColor: brand.button_text_color || block.eyebrowColor,
+          headlineColor: brand.button_text_color || block.headlineColor,
+          subtitleColor: brand.button_text_color || block.subtitleColor,
         };
       case 'cta':
         return {

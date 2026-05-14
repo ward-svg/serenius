@@ -63,6 +63,11 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         paddingY: 32,
         headlineSize: 28,
         subtitleSize: 16,
+        eyebrowColor: brand?.button_text_color ?? "#ffffff",
+        eyebrowSize: 11,
+        eyebrowUppercase: true,
+        headlineColor: brand?.button_text_color ?? "#ffffff",
+        subtitleColor: brand?.button_text_color ?? "#ffffff",
       };
     case "story":
       return { id, type, content: "" };
@@ -562,7 +567,7 @@ function HeroEditor({
 }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {/* ── Hero Background Color ── */}
+      {/* A. Hero Background Color */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Hero Background Color</label>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -583,10 +588,9 @@ function HeroEditor({
             style={{ fontFamily: "monospace" }}
           />
         </div>
-        <div className="form-helper">Sets the hero band color.</div>
       </div>
 
-      {/* ── Content ── */}
+      {/* B. Eyebrow */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Eyebrow</label>
         <input
@@ -598,6 +602,57 @@ function HeroEditor({
           placeholder="MINISTRY UPDATE — MAY 2026"
         />
       </div>
+      <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 80px", gap: 12, alignItems: "start" }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Size (px)</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.eyebrowSize ?? 11}
+            min={9}
+            max={18}
+            step={1}
+            onChange={(e) => onPatch({ eyebrowSize: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Eyebrow Color</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="color"
+              value={block.eyebrowColor || block.textColor || "#ffffff"}
+              onChange={(e) => onPatch({ eyebrowColor: e.target.value })}
+              disabled={disabled}
+              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
+            />
+            <input
+              type="text"
+              className="form-input"
+              value={block.eyebrowColor ?? ""}
+              onChange={(e) => onPatch({ eyebrowColor: e.target.value })}
+              disabled={disabled}
+              placeholder={block.textColor || "#ffffff"}
+              style={{ fontFamily: "monospace" }}
+            />
+          </div>
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Uppercase</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: disabled ? "default" : "pointer", paddingTop: 6 }}>
+            <input
+              type="checkbox"
+              checked={block.eyebrowUppercase !== false}
+              onChange={(e) => onPatch({ eyebrowUppercase: e.target.checked })}
+              disabled={disabled}
+              style={{ width: 16, height: 16, flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 12, color: "#374151" }}>On</span>
+          </label>
+        </div>
+      </div>
+
+      {/* C. Headline */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Headline</label>
         <input
@@ -609,6 +664,44 @@ function HeroEditor({
           placeholder="God is moving in Honduras"
         />
       </div>
+      <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 12, alignItems: "start" }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Size (px)</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.headlineSize ?? 28}
+            min={20}
+            max={56}
+            step={2}
+            onChange={(e) => onPatch({ headlineSize: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Headline Color</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="color"
+              value={block.headlineColor || block.textColor || "#ffffff"}
+              onChange={(e) => onPatch({ headlineColor: e.target.value })}
+              disabled={disabled}
+              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
+            />
+            <input
+              type="text"
+              className="form-input"
+              value={block.headlineColor ?? ""}
+              onChange={(e) => onPatch({ headlineColor: e.target.value })}
+              disabled={disabled}
+              placeholder={block.textColor || "#ffffff"}
+              style={{ fontFamily: "monospace" }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* D. Subtitle */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Subtitle</label>
         <textarea
@@ -620,9 +713,45 @@ function HeroEditor({
           placeholder="A short description or lead sentence."
         />
       </div>
+      <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 12, alignItems: "start" }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Size (px)</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.subtitleSize ?? 16}
+            min={12}
+            max={32}
+            step={1}
+            onChange={(e) => onPatch({ subtitleSize: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Subtitle Color</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="color"
+              value={block.subtitleColor || block.textColor || "#ffffff"}
+              onChange={(e) => onPatch({ subtitleColor: e.target.value })}
+              disabled={disabled}
+              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
+            />
+            <input
+              type="text"
+              className="form-input"
+              value={block.subtitleColor ?? ""}
+              onChange={(e) => onPatch({ subtitleColor: e.target.value })}
+              disabled={disabled}
+              placeholder={block.textColor || "#ffffff"}
+              style={{ fontFamily: "monospace" }}
+            />
+          </div>
+        </div>
+      </div>
 
-      {/* ── Spacing & Size ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, alignItems: "start" }}>
+      {/* E. Hero Layout */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Vertical Padding (px)</label>
           <input
@@ -635,38 +764,7 @@ function HeroEditor({
             onChange={(e) => onPatch({ paddingY: Number(e.target.value) })}
             disabled={disabled}
           />
-          <div className="form-helper">Adds space above and below the hero text.</div>
         </div>
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Headline Size (px)</label>
-          <input
-            type="number"
-            className="form-input"
-            value={block.headlineSize ?? 28}
-            min={20}
-            max={48}
-            step={2}
-            onChange={(e) => onPatch({ headlineSize: Number(e.target.value) })}
-            disabled={disabled}
-          />
-        </div>
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Subtitle Size (px)</label>
-          <input
-            type="number"
-            className="form-input"
-            value={block.subtitleSize ?? 16}
-            min={12}
-            max={28}
-            step={1}
-            onChange={(e) => onPatch({ subtitleSize: Number(e.target.value) })}
-            disabled={disabled}
-          />
-        </div>
-      </div>
-
-      {/* ── Layout / Text Color ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Alignment</label>
           <AlignSelect
@@ -674,27 +772,6 @@ function HeroEditor({
             onChange={(v) => onPatch({ alignment: v as HeroBlock["alignment"] })}
             disabled={disabled}
           />
-        </div>
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Hero Text Color</label>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="color"
-              value={block.textColor || "#ffffff"}
-              onChange={(e) => onPatch({ textColor: e.target.value })}
-              disabled={disabled}
-              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
-            />
-            <input
-              type="text"
-              className="form-input"
-              value={block.textColor}
-              onChange={(e) => onPatch({ textColor: e.target.value })}
-              disabled={disabled}
-              placeholder="#ffffff"
-              style={{ fontFamily: "monospace" }}
-            />
-          </div>
         </div>
       </div>
     </div>
