@@ -6,6 +6,7 @@ import type {
   HeaderBlock,
   HeroBlock,
   HighlightBlock,
+  ImageBlock,
   StoryBlock,
 } from './email-builder-types';
 
@@ -278,6 +279,68 @@ function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
 </tr>`;
 }
 
+function renderImageBlock(block: ImageBlock, brand: EmailBrandSettings | null): string {
+  const bg = block.backgroundColor || '#ffffff';
+  const paddingY = typeof block.paddingY === 'number' ? block.paddingY : 24;
+  const borderColorVal = block.borderColor || brand?.accent_color || '#e5e7eb';
+  const borderStyle = block.borderStyle || 'none';
+  const borderCss = borderStyle === 'thin'
+    ? `1px solid ${esc(borderColorVal)}`
+    : borderStyle === 'medium'
+    ? `2px solid ${esc(borderColorVal)}`
+    : '';
+  const roundedCorners = block.roundedCorners || 'small';
+  const radiusMap: Record<string, string> = { none: '0', small: '6px', medium: '12px', large: '18px' };
+  const radius = radiusMap[roundedCorners] ?? '6px';
+  const layout = block.layout || 'one';
+  const images = block.images || [];
+  const imgDecor = `${borderCss ? `border:${borderCss};` : ''}${radius !== '0' ? `border-radius:${radius};` : ''}`;
+
+  if (layout === 'one') {
+    const slot = images[0];
+    const singleImageSize = block.singleImageSize || 'large';
+    const widthMap: Record<string, { px: number; stylePx: string }> = {
+      small:  { px: 280, stylePx: 'width:280px;max-width:280px;' },
+      medium: { px: 420, stylePx: 'width:420px;max-width:420px;' },
+      large:  { px: 560, stylePx: 'width:560px;max-width:560px;' },
+      full:   { px: 600, stylePx: 'width:100%;max-width:640px;' },
+    };
+    const sizeConf = widthMap[singleImageSize] ?? widthMap['large'];
+    if (!slot?.url || safeUrl(slot.url) === '#') {
+      return `<tr>\n  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;"></td>\n</tr>`;
+    }
+    const imgStyle = `display:block;margin:0 auto;${sizeConf.stylePx}${imgDecor}`;
+    const imgHtml = `<img src="${esc(safeUrl(slot.url))}" width="${sizeConf.px}" alt="${esc(slot.altText || '')}" style="${imgStyle}">`;
+    return `<tr>
+  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;" align="center">
+    ${imgHtml}
+  </td>
+</tr>`;
+  }
+
+  const count = layout === 'two' ? 2 : 3;
+  const gutter = 8;
+  const cellWidthPct = layout === 'two' ? '50%' : '33.33%';
+  const cells = Array.from({ length: count }, (_, i) => {
+    const slot = images[i];
+    const isLast = i === count - 1;
+    const tdStyle = `vertical-align:top;width:${cellWidthPct};${isLast ? '' : `padding-right:${gutter}px;`}`;
+    if (!slot?.url || safeUrl(slot.url) === '#') {
+      return `<td style="${tdStyle}"></td>`;
+    }
+    const imgStyle = `display:block;width:100%;max-width:100%;${imgDecor}`;
+    return `<td style="${tdStyle}"><img src="${esc(safeUrl(slot.url))}" alt="${esc(slot.altText || '')}" style="${imgStyle}"></td>`;
+  });
+
+  return `<tr>
+  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      ${cells.join('\n      ')}
+    </tr></table>
+  </td>
+</tr>`;
+}
+
 function renderBlock(block: EmailBuilderBlock, brand: EmailBrandSettings | null): string {
   switch (block.type) {
     case 'header': return renderHeader(block, brand);
@@ -285,6 +348,7 @@ function renderBlock(block: EmailBuilderBlock, brand: EmailBrandSettings | null)
     case 'story': return renderStory(block, brand);
     case 'highlight': return renderHighlight(block, brand);
     case 'cta': return renderCta(block, brand);
+    case 'image': return renderImageBlock(block, brand);
   }
 }
 
@@ -335,6 +399,12 @@ export function applyBrandDefaultsToDesign(
           backgroundColor: brand.accent_color || block.backgroundColor,
           accentColor: brand.primary_color || block.accentColor,
           textColor: brand.text_color || block.textColor,
+        };
+      case 'image':
+        return {
+          ...block,
+          borderColor: brand.accent_color || block.borderColor,
+          backgroundColor: block.backgroundColor || brand.background_color || '#ffffff',
         };
     }
   });

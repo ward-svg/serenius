@@ -89,7 +89,26 @@ export interface CtaBlock {
   paddingY?: number;
 }
 
-export type EmailBuilderBlock = HeaderBlock | HeroBlock | StoryBlock | HighlightBlock | CtaBlock;
+export interface ImageSlot {
+  assetId?: string;
+  url: string;
+  altText?: string;
+}
+
+export interface ImageBlock {
+  id: string;
+  type: 'image';
+  layout: 'one' | 'two' | 'three';
+  images: ImageSlot[];
+  singleImageSize?: 'small' | 'medium' | 'large' | 'full';
+  borderStyle?: 'none' | 'thin' | 'medium';
+  borderColor?: string;
+  roundedCorners?: 'none' | 'small' | 'medium' | 'large';
+  paddingY?: number;
+  backgroundColor?: string;
+}
+
+export type EmailBuilderBlock = HeaderBlock | HeroBlock | StoryBlock | HighlightBlock | CtaBlock | ImageBlock;
 
 export interface EmailBuilderDesign {
   version: 1;

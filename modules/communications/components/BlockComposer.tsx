@@ -8,6 +8,7 @@ import type {
   HeaderBlock,
   HeroBlock,
   HighlightBlock,
+  ImageBlock,
   StoryBlock,
 } from "../email-builder-types";
 import { applyBrandDefaultsToDesign } from "../email-builder-renderer";
@@ -30,6 +31,7 @@ const BLOCK_LABELS: Record<EmailBuilderBlock["type"], string> = {
   story: "Story / Text",
   highlight: "Highlight / List",
   cta: "CTA / Offer",
+  image: "Image",
 };
 
 function newId(): string {
@@ -124,6 +126,18 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         bodyFontRole: "body",
         alignment: "center",
         paddingY: 24,
+      };
+    case "image":
+      return {
+        id, type,
+        layout: "one",
+        images: [],
+        singleImageSize: "large",
+        borderStyle: "none",
+        borderColor: brand?.accent_color ?? "#e5e7eb",
+        roundedCorners: "small",
+        paddingY: 24,
+        backgroundColor: "#ffffff",
       };
   }
 }
@@ -1365,6 +1379,203 @@ function CtaEditor({
   );
 }
 
+function ImageEditor({
+  block,
+  emailAssets,
+  disabled,
+  onPatch,
+}: {
+  block: ImageBlock;
+  emailAssets: CommunicationEmailAsset[];
+  disabled: boolean;
+  onPatch: (patch: Partial<ImageBlock>) => void;
+}) {
+  const chipStyle = { width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 } as const;
+  const imageAssets = emailAssets.filter((a) => a.mime_type.startsWith("image/"));
+  const layoutCount = block.layout === "two" ? 2 : block.layout === "three" ? 3 : 1;
+
+  function patchSlot(slotIdx: number, slotPatch: Partial<{ assetId: string; url: string; altText: string }>) {
+    const newImages = [...(block.images || [])];
+    while (newImages.length <= slotIdx) newImages.push({ url: "" });
+    newImages[slotIdx] = { ...newImages[slotIdx], ...slotPatch };
+    onPatch({ images: newImages });
+  }
+
+  function clearSlot(slotIdx: number) {
+    const newImages = [...(block.images || [])];
+    while (newImages.length <= slotIdx) newImages.push({ url: "" });
+    newImages[slotIdx] = { url: "" };
+    onPatch({ images: newImages });
+  }
+
+  const checkerStyle: React.CSSProperties = {
+    width: 56,
+    height: 56,
+    border: "1px solid #d1d5db",
+    borderRadius: 6,
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    backgroundColor: "#e5e7eb",
+    backgroundImage: [
+      "linear-gradient(45deg, #d1d5db 25%, transparent 25%)",
+      "linear-gradient(-45deg, #d1d5db 25%, transparent 25%)",
+      "linear-gradient(45deg, transparent 75%, #d1d5db 75%)",
+      "linear-gradient(-45deg, transparent 75%, #d1d5db 75%)",
+    ].join(", "),
+    backgroundSize: "12px 12px",
+    backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0px",
+  };
+
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      {/* A. Image Layout */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 120px" }}>
+          <label className="form-label">Image Layout</label>
+          <select
+            className="form-input"
+            value={block.layout || "one"}
+            onChange={(e) => onPatch({ layout: e.target.value as ImageBlock["layout"] })}
+            disabled={disabled}
+          >
+            <option value="one">1 Image</option>
+            <option value="two">2 Images</option>
+            <option value="three">3 Images</option>
+          </select>
+        </div>
+        {(block.layout || "one") === "one" && (
+          <div className="form-group" style={{ margin: 0, flex: "1 1 120px" }}>
+            <label className="form-label">Single Image Size</label>
+            <select
+              className="form-input"
+              value={block.singleImageSize || "large"}
+              onChange={(e) => onPatch({ singleImageSize: e.target.value as ImageBlock["singleImageSize"] })}
+              disabled={disabled}
+            >
+              <option value="small">Small (280px)</option>
+              <option value="medium">Medium (420px)</option>
+              <option value="large">Large (560px)</option>
+              <option value="full">Full Width</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* B. Images */}
+      {imageAssets.length === 0 ? (
+        <div className="form-helper">
+          Upload image assets in Brand Kit → Public Email Assets to use them here.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {Array.from({ length: layoutCount }, (_, i) => {
+            const slot = block.images?.[i];
+            const currentUrl = slot?.url || "";
+            const matchedAsset = currentUrl
+              ? imageAssets.find((a) => a.public_url === currentUrl) ?? null
+              : null;
+            return (
+              <div key={i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={checkerStyle}>
+                  {currentUrl ? (
+                    <img
+                      src={currentUrl}
+                      alt={`Image ${i + 1} preview`}
+                      style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", display: "block" }}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 10, color: "#9ca3af" }}>None</span>
+                  )}
+                </div>
+                <div style={{ flex: 1, display: "grid", gap: 4 }}>
+                  <label className="form-label" style={{ margin: 0 }}>Image {i + 1}</label>
+                  <select
+                    className="form-input"
+                    value={currentUrl}
+                    onChange={(e) => {
+                      const selectedUrl = e.target.value;
+                      if (!selectedUrl) { clearSlot(i); return; }
+                      const asset = imageAssets.find((a) => a.public_url === selectedUrl);
+                      patchSlot(i, {
+                        assetId: asset?.id,
+                        url: selectedUrl,
+                        altText: slot?.altText || asset?.original_file_name || asset?.file_name || "",
+                      });
+                    }}
+                    disabled={disabled}
+                  >
+                    <option value="">— Select image —</option>
+                    {imageAssets.map((a) => (
+                      <option key={a.id} value={a.public_url}>
+                        {a.original_file_name || a.file_name}
+                      </option>
+                    ))}
+                  </select>
+                  {matchedAsset && !disabled && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ fontSize: 11, padding: "2px 8px", width: "fit-content" }}
+                      onClick={() => clearSlot(i)}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* C. Image Style */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
+          <div>
+            <label className="form-label">Background</label>
+            <input type="color" value={block.backgroundColor || "#ffffff"} onChange={(e) => onPatch({ backgroundColor: e.target.value })} disabled={disabled} style={{ ...chipStyle, display: "block" }} />
+          </div>
+          <input type="text" className="form-input" value={block.backgroundColor ?? ""} onChange={(e) => onPatch({ backgroundColor: e.target.value })} disabled={disabled} placeholder="#ffffff" style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }} />
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">Border</label>
+          <select className="form-input" value={block.borderStyle || "none"} onChange={(e) => onPatch({ borderStyle: e.target.value as ImageBlock["borderStyle"] })} disabled={disabled}>
+            <option value="none">None</option>
+            <option value="thin">Thin (1px)</option>
+            <option value="medium">Medium (2px)</option>
+          </select>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
+          <div>
+            <label className="form-label">Border Color</label>
+            <input type="color" value={block.borderColor || "#e5e7eb"} onChange={(e) => onPatch({ borderColor: e.target.value })} disabled={disabled || (block.borderStyle || "none") === "none"} style={{ ...chipStyle, display: "block" }} />
+          </div>
+          <input type="text" className="form-input" value={block.borderColor ?? ""} onChange={(e) => onPatch({ borderColor: e.target.value })} disabled={disabled || (block.borderStyle || "none") === "none"} placeholder="#e5e7eb" style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }} />
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">Corners</label>
+          <select className="form-input" value={block.roundedCorners || "small"} onChange={(e) => onPatch({ roundedCorners: e.target.value as ImageBlock["roundedCorners"] })} disabled={disabled}>
+            <option value="none">None</option>
+            <option value="small">Small (6px)</option>
+            <option value="medium">Medium (12px)</option>
+            <option value="large">Large (18px)</option>
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 72px" }}>
+          <label className="form-label">Padding Y</label>
+          <input type="number" className="form-input" value={block.paddingY ?? 24} min={0} max={72} step={4} onChange={(e) => onPatch({ paddingY: Number(e.target.value) })} disabled={disabled} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Block card
 // ---------------------------------------------------------------------------
@@ -1454,6 +1665,7 @@ function BlockCard({
           {block.type === "story" && ((block.content || "").slice(0, 60) || "Story content")}
           {block.type === "highlight" && (block.heading || block.variant)}
           {block.type === "cta" && (block.heading || block.buttonText || "CTA")}
+          {block.type === "image" && (block.layout === "one" ? "Single image" : block.layout === "two" ? "2-image row" : "3-image row")}
         </span>
         <span style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0 }}>
           {expanded ? "▲" : "▼"}
@@ -1538,6 +1750,14 @@ function BlockCard({
               onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
             />
           )}
+          {block.type === "image" && (
+            <ImageEditor
+              block={block}
+              emailAssets={emailAssets}
+              disabled={disabled}
+              onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
+            />
+          )}
         </div>
       )}
     </div>
@@ -1548,7 +1768,7 @@ function BlockCard({
 // Main component
 // ---------------------------------------------------------------------------
 
-const BLOCK_TYPES: EmailBuilderBlock["type"][] = ["header", "hero", "story", "highlight", "cta"];
+const BLOCK_TYPES: EmailBuilderBlock["type"][] = ["header", "hero", "story", "highlight", "cta", "image"];
 
 export default function BlockComposer({ design, brandSettings, emailAssets, tenantId, canEdit, onChange, onAssetUploaded, onInteract }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
