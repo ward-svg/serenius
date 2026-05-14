@@ -167,6 +167,74 @@ function mapCampaignToFormData(campaign: PartnerEmailCampaign): FormData {
   };
 }
 
+function PersonalizationPanel() {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard?.writeText("{firstname}").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  }
+
+  return (
+    <div className="section-card" style={{ marginBottom: 0 }}>
+      <div
+        className="section-header"
+        onClick={() => setOpen(v => !v)}
+        style={{ cursor: "pointer", userSelect: "none" }}
+      >
+        <span className="section-title" style={{ flex: 1 }}>Personalization</span>
+        <span style={{ fontSize: 11, color: "#6b7280", flexShrink: 0 }}>{open ? "▲" : "▼"}</span>
+      </div>
+      {open && (
+        <div style={{ padding: "12px 18px 16px" }}>
+          <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 12, lineHeight: 1.5 }}>
+            Use these fields in your subject line or email content. Serenius will replace them when emails are sent.
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <code
+              style={{
+                fontSize: 12,
+                fontFamily: "monospace",
+                background: "#f3f4f6",
+                color: "#111827",
+                padding: "3px 8px",
+                borderRadius: 4,
+                border: "1px solid #e5e7eb",
+                flexShrink: 0,
+              }}
+            >
+              {"{firstname}"}
+            </code>
+            <span style={{ fontSize: 12, color: "#6b7280", flex: 1 }}>
+              Recipient first name — e.g.{" "}
+              <span style={{ fontStyle: "italic" }}>Dear {"{firstname}"},</span>
+            </span>
+            <button
+              type="button"
+              onClick={handleCopy}
+              style={{
+                fontSize: 11,
+                color: copied ? "#15803d" : "#6b7280",
+                background: "none",
+                border: "1px solid #e5e7eb",
+                borderRadius: 4,
+                cursor: "pointer",
+                padding: "2px 8px",
+                flexShrink: 0,
+              }}
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetailRow({
   label,
   value,
@@ -1054,6 +1122,8 @@ export default function CampaignModal({
                   )}
                 </div>
 
+                <PersonalizationPanel />
+
                 <BlockComposer
                   design={parsedDesign}
                   brandSettings={brandSettings ?? null}
@@ -1221,6 +1291,8 @@ export default function CampaignModal({
                 </div>
                 )}
               </div>
+
+              <PersonalizationPanel />
 
               {/* HTML editor */}
               <div className="section-card" style={{ marginBottom: 0 }}>

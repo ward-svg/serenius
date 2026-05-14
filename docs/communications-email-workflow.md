@@ -162,7 +162,7 @@ Do not jump directly to a heavy WYSIWYG or drag-and-drop builder. Build in safe,
 
 **Phase 1 — Template Library**
 - Reusable HTML templates stored in a `email_templates` or `communication_email_templates` table.
-- Templates use simple placeholder substitution (`{{organization_name}}`, `{{first_name}}`, etc.).
+- Templates use simple placeholder substitution (e.g. `{firstname}`). See Section 11 for the token standard.
 - Marketing users can browse, preview, and select a template when creating a campaign.
 - Templates can be edited as raw HTML by authorized users.
 - WellSpring continues to paste raw HTML directly — templates are additive, not required.
@@ -265,3 +265,23 @@ These items need Ward's input before implementation proceeds:
 - **Opt-out notification:** Should opt-outs automatically create a `partner_communications` log entry or a follow-up task, or only create a suppression record and let staff notice it in the suppressions list?
 - **Template ownership:** Will templates be created by Ward/Claude only (power-user workflow), or should marketing staff eventually be able to create and edit templates in the UI?
 - **Send mode gate:** The current `send_mode` field has a `live` value. When live sending is enabled, should `send_mode = live` be the only gate, or is a separate per-campaign approval step needed (e.g., leadership approval before a campaign can move from Draft to Ready)?
+
+---
+
+## 11. Personalization Tokens
+
+Serenius personalization tokens use **single curly braces**. Do not use double braces `{{}}`, square brackets `[]`, percent syntax `%`, or snake_case variants in user-facing guidance or templates.
+
+**Format:** `{tokenname}`
+
+**Supported V1 tokens:**
+
+| Token | Description | Example usage |
+|---|---|---|
+| `{firstname}` | Recipient first name (from `partner_contacts.first_name`) | `Dear {firstname},` |
+
+**Scope:** Tokens are supported in subject lines, Builder block content, Raw HTML content, and future template fields.
+
+**Send-time behavior:** Token replacement is applied server-side at send time. Tokens in subject and body are replaced with the matched contact field value before delivery. If a contact has no first name, the token will be replaced with an empty string (future: a configurable fallback).
+
+**Do not document or expose tokens not yet confirmed as supported.** Add entries to this table only when the send-time replacement logic is implemented and tested.
