@@ -137,6 +137,7 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         borderColor: brand?.accent_color ?? "#e5e7eb",
         roundedCorners: "small",
         paddingY: 24,
+        paddingX: 0,
         backgroundColor: "#ffffff",
       };
   }
@@ -1382,17 +1383,25 @@ function CtaEditor({
 function ImageEditor({
   block,
   emailAssets,
+  tenantId,
   disabled,
   onPatch,
+  onAssetUploaded,
 }: {
   block: ImageBlock;
   emailAssets: CommunicationEmailAsset[];
+  tenantId: string;
   disabled: boolean;
   onPatch: (patch: Partial<ImageBlock>) => void;
+  onAssetUploaded?: (asset: CommunicationEmailAsset) => void;
 }) {
   const chipStyle = { width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 } as const;
   const imageAssets = emailAssets.filter((a) => a.mime_type.startsWith("image/"));
   const layoutCount = block.layout === "two" ? 2 : block.layout === "three" ? 3 : 1;
+
+  const slotUploadRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
+  const [slotUploading, setSlotUploading] = useState<Record<number, boolean>>({});
+  const [slotError, setSlotError] = useState<Record<number, string | null>>({});
 
   function patchSlot(slotIdx: number, slotPatch: Partial<{ assetId: string; url: string; altText: string }>) {
     const newImages = [...(block.images || [])];
@@ -1406,6 +1415,58 @@ function ImageEditor({
     while (newImages.length <= slotIdx) newImages.push({ url: "" });
     newImages[slotIdx] = { url: "" };
     onPatch({ images: newImages });
+  }
+
+  async function handleSlotUpload(slotIdx: number, file: File) {
+    const err = validateLogoFile(file);
+    if (err) {
+      setSlotError((prev) => ({ ...prev, [slotIdx]: err }));
+      return;
+    }
+    setSlotError((prev) => ({ ...prev, [slotIdx]: null }));
+    setSlotUploading((prev) => ({ ...prev, [slotIdx]: true }));
+    try {
+      const fd = new FormData();
+      fd.append("tenantId", tenantId);
+      fd.append("file", file);
+      fd.append("asset_type", "body_image");
+      fd.append("alt_text", file.name);
+      const res = await fetch("/api/communications/assets/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!data.ok || !data.asset) {
+        setSlotError((prev) => ({ ...prev, [slotIdx]: data.error ?? "Upload failed." }));
+        return;
+      }
+      const a = data.asset;
+      const newAsset: CommunicationEmailAsset = {
+        id: a.id,
+        tenant_id: tenantId,
+        asset_type: a.asset_type,
+        file_name: a.file_name,
+        original_file_name: a.original_file_name ?? null,
+        public_url: a.public_url,
+        mime_type: a.mime_type,
+        file_size_bytes: a.file_size_bytes,
+        width: a.width ?? null,
+        height: a.height ?? null,
+        alt_text: a.alt_text ?? null,
+        created_at: a.created_at,
+        updated_at: a.created_at,
+      };
+      onAssetUploaded?.(newAsset);
+      const currentSlot = block.images?.[slotIdx];
+      patchSlot(slotIdx, {
+        assetId: newAsset.id,
+        url: newAsset.public_url,
+        altText: currentSlot?.altText || newAsset.original_file_name || newAsset.file_name,
+      });
+      const inputEl = slotUploadRefs.current[slotIdx];
+      if (inputEl) inputEl.value = "";
+    } catch {
+      setSlotError((prev) => ({ ...prev, [slotIdx]: "Network error. Please try again." }));
+    } finally {
+      setSlotUploading((prev) => ({ ...prev, [slotIdx]: false }));
+    }
   }
 
   const checkerStyle: React.CSSProperties = {
@@ -1465,72 +1526,87 @@ function ImageEditor({
       </div>
 
       {/* B. Images */}
-      {imageAssets.length === 0 ? (
-        <div className="form-helper">
-          Upload image assets in Brand Kit → Public Email Assets to use them here.
-        </div>
-      ) : (
-        <div style={{ display: "grid", gap: 10 }}>
-          {Array.from({ length: layoutCount }, (_, i) => {
-            const slot = block.images?.[i];
-            const currentUrl = slot?.url || "";
-            const matchedAsset = currentUrl
-              ? imageAssets.find((a) => a.public_url === currentUrl) ?? null
-              : null;
-            return (
-              <div key={i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <div style={checkerStyle}>
-                  {currentUrl ? (
-                    <img
-                      src={currentUrl}
-                      alt={`Image ${i + 1} preview`}
-                      style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", display: "block" }}
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: 10, color: "#9ca3af" }}>None</span>
-                  )}
-                </div>
-                <div style={{ flex: 1, display: "grid", gap: 4 }}>
-                  <label className="form-label" style={{ margin: 0 }}>Image {i + 1}</label>
-                  <select
-                    className="form-input"
-                    value={currentUrl}
-                    onChange={(e) => {
-                      const selectedUrl = e.target.value;
-                      if (!selectedUrl) { clearSlot(i); return; }
-                      const asset = imageAssets.find((a) => a.public_url === selectedUrl);
-                      patchSlot(i, {
-                        assetId: asset?.id,
-                        url: selectedUrl,
-                        altText: slot?.altText || asset?.original_file_name || asset?.file_name || "",
-                      });
-                    }}
-                    disabled={disabled}
-                  >
-                    <option value="">— Select image —</option>
-                    {imageAssets.map((a) => (
-                      <option key={a.id} value={a.public_url}>
-                        {a.original_file_name || a.file_name}
-                      </option>
-                    ))}
-                  </select>
-                  {matchedAsset && !disabled && (
+      <div style={{ display: "grid", gap: 10 }}>
+        {Array.from({ length: layoutCount }, (_, i) => {
+          const slot = block.images?.[i];
+          const currentUrl = slot?.url || "";
+          const matchedAsset = currentUrl
+            ? imageAssets.find((a) => a.public_url === currentUrl) ?? null
+            : null;
+          const isUploading = !!slotUploading[i];
+          const slotErr = slotError[i] ?? null;
+          return (
+            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <div style={checkerStyle}>
+                {currentUrl ? (
+                  <img
+                    src={currentUrl}
+                    alt={`Image ${i + 1} preview`}
+                    style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", display: "block" }}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 10, color: "#9ca3af" }}>None</span>
+                )}
+              </div>
+              <div style={{ flex: 1, display: "grid", gap: 4 }}>
+                <label className="form-label" style={{ margin: 0 }}>Image {i + 1}</label>
+                <select
+                  className="form-input"
+                  value={currentUrl}
+                  onChange={(e) => {
+                    const selectedUrl = e.target.value;
+                    if (!selectedUrl) { clearSlot(i); return; }
+                    const asset = imageAssets.find((a) => a.public_url === selectedUrl);
+                    patchSlot(i, {
+                      assetId: asset?.id,
+                      url: selectedUrl,
+                      altText: slot?.altText || asset?.original_file_name || asset?.file_name || "",
+                    });
+                  }}
+                  disabled={disabled || isUploading}
+                >
+                  <option value="">— Select image —</option>
+                  {imageAssets.map((a) => (
+                    <option key={a.id} value={a.public_url}>
+                      {a.original_file_name || a.file_name}
+                    </option>
+                  ))}
+                </select>
+                {!disabled && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    {matchedAsset && (
+                      <button type="button" className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 8px" }} onClick={() => clearSlot(i)} disabled={isUploading}>
+                        Clear
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      style={{ fontSize: 11, padding: "2px 8px", width: "fit-content" }}
-                      onClick={() => clearSlot(i)}
+                      style={{ fontSize: 11, padding: "2px 8px" }}
+                      disabled={isUploading}
+                      onClick={() => slotUploadRefs.current[i]?.click()}
                     >
-                      Clear
+                      {isUploading ? "Uploading…" : "Upload Image"}
                     </button>
-                  )}
-                </div>
+                    <input
+                      type="file"
+                      ref={(el) => { slotUploadRefs.current[i] = el; }}
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleSlotUpload(i, file);
+                      }}
+                    />
+                  </div>
+                )}
+                {slotErr && <div className="form-error" style={{ fontSize: 12 }}>{slotErr}</div>}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
 
       {/* C. Image Style */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
@@ -1567,11 +1643,16 @@ function ImageEditor({
             <option value="large">Large (18px)</option>
           </select>
         </div>
-        <div className="form-group" style={{ margin: 0, flex: "0 0 72px" }}>
-          <label className="form-label">Padding Y</label>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 80px" }}>
+          <label className="form-label">Top/Bottom Space</label>
           <input type="number" className="form-input" value={block.paddingY ?? 24} min={0} max={72} step={4} onChange={(e) => onPatch({ paddingY: Number(e.target.value) })} disabled={disabled} />
         </div>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 80px" }}>
+          <label className="form-label">Left/Right Space</label>
+          <input type="number" className="form-input" value={block.paddingX ?? 0} min={0} max={80} step={4} onChange={(e) => onPatch({ paddingX: Number(e.target.value) })} disabled={disabled} />
+        </div>
       </div>
+      <div className="form-helper">Top/Bottom Space adds room above and below the image block. Left/Right Space adds room on each side.</div>
     </div>
   );
 }
@@ -1754,8 +1835,10 @@ function BlockCard({
             <ImageEditor
               block={block}
               emailAssets={emailAssets}
+              tenantId={tenantId}
               disabled={disabled}
               onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
+              onAssetUploaded={onAssetUploaded}
             />
           )}
         </div>

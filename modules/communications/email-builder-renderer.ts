@@ -282,6 +282,7 @@ function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
 function renderImageBlock(block: ImageBlock, brand: EmailBrandSettings | null): string {
   const bg = block.backgroundColor || '#ffffff';
   const paddingY = typeof block.paddingY === 'number' ? block.paddingY : 24;
+  const paddingX = typeof block.paddingX === 'number' ? block.paddingX : 30;
   const borderColorVal = block.borderColor || brand?.accent_color || '#e5e7eb';
   const borderStyle = block.borderStyle || 'none';
   const borderCss = borderStyle === 'thin'
@@ -307,12 +308,12 @@ function renderImageBlock(block: ImageBlock, brand: EmailBrandSettings | null): 
     };
     const sizeConf = widthMap[singleImageSize] ?? widthMap['large'];
     if (!slot?.url || safeUrl(slot.url) === '#') {
-      return `<tr>\n  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;"></td>\n</tr>`;
+      return `<tr>\n  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px ${paddingX}px;"></td>\n</tr>`;
     }
     const imgStyle = `display:block;margin:0 auto;${sizeConf.stylePx}${imgDecor}`;
     const imgHtml = `<img src="${esc(safeUrl(slot.url))}" width="${sizeConf.px}" alt="${esc(slot.altText || '')}" style="${imgStyle}">`;
     return `<tr>
-  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;" align="center">
+  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px ${paddingX}px;" align="center">
     ${imgHtml}
   </td>
 </tr>`;
@@ -333,7 +334,7 @@ function renderImageBlock(block: ImageBlock, brand: EmailBrandSettings | null): 
   });
 
   return `<tr>
-  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;">
+  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px ${paddingX}px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
       ${cells.join('\n      ')}
     </tr></table>

@@ -153,6 +153,7 @@ export default function SereniusModal({
             padding: contentPadding,
             overflowY: "auto",
             flex: 1,
+            minHeight: 0,
             ...contentStyle,
           }}
         >

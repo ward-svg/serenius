@@ -400,6 +400,7 @@ export default function CampaignModal({
   const [campaignDetailsOpen, setCampaignDetailsOpen] = useState<boolean>(() =>
     mode === "create" || !(campaign?.communication_type && campaign?.segment && campaign?.subject)
   );
+  const [previewHeight, setPreviewHeight] = useState(680);
 
   const parsedDesign: EmailBuilderDesign = useMemo(
     () => parseDesign(formData.design_json),
@@ -423,6 +424,43 @@ export default function CampaignModal({
 
   function collapseAllSections() {
     setCampaignDetailsOpen(false);
+  }
+
+  function handlePreviewLoad(e: React.SyntheticEvent<HTMLIFrameElement>) {
+    const iframeEl = e.currentTarget;
+
+    function measure() {
+      try {
+        const doc = iframeEl.contentDocument;
+        if (!doc) return;
+        const h = Math.max(
+          doc.documentElement.scrollHeight || 0,
+          doc.body?.scrollHeight || 0,
+          doc.documentElement.offsetHeight || 0,
+          doc.body?.offsetHeight || 0,
+        );
+        if (h > 0) setPreviewHeight(h);
+      } catch { /* noop: cross-origin guard */ }
+    }
+
+    measure();
+    requestAnimationFrame(measure);
+    setTimeout(measure, 100);
+    setTimeout(measure, 300);
+
+    // Re-measure once each image inside the iframe finishes loading.
+    // { once: true } auto-removes the listener after it fires — no explicit cleanup needed.
+    try {
+      const doc = iframeEl.contentDocument;
+      if (doc) {
+        doc.querySelectorAll('img').forEach((img) => {
+          if (!(img as HTMLImageElement).complete) {
+            img.addEventListener('load', measure, { once: true });
+            img.addEventListener('error', measure, { once: true });
+          }
+        });
+      }
+    } catch { /* noop: cross-origin guard */ }
   }
 
   const canEdit = canManage && !isLockedCampaign(currentCampaign);
@@ -645,7 +683,7 @@ export default function CampaignModal({
           ) : null
         }
       >
-        <div style={{ padding: 24, display: "grid", gap: 20 }}>
+        <div style={{ padding: "24px 24px 128px", display: "grid", gap: 20 }}>
           <div className="section-card" style={{ marginBottom: 0 }}>
             <div className="section-header">
               <span className="section-title">Campaign Details</span>
@@ -882,14 +920,14 @@ export default function CampaignModal({
         </>
       }
     >
-      <div style={{ padding: 24, display: "grid", gap: 20 }}>
+      <div style={{ padding: "24px 24px 128px", display: "grid", gap: 20 }}>
         {formData.email_style !== "Raw HTML" ? (
           <>
             {/* Builder mode: details + composer left, sticky live preview right */}
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) min(460px, 42%)",
+                gridTemplateColumns: "minmax(0, 3fr) minmax(0, 2fr)",
                 gap: 20,
                 alignItems: "start",
               }}
@@ -1035,12 +1073,13 @@ export default function CampaignModal({
                   <div className="section-header">
                     <span className="section-title">Live Preview</span>
                   </div>
-                  <div style={{ padding: "8px 12px 12px" }}>
+                  <div style={{ padding: "8px 12px 12px", overflowY: "auto", maxHeight: "calc(100vh - 260px)", minHeight: 200 }}>
                     <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
                       <iframe
                         srcDoc={renderEmailBuilderHtml(parsedDesign, brandSettings ?? null)}
                         sandbox=""
-                        style={{ width: "100%", height: 680, border: 0, display: "block", pointerEvents: "none" }}
+                        onLoad={handlePreviewLoad}
+                        style={{ width: "100%", height: Math.max(previewHeight, 5000), border: 0, display: "block", pointerEvents: "none" }}
                         title="Live Preview"
                       />
                     </div>

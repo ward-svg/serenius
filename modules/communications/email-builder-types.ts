@@ -105,6 +105,7 @@ export interface ImageBlock {
   borderColor?: string;
   roundedCorners?: 'none' | 'small' | 'medium' | 'large';
   paddingY?: number;
+  paddingX?: number;
   backgroundColor?: string;
 }
 
