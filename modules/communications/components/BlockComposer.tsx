@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type {
   CtaBlock,
   EmailBuilderBlock,
@@ -17,8 +17,10 @@ interface Props {
   design: EmailBuilderDesign;
   brandSettings: EmailBrandSettings | null;
   emailAssets: CommunicationEmailAsset[];
+  tenantId: string;
   canEdit: boolean;
   onChange: (design: EmailBuilderDesign) => void;
+  onAssetUploaded?: (asset: CommunicationEmailAsset) => void;
 }
 
 const BLOCK_LABELS: Record<EmailBuilderBlock["type"], string> = {
@@ -151,20 +153,97 @@ function ItemsList({
   );
 }
 
+const UPLOAD_ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+const UPLOAD_ALLOWED_EXT = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+
+function validateLogoFile(file: File): string | null {
+  if (file.size > 5 * 1024 * 1024) return "File exceeds the 5 MB limit.";
+  const mime = file.type.toLowerCase().trim();
+  if (!mime || !UPLOAD_ALLOWED_MIME.has(mime)) return "Only JPEG, PNG, GIF, and WebP images are allowed.";
+  const ext = (file.name ?? "").split(".").pop()?.toLowerCase() ?? "";
+  if (!UPLOAD_ALLOWED_EXT.has(ext)) return `Extension .${ext || "(none)"} is not allowed.`;
+  return null;
+}
+
 function HeaderEditor({
   block,
   brandSettings,
   emailAssets,
+  tenantId,
   disabled,
   onPatch,
+  onAssetUploaded,
 }: {
   block: HeaderBlock;
   brandSettings: EmailBrandSettings | null;
   emailAssets: CommunicationEmailAsset[];
+  tenantId: string;
   disabled: boolean;
   onPatch: (patch: Partial<HeaderBlock>) => void;
+  onAssetUploaded?: (asset: CommunicationEmailAsset) => void;
 }) {
   const [pickingUploadedAsset, setPickingUploadedAsset] = useState(false);
+  const uploadFileRef = useRef<HTMLInputElement>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setUploadFile(file);
+    setUploadError(file ? (validateLogoFile(file) ?? null) : null);
+  }
+
+  async function handleUpload() {
+    if (!uploadFile || !tenantId) return;
+    const err = validateLogoFile(uploadFile);
+    if (err) { setUploadError(err); return; }
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.append("tenantId", tenantId);
+      fd.append("file", uploadFile);
+      fd.append("asset_type", "logo");
+      fd.append("alt_text", uploadFile.name);
+      const res = await fetch("/api/communications/assets/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!data.ok || !data.asset) {
+        setUploadError(data.error ?? "Upload failed.");
+        return;
+      }
+      const a = data.asset;
+      const newAsset: CommunicationEmailAsset = {
+        id: a.id,
+        tenant_id: tenantId,
+        asset_type: a.asset_type,
+        file_name: a.file_name,
+        original_file_name: a.original_file_name ?? null,
+        public_url: a.public_url,
+        mime_type: a.mime_type,
+        file_size_bytes: a.file_size_bytes,
+        width: a.width ?? null,
+        height: a.height ?? null,
+        alt_text: a.alt_text ?? null,
+        created_at: a.created_at,
+        updated_at: a.created_at,
+      };
+      const newWidth = block.logoWidth > 0
+        ? block.logoWidth
+        : newAsset.width
+          ? Math.min(newAsset.width, 240)
+          : 180;
+      onPatch({ logoUrl: newAsset.public_url, logoWidth: newWidth });
+      onAssetUploaded?.(newAsset);
+      setPickingUploadedAsset(false);
+      setUploadFile(null);
+      if (uploadFileRef.current) uploadFileRef.current.value = "";
+    } catch {
+      setUploadError("Network error. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const imageAssets = emailAssets.filter((a) => a.mime_type.startsWith("image/"));
   const sortedImageAssets = [
@@ -266,36 +345,85 @@ function HeaderEditor({
 
       {/* ── Asset picker ── visible when source is Choose Uploaded Asset */}
       {showAssetDropdown && (
-        sortedImageAssets.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#6b7280", paddingTop: 2 }}>
-            Upload logo assets in Brand Kit → Public Email Assets.
-          </div>
-        ) : (
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Select Asset</label>
-            <select
-              className="form-input"
-              value={block.logoUrl || ""}
-              onChange={(e) => {
-                if (e.target.value) {
-                  onPatch({ logoUrl: e.target.value });
-                  setPickingUploadedAsset(false);
-                }
-              }}
-              disabled={disabled}
-            >
-              {pickingUploadedAsset && !isUploadedAsset && (
-                <option value="">— Choose an asset —</option>
+        <div style={{ display: "grid", gap: 8 }}>
+          {/* Existing asset selector */}
+          {sortedImageAssets.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#6b7280" }}>No logo assets uploaded yet.</div>
+          ) : (
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Select Asset</label>
+              <select
+                className="form-input"
+                value={block.logoUrl || ""}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    onPatch({ logoUrl: e.target.value });
+                    setPickingUploadedAsset(false);
+                  }
+                }}
+                disabled={disabled}
+              >
+                {pickingUploadedAsset && !isUploadedAsset && (
+                  <option value="">— Choose an asset —</option>
+                )}
+                {sortedImageAssets.map((a) => (
+                  <option key={a.id} value={a.public_url}>
+                    {a.asset_type === "logo" ? "[Logo] " : ""}
+                    {a.original_file_name ?? a.file_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Upload new logo */}
+          {!disabled && (
+            <div style={{ display: "grid", gap: 6, paddingTop: 4, borderTop: "1px solid #f3f4f6" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Upload New Logo
+              </div>
+              <input
+                ref={uploadFileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                style={{ display: "none" }}
+                onChange={handleFileSelect}
+                disabled={uploading}
+              />
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ fontSize: 12, padding: "4px 10px", whiteSpace: "nowrap" }}
+                  onClick={() => uploadFileRef.current?.click()}
+                  disabled={uploading}
+                >
+                  Choose File
+                </button>
+                {uploadFile && (
+                  <span style={{ fontSize: 12, color: "#374151", wordBreak: "break-word", flex: 1, minWidth: 0 }}>
+                    {uploadFile.name}
+                  </span>
+                )}
+                {uploadFile && !uploadError && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ fontSize: 12, padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0 }}
+                    onClick={handleUpload}
+                    disabled={uploading}
+                  >
+                    {uploading ? "Uploading…" : "Upload"}
+                  </button>
+                )}
+              </div>
+              <div className="form-helper">JPEG, PNG, GIF, or WebP · max 5 MB</div>
+              {uploadError && (
+                <div className="form-error" style={{ fontSize: 12 }}>{uploadError}</div>
               )}
-              {sortedImageAssets.map((a) => (
-                <option key={a.id} value={a.public_url}>
-                  {a.asset_type === "logo" ? "[Logo] " : ""}
-                  {a.original_file_name ?? a.file_name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Logo preview ── checkerboard + identity + width */}
@@ -690,11 +818,13 @@ function BlockCard({
   disabled,
   brandSettings,
   emailAssets,
+  tenantId,
   onExpand,
   onMoveUp,
   onMoveDown,
   onRemove,
   onPatch,
+  onAssetUploaded,
 }: {
   block: EmailBuilderBlock;
   idx: number;
@@ -703,11 +833,13 @@ function BlockCard({
   disabled: boolean;
   brandSettings: EmailBrandSettings | null;
   emailAssets: CommunicationEmailAsset[];
+  tenantId: string;
   onExpand: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRemove: () => void;
   onPatch: (patch: Record<string, unknown>) => void;
+  onAssetUploaded?: (asset: CommunicationEmailAsset) => void;
 }) {
   const label = BLOCK_LABELS[block.type];
 
@@ -813,8 +945,10 @@ function BlockCard({
               block={block}
               brandSettings={brandSettings}
               emailAssets={emailAssets}
+              tenantId={tenantId}
               disabled={disabled}
               onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
+              onAssetUploaded={onAssetUploaded}
             />
           )}
           {block.type === "hero" && (
@@ -857,7 +991,7 @@ function BlockCard({
 
 const BLOCK_TYPES: EmailBuilderBlock["type"][] = ["header", "hero", "story", "highlight", "cta"];
 
-export default function BlockComposer({ design, brandSettings, emailAssets, canEdit, onChange }: Props) {
+export default function BlockComposer({ design, brandSettings, emailAssets, tenantId, canEdit, onChange, onAssetUploaded }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function updateBlock(id: string, patch: Record<string, unknown>) {
@@ -950,11 +1084,13 @@ export default function BlockComposer({ design, brandSettings, emailAssets, canE
                 disabled={!canEdit}
                 brandSettings={brandSettings}
                 emailAssets={emailAssets}
+                tenantId={tenantId}
                 onExpand={() => setExpandedId((prev) => (prev === block.id ? null : block.id))}
                 onMoveUp={() => moveUp(idx)}
                 onMoveDown={() => moveDown(idx)}
                 onRemove={() => removeBlock(block.id)}
                 onPatch={(patch) => updateBlock(block.id, patch)}
+                onAssetUploaded={onAssetUploaded}
               />
             ))}
           </div>

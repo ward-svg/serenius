@@ -33,6 +33,7 @@ interface Props {
   canManage: boolean;
   brandSettings?: EmailBrandSettings | null;
   emailAssets?: CommunicationEmailAsset[];
+  onAssetsChange?: (assets: CommunicationEmailAsset[]) => void;
   onClose: () => void;
   onSaved: (campaign: PartnerEmailCampaign) => void;
 }
@@ -380,6 +381,7 @@ export default function CampaignModal({
   canManage,
   brandSettings,
   emailAssets,
+  onAssetsChange,
   slug,
   onClose,
   onSaved,
@@ -1009,8 +1011,12 @@ export default function CampaignModal({
                 design={parsedDesign}
                 brandSettings={brandSettings ?? null}
                 emailAssets={emailAssets ?? []}
+                tenantId={tenantId}
                 canEdit={isCreate || canEdit}
                 onChange={updateDesignJson}
+                onAssetUploaded={(asset) =>
+                  onAssetsChange?.([asset, ...(emailAssets ?? [])])
+                }
               />
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <button

@@ -67,7 +67,13 @@ export default function CommunicationsWorkspace(props: Props) {
         </button>
       </div>
 
-      {activeTab === "campaigns" && <CommunicationsDashboard {...props} />}
+      {activeTab === "campaigns" && (
+        <CommunicationsDashboard
+          {...props}
+          emailAssets={emailAssets}
+          onAssetsChange={setEmailAssets}
+        />
+      )}
       {activeTab === "templates" && (
         <TemplatesTab
           tenantId={props.orgId}

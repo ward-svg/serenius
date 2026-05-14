@@ -12,6 +12,7 @@ import CampaignModal from "./CampaignModal";
 import CampaignPreviewModal from "./CampaignPreviewModal";
 import type {
   CampaignListFilter,
+  CommunicationEmailAsset,
   CommunicationsPageData,
   PartnerEmailCampaign,
 } from "../types";
@@ -19,6 +20,7 @@ import { CAMPAIGN_FILTERS } from "../constants";
 
 interface Props extends CommunicationsPageData {
   canManage: boolean;
+  onAssetsChange?: (assets: CommunicationEmailAsset[]) => void;
 }
 
 function formatDateTime(dateStr: string | null | undefined): string {
@@ -248,6 +250,7 @@ export default function CommunicationsDashboard({
   suppressions,
   testRecipients,
   canManage,
+  onAssetsChange,
 }: Props) {
   const [campaigns, setCampaigns] = useState<PartnerEmailCampaign[]>(initialCampaigns);
   const [activeFilter, setActiveFilter] = useState<CampaignListFilter>("working-scheduled");
@@ -672,6 +675,7 @@ export default function CommunicationsDashboard({
           campaign={selectedCampaign}
           mode={modalMode}
           canManage={canManage}
+          onAssetsChange={onAssetsChange}
           onClose={() => {
             setSelectedCampaign(null);
             setModalMode("create");
