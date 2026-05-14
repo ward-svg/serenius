@@ -401,6 +401,7 @@ export default function CampaignModal({
     mode === "create" || !(campaign?.communication_type && campaign?.segment && campaign?.subject)
   );
   const [previewHeight, setPreviewHeight] = useState(680);
+  const [rawHtmlPreviewDoc, setRawHtmlPreviewDoc] = useState<string>(campaign?.message_raw_html ?? "");
 
   const parsedDesign: EmailBuilderDesign = useMemo(
     () => parseDesign(formData.design_json),
@@ -416,6 +417,7 @@ export default function CampaignModal({
     setCampaignDetailsOpen(
       mode === "create" || !(campaign?.communication_type && campaign?.segment && campaign?.subject)
     );
+    setRawHtmlPreviewDoc(campaign?.message_raw_html ?? "");
   }, [campaign, mode]);
 
   useEffect(() => {
@@ -882,7 +884,7 @@ export default function CampaignModal({
           : "Update draft or in-process campaign details."
       }
       onClose={onClose}
-      maxWidth={formData.email_style !== "Raw HTML" ? 1440 : 1140}
+      maxWidth={1440}
       contentPadding={0}
       showCloseButton={isCreate}
       closeOnOverlayClick={isCreate}
@@ -1090,147 +1092,185 @@ export default function CampaignModal({
 
           </>
         ) : (
-          /* Raw HTML mode: existing two-column layout */
+          /* Raw HTML mode: unified workspace */
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 1fr)",
+              gridTemplateColumns: "minmax(0, 3fr) minmax(0, 2fr)",
               gap: 20,
               alignItems: "start",
             }}
           >
-            <div className="section-card" style={{ marginBottom: 0 }}>
-              <div className="section-header">
-                <span className="section-title">Campaign Details</span>
-              </div>
-              <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Communication Type</label>
-                    <select
-                      className="form-input"
-                      value={formData.communication_type}
-                      onChange={(e) => handleChange("communication_type", e.target.value)}
-                      disabled={!isCreate && !canEdit}
-                    >
-                      <option value="">Select...</option>
-                      {COMMUNICATION_TYPE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Content Mode</label>
-                    <select
-                      className="form-input"
-                      value={formData.email_style}
-                      onChange={(e) => handleChange("email_style", e.target.value)}
-                      disabled={!isCreate && !canEdit}
-                    >
-                      <option value="Raw HTML">Raw HTML</option>
-                      <option value="Rich Text">Serenius Builder</option>
-                    </select>
-                  </div>
+            <div style={{ display: "grid", gap: 16 }}>
+              {/* Campaign Details accordion */}
+              <div className="section-card" style={{ marginBottom: 0 }}>
+                <div
+                  className="section-header"
+                  onClick={() => setCampaignDetailsOpen(v => !v)}
+                  style={{ cursor: "pointer", userSelect: "none" }}
+                >
+                  <span className="section-title" style={{ flex: 1 }}>Campaign Details</span>
+                  {!campaignDetailsOpen && (
+                    <span style={{ fontSize: 11, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 280 }}>
+                      {[formData.subject, formData.segment].filter(Boolean).join(" · ") || "Incomplete"}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 11, color: "#6b7280", flexShrink: 0 }}>{campaignDetailsOpen ? "▲" : "▼"}</span>
                 </div>
-                <div className="form-row">
+                {campaignDetailsOpen && (
+                <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Communication Type</label>
+                      <select
+                        className="form-input"
+                        value={formData.communication_type}
+                        onChange={(e) => handleChange("communication_type", e.target.value)}
+                        disabled={!isCreate && !canEdit}
+                      >
+                        <option value="">Select...</option>
+                        {COMMUNICATION_TYPE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Content Mode</label>
+                      <select
+                        className="form-input"
+                        value={formData.email_style}
+                        onChange={(e) => handleChange("email_style", e.target.value)}
+                        disabled={!isCreate && !canEdit}
+                      >
+                        <option value="Raw HTML">Raw HTML</option>
+                        <option value="Rich Text">Serenius Builder</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Segment</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        value={formData.segment}
+                        onChange={(e) => handleChange("segment", e.target.value)}
+                        placeholder="Donors, All US"
+                        disabled={!isCreate && !canEdit}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Campaign Version</label>
+                      <select
+                        className="form-input"
+                        value={formData.campaign_version}
+                        onChange={(e) => handleChange("campaign_version", e.target.value)}
+                        disabled={!isCreate && !canEdit}
+                      >
+                        {CAMPAIGN_VERSION_OPTIONS.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+                    {!estimate.ready ? (
+                      <span>Select a segment to estimate recipients.</span>
+                    ) : (
+                      <span>
+                        {"Estimated Recipients: "}
+                        <strong style={{ color: estimate.estimatedRecipients > 0 ? "#374151" : "#9ca3af" }}>
+                          {estimate.estimatedRecipients}
+                        </strong>
+                        <span style={{ marginLeft: 8, color: "#9ca3af" }}>
+                          · {estimate.suppressedCount} suppressed · {estimate.noEmailCount} no email · {estimate.skippedCount} skipped
+                        </span>
+                      </span>
+                    )}
+                  </div>
                   <div className="form-group">
-                    <label className="form-label">Segment</label>
+                    <label className="form-label">Subject</label>
                     <input
                       className="form-input"
                       type="text"
-                      value={formData.segment}
-                      onChange={(e) => handleChange("segment", e.target.value)}
-                      placeholder="Donors, All US"
+                      value={formData.subject}
+                      onChange={(e) => handleChange("subject", e.target.value)}
                       disabled={!isCreate && !canEdit}
                     />
-                    <div className="form-helper">Used for recipient estimation.</div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Campaign Version</label>
-                    <select
-                      className="form-input"
-                      value={formData.campaign_version}
-                      onChange={(e) => handleChange("campaign_version", e.target.value)}
-                      disabled={!isCreate && !canEdit}
-                    >
-                      {CAMPAIGN_VERSION_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Delivery Date/Time</label>
+                      <input
+                        className="form-input"
+                        type="datetime-local"
+                        value={formData.delivery_datetime}
+                        onChange={(e) => handleChange("delivery_datetime", e.target.value)}
+                        disabled={!isCreate && !canEdit}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Status Note</label>
+                      <div className="empty-state" style={{ textAlign: "left" }}>
+                        Real sending is not active yet.
+                      </div>
+                    </div>
                   </div>
+                  {error && (
+                    <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div>
+                  )}
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Subject</label>
-                  <input
-                    className="form-input"
-                    type="text"
-                    value={formData.subject}
-                    onChange={(e) => handleChange("subject", e.target.value)}
-                    disabled={!isCreate && !canEdit}
-                  />
+                )}
+              </div>
+
+              {/* HTML editor */}
+              <div className="section-card" style={{ marginBottom: 0 }}>
+                <div className="section-header">
+                  <span className="section-title">HTML Content</span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setRawHtmlPreviewDoc(formData.message_raw_html)}
+                  >
+                    Refresh Preview
+                  </button>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Raw HTML</label>
+                <div style={{ padding: "16px 18px 18px", display: "grid", gap: 10 }}>
                   <textarea
                     className="form-input"
-                    rows={8}
+                    rows={18}
                     value={formData.message_raw_html}
                     onChange={(e) => handleChange("message_raw_html", e.target.value)}
                     placeholder="<html>..."
                     disabled={!isCreate && !canEdit}
+                    style={{ fontFamily: "monospace", fontSize: 12, resize: "vertical" }}
                   />
                   <div className="form-helper">Paste full email-safe HTML. Serenius will use this as the campaign body.</div>
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Delivery Date/Time</label>
-                    <input
-                      className="form-input"
-                      type="datetime-local"
-                      value={formData.delivery_datetime}
-                      onChange={(e) => handleChange("delivery_datetime", e.target.value)}
-                      disabled={!isCreate && !canEdit}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Status Note</label>
-                    <div className="empty-state" style={{ textAlign: "left" }}>
-                      Real sending is not active yet.
-                    </div>
-                  </div>
-                </div>
-                {error && (
-                  <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div>
-                )}
               </div>
             </div>
 
-            <div style={{ display: "grid", gap: 16 }}>
-              <RecipientEstimateCard
-                contacts={contacts}
-                suppressions={suppressions}
-                segment={formData.segment}
-                campaignVersion={formData.campaign_version}
-              />
+            {/* Right: HTML preview — sticky */}
+            <div style={{ position: "sticky", top: 0 }}>
               <div className="section-card" style={{ marginBottom: 0, border: "1px solid #e5e7eb" }}>
                 <div className="section-header">
-                  <span className="section-title">Mail Sender</span>
+                  <span className="section-title">Preview</span>
                 </div>
-                <div style={{ padding: "12px 18px 14px" }}>
-                  {mailSettings ? (
-                    <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.6 }}>
-                      {[mailSettings.connection_status, mailSettings.send_mode, mailSettings.from_email]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  ) : (
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Mail sender not configured.</p>
-                      <a href={`/${slug}/setup?tab=integrations`} className="action-link" style={{ fontSize: 12 }}>
-                        Configure in Setup → Integrations
-                      </a>
-                    </div>
-                  )}
+                <div style={{ padding: "8px 12px 12px", overflowY: "auto", maxHeight: "calc(100vh - 260px)", minHeight: 200 }}>
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+                    {rawHtmlPreviewDoc ? (
+                      <iframe
+                        srcDoc={rawHtmlPreviewDoc}
+                        sandbox=""
+                        style={{ width: "100%", height: Math.max(previewHeight, 5000), border: 0, display: "block", pointerEvents: "none" }}
+                        title="HTML Preview"
+                      />
+                    ) : (
+                      <div style={{ padding: "24px 16px", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+                        No HTML content yet. Paste HTML and click Refresh Preview.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
