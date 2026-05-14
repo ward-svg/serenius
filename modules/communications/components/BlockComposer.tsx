@@ -558,6 +558,31 @@ function HeroEditor({
 }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {/* ── Hero Background Color ── */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Hero Background Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="color"
+            value={block.backgroundColor || "#1a56db"}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            disabled={disabled}
+            style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
+          />
+          <input
+            type="text"
+            className="form-input"
+            value={block.backgroundColor}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            disabled={disabled}
+            placeholder="#1a56db"
+            style={{ fontFamily: "monospace" }}
+          />
+        </div>
+        <div className="form-helper">Sets the hero band color.</div>
+      </div>
+
+      {/* ── Content ── */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Eyebrow</label>
         <input
@@ -591,7 +616,9 @@ function HeroEditor({
           placeholder="A short description or lead sentence."
         />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+
+      {/* ── Layout / Text Color ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Alignment</label>
           <AlignSelect
@@ -601,28 +628,25 @@ function HeroEditor({
           />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Background</label>
-          <input
-            type="text"
-            className="form-input"
-            value={block.backgroundColor}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#f3f4f6"
-            style={{ fontFamily: "monospace" }}
-          />
-        </div>
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Text Color</label>
-          <input
-            type="text"
-            className="form-input"
-            value={block.textColor}
-            onChange={(e) => onPatch({ textColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#111827"
-            style={{ fontFamily: "monospace" }}
-          />
+          <label className="form-label">Hero Text Color</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="color"
+              value={block.textColor || "#ffffff"}
+              onChange={(e) => onPatch({ textColor: e.target.value })}
+              disabled={disabled}
+              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
+            />
+            <input
+              type="text"
+              className="form-input"
+              value={block.textColor}
+              onChange={(e) => onPatch({ textColor: e.target.value })}
+              disabled={disabled}
+              placeholder="#ffffff"
+              style={{ fontFamily: "monospace" }}
+            />
+          </div>
         </div>
       </div>
     </div>
