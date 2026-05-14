@@ -55,6 +55,7 @@ export interface PartnerEmailCampaign {
   created_by: string | null
   created_at: string
   updated_at: string
+  deleted_at: string | null
 }
 
 export interface PartnerEmailOpenSummary {
@@ -123,6 +124,7 @@ export type CampaignListFilter =
   | 'working-scheduled'
   | 'completed'
   | 'failed-canceled'
+  | 'trash'
   | 'all'
 
 export type CampaignFormMode = 'create' | 'view' | 'edit'

@@ -18,6 +18,7 @@ export const CAMPAIGN_FILTERS: {
   { key: 'working-scheduled', label: 'Working / Scheduled' },
   { key: 'completed', label: 'Completed' },
   { key: 'failed-canceled', label: 'Failed / Canceled' },
+  { key: 'trash', label: 'Trash' },
   { key: 'all', label: 'All' },
 ]
 

@@ -8,6 +8,7 @@ import {
   type SortState,
   type SortValue,
 } from "@/lib/ui/sort";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import CampaignModal from "./CampaignModal";
 import CampaignPreviewModal from "./CampaignPreviewModal";
 import type {
@@ -85,6 +86,14 @@ const SORT_STATES: Record<CampaignSortOption, SortState<CampaignSortKey>> = {
   "totalTouches-desc": { key: "totalTouches", direction: "desc" as SortDirection },
   "totalTouches-asc": { key: "totalTouches", direction: "asc" as SortDirection },
 };
+
+function canTrashCampaign(campaign: PartnerEmailCampaign): boolean {
+  const sending = (campaign.sending_status ?? "").toLowerCase();
+  if (sending === "send complete") return false;
+  if (campaign.email_sent_at !== null) return false;
+  if ((campaign.total_emails_sent ?? 0) > 0) return false;
+  return true;
+}
 
 function classifyCampaign(campaign: PartnerEmailCampaign): CampaignListFilter {
   const sending = (campaign.sending_status ?? "").toLowerCase();
@@ -261,6 +270,9 @@ export default function CommunicationsDashboard({
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [previewCampaign, setPreviewCampaign] = useState<PartnerEmailCampaign | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [trashingId, setTrashingId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [modalForcedReadOnly, setModalForcedReadOnly] = useState(false);
 
   const activeTestRecipientCount = useMemo(
     () => testRecipients.filter((r) => r.is_active).length,
@@ -276,17 +288,31 @@ export default function CommunicationsDashboard({
       "working-scheduled": 0,
       completed: 0,
       "failed-canceled": 0,
-      all: campaigns.length,
+      trash: 0,
+      all: 0,
     };
-    for (const c of campaigns) counts[classifyCampaign(c)] += 1;
+    for (const c of campaigns) {
+      if (c.deleted_at !== null) {
+        counts.trash += 1;
+      } else {
+        counts.all += 1;
+        counts[classifyCampaign(c)] += 1;
+      }
+    }
     return counts;
   }, [campaigns]);
 
   const visibleCampaigns = useMemo(() => {
-    let result =
-      activeFilter === "all"
-        ? campaigns
-        : campaigns.filter((c) => classifyCampaign(c) === activeFilter);
+    let result: PartnerEmailCampaign[];
+    if (activeFilter === "trash") {
+      result = campaigns.filter((c) => c.deleted_at !== null);
+    } else if (activeFilter === "all") {
+      result = campaigns.filter((c) => c.deleted_at === null);
+    } else {
+      result = campaigns.filter(
+        (c) => c.deleted_at === null && classifyCampaign(c) === activeFilter,
+      );
+    }
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -377,6 +403,7 @@ export default function CommunicationsDashboard({
   function openCampaign(campaign: PartnerEmailCampaign) {
     setSelectedCampaign(campaign);
     setModalMode("view");
+    setModalForcedReadOnly(campaign.deleted_at !== null);
     setShowCampaignModal(true);
   }
 
@@ -397,6 +424,45 @@ export default function CommunicationsDashboard({
     setSelectedCampaign(savedCampaign);
     setModalMode("view");
     setShowCampaignModal(true);
+  }
+
+  async function handleTrashCampaign(campaign: PartnerEmailCampaign) {
+    setTrashingId(campaign.id);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from("partner_emails")
+        .update({ deleted_at: now })
+        .eq("id", campaign.id);
+      if (error) throw error;
+      setCampaigns((prev) =>
+        prev.map((c) => (c.id === campaign.id ? { ...c, deleted_at: now } : c)),
+      );
+    } catch {
+      alert("Failed to move campaign to Trash. Please try again.");
+    } finally {
+      setTrashingId(null);
+    }
+  }
+
+  async function handleRestoreCampaign(campaign: PartnerEmailCampaign) {
+    setRestoringId(campaign.id);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("partner_emails")
+        .update({ deleted_at: null })
+        .eq("id", campaign.id);
+      if (error) throw error;
+      setCampaigns((prev) =>
+        prev.map((c) => (c.id === campaign.id ? { ...c, deleted_at: null } : c)),
+      );
+    } catch {
+      alert("Failed to restore campaign. Please try again.");
+    } finally {
+      setRestoringId(null);
+    }
   }
 
   return (
@@ -529,7 +595,7 @@ export default function CommunicationsDashboard({
 
                 {/* Metadata column */}
                 <div className="campaign-meta-col">
-                  {/* Subject + View/Edit */}
+                  {/* Subject + actions */}
                   <div
                     style={{
                       display: "flex",
@@ -555,14 +621,43 @@ export default function CommunicationsDashboard({
                         <span style={{ color: "#9ca3af", fontWeight: 400 }}>No subject</span>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      className="action-link"
-                      onClick={() => openCampaign(campaign)}
-                      style={{ flexShrink: 0 }}
-                    >
-                      View/Edit
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                      {campaign.deleted_at !== null ? (
+                        <span
+                          className="badge"
+                          style={{ background: "#fef2f2", color: "#b91c1c" }}
+                        >
+                          Trashed
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="action-link"
+                        onClick={() => openCampaign(campaign)}
+                      >
+                        {campaign.deleted_at !== null ? "View" : "View/Edit"}
+                      </button>
+                      {campaign.deleted_at !== null ? (
+                        <button
+                          type="button"
+                          className="action-link"
+                          onClick={() => handleRestoreCampaign(campaign)}
+                          disabled={restoringId === campaign.id}
+                        >
+                          {restoringId === campaign.id ? "Restoring…" : "Restore"}
+                        </button>
+                      ) : canManage && canTrashCampaign(campaign) ? (
+                        <button
+                          type="button"
+                          className="action-link"
+                          style={{ color: "#b91c1c" }}
+                          onClick={() => handleTrashCampaign(campaign)}
+                          disabled={trashingId === campaign.id}
+                        >
+                          {trashingId === campaign.id ? "Moving…" : "Move to Trash"}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
 
                   {/* Type / segment / version badges */}
@@ -674,11 +769,12 @@ export default function CommunicationsDashboard({
           suppressions={suppressions}
           campaign={selectedCampaign}
           mode={modalMode}
-          canManage={canManage}
+          canManage={canManage && !modalForcedReadOnly}
           onAssetsChange={onAssetsChange}
           onClose={() => {
             setSelectedCampaign(null);
             setModalMode("create");
+            setModalForcedReadOnly(false);
             setShowCampaignModal(false);
           }}
           onSaved={handleSavedCampaign}

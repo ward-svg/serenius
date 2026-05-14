@@ -664,7 +664,7 @@ export default function CampaignModal({
       mailSettings?.is_enabled === true &&
       mailSettings?.send_mode === "test_only";
     const hasTestRecipients = testRecipientCount > 0;
-    const canTestSend = hasSubject && hasContent && !!mailReady && hasTestRecipients;
+    const canTestSend = canManage && hasSubject && hasContent && !!mailReady && hasTestRecipients;
 
     return (
       <SereniusModal

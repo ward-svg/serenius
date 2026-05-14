@@ -41,7 +41,7 @@ export async function getCommunicationsPageData(
     supabase
       .from('partner_emails')
       .select(
-        'id, tenant_id, knack_id, knack_email_id, sending_status, message_status, communication_type, email_style, sent_type, segment, campaign_version, subject, message, message_raw_html, html_file_name, html_file_url, media_attachments, number_of_attachments, delivery_datetime, email_sent_at, total_emails_sent, sent_to_bot, original_opens, total_touches, clear_partner_emails, design_json, created_by, created_at, updated_at',
+        'id, tenant_id, knack_id, knack_email_id, sending_status, message_status, communication_type, email_style, sent_type, segment, campaign_version, subject, message, message_raw_html, html_file_name, html_file_url, media_attachments, number_of_attachments, delivery_datetime, email_sent_at, total_emails_sent, sent_to_bot, original_opens, total_touches, clear_partner_emails, design_json, created_by, created_at, updated_at, deleted_at',
       )
       .eq('tenant_id', tenant.org.id)
       .order('created_at', { ascending: false }),
