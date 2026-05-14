@@ -37,6 +37,12 @@ export interface StoryBlock {
   id: string;
   type: 'story';
   content: string;
+  backgroundColor?: string;
+  textColor?: string;
+  textSize?: number;
+  fontRole?: 'heading' | 'body';
+  alignment?: 'left' | 'center' | 'right';
+  paddingY?: number;
 }
 
 export interface HighlightBlock {

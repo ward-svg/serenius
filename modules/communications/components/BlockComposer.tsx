@@ -73,7 +73,16 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         subtitleFontRole: "body",
       };
     case "story":
-      return { id, type, content: "" };
+      return {
+        id, type,
+        content: "",
+        backgroundColor: "#ffffff",
+        textColor: brand?.text_color ?? "#111827",
+        textSize: 15,
+        fontRole: "body",
+        alignment: "left",
+        paddingY: 28,
+      };
     case "highlight":
       return { id, type, variant: "callout", heading: "", body: "", items: [] };
     case "cta":
@@ -827,17 +836,119 @@ function StoryEditor({
   onPatch: (patch: Partial<StoryBlock>) => void;
 }) {
   return (
-    <div className="form-group" style={{ margin: 0 }}>
-      <label className="form-label">Content</label>
-      <textarea
-        className="form-textarea"
-        rows={7}
-        value={block.content}
-        onChange={(e) => onPatch({ content: e.target.value })}
-        disabled={disabled}
-        placeholder="Write your story content here. Double line breaks create new paragraphs."
-      />
-      <div className="form-helper">Double line breaks become paragraphs. Single line breaks become &lt;br&gt;.</div>
+    <div style={{ display: "grid", gap: 12 }}>
+      {/* A. Story Background Color */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Story Background Color</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="color"
+            value={block.backgroundColor || "#ffffff"}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            disabled={disabled}
+            style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
+          />
+          <input
+            type="text"
+            className="form-input"
+            value={block.backgroundColor ?? ""}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            disabled={disabled}
+            placeholder="#ffffff"
+            style={{ fontFamily: "monospace" }}
+          />
+        </div>
+        <div className="form-helper">Sets the story block background.</div>
+      </div>
+
+      {/* B. Content */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Content</label>
+        <textarea
+          className="form-textarea"
+          rows={7}
+          value={block.content}
+          onChange={(e) => onPatch({ content: e.target.value })}
+          disabled={disabled}
+          placeholder="Write your story content here. Double line breaks create new paragraphs."
+        />
+        <div className="form-helper">Double line breaks become paragraphs. Single line breaks become &lt;br&gt;.</div>
+      </div>
+
+      {/* C. Text Style */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 56px" }}>
+          <label className="form-label">Size</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.textSize ?? 15}
+            min={12}
+            max={24}
+            step={1}
+            onChange={(e) => onPatch({ textSize: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
+          <div>
+            <label className="form-label">Color</label>
+            <input
+              type="color"
+              value={block.textColor || "#111827"}
+              onChange={(e) => onPatch({ textColor: e.target.value })}
+              disabled={disabled}
+              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" }}
+            />
+          </div>
+          <input
+            type="text"
+            className="form-input"
+            value={block.textColor ?? ""}
+            onChange={(e) => onPatch({ textColor: e.target.value })}
+            disabled={disabled}
+            placeholder="#111827"
+            style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">Font</label>
+          <select
+            className="form-input"
+            value={block.fontRole ?? "body"}
+            onChange={(e) => onPatch({ fontRole: e.target.value as "heading" | "body" })}
+            disabled={disabled}
+          >
+            <option value="body">Body</option>
+            <option value="heading">Heading</option>
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+          <label className="form-label">Alignment</label>
+          <AlignSelect
+            value={block.alignment ?? "left"}
+            onChange={(v) => onPatch({ alignment: v as StoryBlock["alignment"] })}
+            disabled={disabled}
+          />
+        </div>
+      </div>
+
+      {/* D. Spacing */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Vertical Padding (px)</label>
+        <input
+          type="number"
+          className="form-input"
+          value={block.paddingY ?? 24}
+          min={12}
+          max={64}
+          step={4}
+          onChange={(e) => onPatch({ paddingY: Number(e.target.value) })}
+          disabled={disabled}
+          style={{ maxWidth: 100 }}
+        />
+        <div className="form-helper">Adds space above and below the story text.</div>
+      </div>
     </div>
   );
 }

@@ -117,8 +117,14 @@ function renderHero(block: HeroBlock, brand: EmailBrandSettings | null): string 
 }
 
 function renderStory(block: StoryBlock, brand: EmailBrandSettings | null): string {
-  const color = brand?.text_color || '#111827';
+  const bg = block.backgroundColor || '#ffffff';
+  const color = block.textColor || brand?.text_color || '#111827';
+  const headingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
   const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
+  const font = (block.fontRole ?? 'body') === 'heading' ? headingFont : bodyFont;
+  const textSize = typeof block.textSize === 'number' ? block.textSize : 15;
+  const align = block.alignment || 'left';
+  const paddingY = typeof block.paddingY === 'number' ? block.paddingY : 24;
   const content = (block.content || '').trim();
 
   const paragraphs = content
@@ -126,13 +132,13 @@ function renderStory(block: StoryBlock, brand: EmailBrandSettings | null): strin
         .split(/\n\n+/)
         .map(
           (p) =>
-            `<p style="margin:0 0 14px;font-size:15px;font-family:${esc(bodyFont)};color:${esc(color)};line-height:1.6;">${esc(p).replace(/\n/g, '<br>')}</p>`,
+            `<p style="margin:0 0 14px;font-size:${textSize}px;font-family:${esc(font)};color:${esc(color)};line-height:1.6;">${esc(p).replace(/\n/g, '<br>')}</p>`,
         )
         .join('')
-    : `<p style="margin:0;font-size:15px;font-family:${esc(bodyFont)};color:#9ca3af;">No content.</p>`;
+    : `<p style="margin:0;font-size:${textSize}px;font-family:${esc(font)};color:#9ca3af;">No content.</p>`;
 
   return `<tr>
-  <td style="padding:24px 30px;background-color:#ffffff;">
+  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;text-align:${align};">
     ${paragraphs}
   </td>
 </tr>`;
@@ -289,6 +295,10 @@ export function applyBrandDefaultsToDesign(
           buttonUrl: block.buttonUrl || brand.default_donation_url || '',
         };
       case 'story':
+        return {
+          ...block,
+          textColor: brand.text_color || block.textColor,
+        };
       case 'highlight':
         return block;
     }
