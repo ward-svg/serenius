@@ -164,6 +164,14 @@ function HeaderEditor({
   disabled: boolean;
   onPatch: (patch: Partial<HeaderBlock>) => void;
 }) {
+  const [pickingUploadedAsset, setPickingUploadedAsset] = useState(false);
+
+  const imageAssets = emailAssets.filter((a) => a.mime_type.startsWith("image/"));
+  const sortedImageAssets = [
+    ...imageAssets.filter((a) => a.asset_type === "logo"),
+    ...imageAssets.filter((a) => a.asset_type !== "logo"),
+  ];
+
   const matchedAsset = block.logoUrl
     ? emailAssets.find((a) => a.public_url === block.logoUrl) ?? null
     : null;
@@ -174,6 +182,34 @@ function HeaderEditor({
     !!block.logoUrl &&
     !!brandSettings?.logo_url &&
     block.logoUrl === brandSettings.logo_url;
+  const isUploadedAsset = !!block.logoUrl && !isPrimaryLogo && !!matchedAsset;
+  const isSavedCampaign = !!block.logoUrl && !isPrimaryLogo && !matchedAsset;
+
+  const appliedSource = !block.logoUrl
+    ? "none"
+    : isPrimaryLogo
+      ? "brand-kit"
+      : isUploadedAsset
+        ? "uploaded-asset"
+        : "saved-campaign";
+
+  const selectValue = pickingUploadedAsset ? "uploaded-asset" : appliedSource;
+  const showAssetDropdown = isUploadedAsset || pickingUploadedAsset;
+
+  function handleSourceChange(val: string) {
+    if (val === "brand-kit") {
+      onPatch({
+        logoUrl: brandSettings?.logo_url || "",
+        logoWidth: brandSettings?.logo_width || block.logoWidth || 180,
+      });
+      setPickingUploadedAsset(false);
+    } else if (val === "none") {
+      onPatch({ logoUrl: "" });
+      setPickingUploadedAsset(false);
+    } else if (val === "uploaded-asset") {
+      setPickingUploadedAsset(true);
+    }
+  }
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -201,7 +237,68 @@ function HeaderEditor({
         <div className="form-helper">Sets the header band color.</div>
       </div>
 
-      {/* ── Logo ── preview + identity + width in one row */}
+      {/* ── Logo Source ── */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Logo Source</label>
+        <select
+          className="form-input"
+          value={selectValue}
+          onChange={(e) => handleSourceChange(e.target.value)}
+          disabled={disabled}
+        >
+          {isSavedCampaign && (
+            <option value="saved-campaign" disabled>
+              Saved Campaign Logo
+            </option>
+          )}
+          <option value="brand-kit" disabled={!brandSettings?.logo_url}>
+            Use Brand Kit Logo
+          </option>
+          <option value="uploaded-asset">Choose Uploaded Asset</option>
+          <option value="none">No Logo</option>
+        </select>
+        {isSavedCampaign && (
+          <div className="form-helper">
+            This logo was saved to the campaign but is no longer in your uploaded assets. Switch source to replace it.
+          </div>
+        )}
+      </div>
+
+      {/* ── Asset picker ── visible when source is Choose Uploaded Asset */}
+      {showAssetDropdown && (
+        sortedImageAssets.length === 0 ? (
+          <div style={{ fontSize: 12, color: "#6b7280", paddingTop: 2 }}>
+            Upload logo assets in Brand Kit → Public Email Assets.
+          </div>
+        ) : (
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Select Asset</label>
+            <select
+              className="form-input"
+              value={block.logoUrl || ""}
+              onChange={(e) => {
+                if (e.target.value) {
+                  onPatch({ logoUrl: e.target.value });
+                  setPickingUploadedAsset(false);
+                }
+              }}
+              disabled={disabled}
+            >
+              {pickingUploadedAsset && !isUploadedAsset && (
+                <option value="">— Choose an asset —</option>
+              )}
+              {sortedImageAssets.map((a) => (
+                <option key={a.id} value={a.public_url}>
+                  {a.asset_type === "logo" ? "[Logo] " : ""}
+                  {a.original_file_name ?? a.file_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )
+      )}
+
+      {/* ── Logo preview ── checkerboard + identity + width */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Logo</label>
         <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 120px", gap: 12, alignItems: "start" }}>
@@ -239,7 +336,7 @@ function HeaderEditor({
               <span style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", padding: 6 }}>No logo</span>
             )}
           </div>
-          {/* Logo identity panel */}
+          {/* Identity panel */}
           <div style={{ display: "grid", gap: 4, paddingTop: 2 }}>
             {block.logoUrl ? (
               <>
@@ -249,14 +346,14 @@ function HeaderEditor({
                     width: "fit-content",
                     fontSize: 10,
                     fontWeight: 700,
-                    background: isPrimaryLogo ? "#dcfce7" : "#dbeafe",
-                    color: isPrimaryLogo ? "#166534" : "#1d4ed8",
+                    background: isPrimaryLogo ? "#dcfce7" : isSavedCampaign ? "#fef3c7" : "#dbeafe",
+                    color: isPrimaryLogo ? "#166534" : isSavedCampaign ? "#92400e" : "#1d4ed8",
                     borderRadius: 9999,
                     padding: "1px 8px",
                     letterSpacing: "0.02em",
                   }}
                 >
-                  {isPrimaryLogo ? "✓ Primary Logo" : "Campaign Logo"}
+                  {isPrimaryLogo ? "✓ Primary Logo" : isSavedCampaign ? "Saved Campaign Logo" : "Campaign Logo"}
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#111827", lineHeight: 1.3 }}>
                   {assetName ?? "Saved campaign logo"}
@@ -265,11 +362,8 @@ function HeaderEditor({
             ) : (
               <span style={{ fontSize: 12, color: "#9ca3af" }}>No logo selected</span>
             )}
-            <span style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.4 }}>
-              Set in Brand Kit → Logo. Use "Use as Logo" to assign an uploaded asset.
-            </span>
           </div>
-          {/* Logo width — lives with the logo section */}
+          {/* Logo width */}
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Logo Width (px)</label>
             <input
