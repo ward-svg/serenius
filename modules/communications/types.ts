@@ -159,6 +159,8 @@ export interface EmailBrandSettings {
   background_color: string
   text_color: string
   default_font: string
+  heading_font: string
+  body_font: string
   default_signature: string | null
   default_donation_url: string | null
   preference_center_url: string | null

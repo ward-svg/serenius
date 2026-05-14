@@ -72,7 +72,7 @@ export async function getCommunicationsPageData(
     supabase
       .from('communication_email_brand_settings')
       .select(
-        'id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, created_by, created_at, updated_at',
+        'id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, created_by, created_at, updated_at',
       )
       .eq('tenant_id', tenant.org.id)
       .maybeSingle(),

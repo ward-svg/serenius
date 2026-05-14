@@ -691,7 +691,9 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | button_text_color | text | DEFAULT '#FFFFFF' |
 | background_color | text | DEFAULT '#FFFFFF' |
 | text_color | text | DEFAULT '#333333' |
-| default_font | text | DEFAULT 'Arial, sans-serif' |
+| default_font | text | DEFAULT 'Arial, sans-serif' — legacy, retained for backward compatibility |
+| heading_font | text | NOT NULL DEFAULT 'Georgia, Times New Roman, serif' — hero headlines, greetings, quotes, emotional text |
+| body_font | text | NOT NULL DEFAULT 'Arial, Helvetica, sans-serif' — paragraphs, labels, buttons, footer, functional text |
 | default_signature | text | nullable — HTML signature block |
 | default_donation_url | text | nullable |
 | preference_center_url | text | nullable — base URL override; default is Serenius-hosted /mail/preferences/{token} |

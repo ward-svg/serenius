@@ -32,6 +32,8 @@ type FormData = {
   background_color: string;
   text_color: string;
   default_font: string;
+  heading_font: string;
+  body_font: string;
   default_signature: string;
   default_donation_url: string;
   preference_center_url: string;
@@ -58,6 +60,8 @@ const DEFAULTS: FormData = {
   background_color: "#f9fafb",
   text_color: "#111827",
   default_font: "Arial, sans-serif",
+  heading_font: "Georgia, 'Times New Roman', serif",
+  body_font: "Arial, Helvetica, sans-serif",
   default_signature: "",
   default_donation_url: "",
   preference_center_url: "",
@@ -85,6 +89,8 @@ function settingsToForm(s: EmailBrandSettings): FormData {
     background_color: s.background_color,
     text_color: s.text_color,
     default_font: s.default_font,
+    heading_font: s.heading_font,
+    body_font: s.body_font,
     default_signature: s.default_signature ?? "",
     default_donation_url: s.default_donation_url ?? "",
     preference_center_url: s.preference_center_url ?? "",
@@ -192,6 +198,8 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
       background_color: form.background_color,
       text_color: form.text_color,
       default_font: form.default_font.trim() || "Arial, sans-serif",
+      heading_font: form.heading_font || "Georgia, 'Times New Roman', serif",
+      body_font: form.body_font || "Arial, Helvetica, sans-serif",
       default_signature: form.default_signature.trim() || null,
       default_donation_url: form.default_donation_url.trim() || null,
       preference_center_url: form.preference_center_url.trim() || null,
@@ -201,7 +209,7 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
     };
 
     const selectCols =
-      "id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, created_by, created_at, updated_at";
+      "id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, created_by, created_at, updated_at";
 
     let saved: EmailBrandSettings | null = null;
 
@@ -403,8 +411,42 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
           </div>
 
           <SectionTitle>Typography</SectionTitle>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="form-group">
+              <label className="form-label">Personality / Heading Font</label>
+              <select
+                className="form-input"
+                value={form.heading_font}
+                onChange={(e) => field("heading_font", e.target.value)}
+              >
+                <option value="Georgia, 'Times New Roman', serif">Georgia, 'Times New Roman', serif</option>
+                <option value="'Times New Roman', Times, serif">'Times New Roman', Times, serif</option>
+                <option value="Arial, Helvetica, sans-serif">Arial, Helvetica, sans-serif</option>
+                <option value="Verdana, Geneva, sans-serif">Verdana, Geneva, sans-serif</option>
+                <option value="Tahoma, Geneva, sans-serif">Tahoma, Geneva, sans-serif</option>
+                <option value="'Trebuchet MS', Arial, sans-serif">'Trebuchet MS', Arial, sans-serif</option>
+              </select>
+              <div className="form-helper">Used for emotional headings, hero headlines, quotes, closings, and scripture-style text.</div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Body / Functional Font</label>
+              <select
+                className="form-input"
+                value={form.body_font}
+                onChange={(e) => field("body_font", e.target.value)}
+              >
+                <option value="Arial, Helvetica, sans-serif">Arial, Helvetica, sans-serif</option>
+                <option value="Verdana, Geneva, sans-serif">Verdana, Geneva, sans-serif</option>
+                <option value="Tahoma, Geneva, sans-serif">Tahoma, Geneva, sans-serif</option>
+                <option value="'Trebuchet MS', Arial, sans-serif">'Trebuchet MS', Arial, sans-serif</option>
+                <option value="Georgia, 'Times New Roman', serif">Georgia, 'Times New Roman', serif</option>
+                <option value="'Times New Roman', Times, serif">'Times New Roman', Times, serif</option>
+              </select>
+              <div className="form-helper">Used for paragraphs, labels, cards, buttons, lists, and footer details.</div>
+            </div>
+          </div>
           <div className="form-group">
-            <label className="form-label">Default Font</label>
+            <label className="form-label">Default Font (Legacy)</label>
             <input
               type="text"
               className="form-input"
@@ -412,7 +454,7 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
               onChange={(e) => field("default_font", e.target.value)}
               placeholder="Arial, sans-serif"
             />
-            <div className="form-helper">CSS font-family stack used in email templates.</div>
+            <div className="form-helper">Fallback font-family stack. Heading and body fonts above take precedence for builder blocks.</div>
           </div>
 
           <SectionTitle>Email Content Defaults</SectionTitle>

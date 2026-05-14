@@ -54,12 +54,13 @@ function renderHeader(block: HeaderBlock, brand: EmailBrandSettings | null): str
   const align = block.alignment || 'center';
   const logoUrl = block.logoUrl || brand?.logo_url || '';
   const logoWidth = block.logoWidth || brand?.logo_width || 180;
-  const font = brand?.default_font || 'Arial, sans-serif';
+  const headingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
+  const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
   const orgName = brand?.organization_name || '';
 
   const logoHtml = logoUrl
     ? `<img src="${esc(safeUrl(logoUrl))}" width="${Number(logoWidth)}" alt="${esc(orgName || 'Logo')}" style="display:block;${align === 'center' ? 'margin:0 auto;' : ''}border:0;max-width:100%;">`
-    : (orgName ? `<p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;font-family:${esc(font)};">${esc(orgName)}</p>` : '');
+    : (orgName ? `<p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;font-family:${esc(headingFont)};">${esc(orgName)}</p>` : '');
 
   const taglineOffset = align !== 'center' ? Math.max(0, block.taglineOffset ?? 0) : 0;
   const taglineOffsetStyle = align === 'left' && taglineOffset > 0
@@ -69,7 +70,7 @@ function renderHeader(block: HeaderBlock, brand: EmailBrandSettings | null): str
     : '';
 
   const taglineHtml = block.tagline
-    ? `<p style="margin:6px 0 0;font-size:13px;color:#ffffff;font-family:${esc(font)};opacity:0.85;${taglineOffsetStyle}">${esc(block.tagline)}</p>`
+    ? `<p style="margin:6px 0 0;font-size:13px;color:#ffffff;font-family:${esc(bodyFont)};opacity:0.85;${taglineOffsetStyle}">${esc(block.tagline)}</p>`
     : '';
 
   return `<tr>
@@ -83,17 +84,18 @@ function renderHero(block: HeroBlock, brand: EmailBrandSettings | null): string 
   const bg = block.backgroundColor || brand?.primary_color || '#1a56db';
   const color = block.textColor || brand?.button_text_color || '#ffffff';
   const align = block.alignment || 'center';
-  const font = brand?.default_font || 'Arial, sans-serif';
+  const headingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
+  const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
 
   const parts: string[] = [];
   if (block.eyebrow) {
-    parts.push(`<p style="margin:0 0 8px;font-size:11px;font-family:${esc(font)};color:${esc(color)};text-transform:uppercase;letter-spacing:0.1em;font-weight:600;opacity:0.7;">${esc(block.eyebrow)}</p>`);
+    parts.push(`<p style="margin:0 0 8px;font-size:11px;font-family:${esc(bodyFont)};color:${esc(color)};text-transform:uppercase;letter-spacing:0.1em;font-weight:600;opacity:0.7;">${esc(block.eyebrow)}</p>`);
   }
   if (block.headline) {
-    parts.push(`<h1 style="margin:0 0 12px;font-size:28px;font-family:${esc(font)};color:${esc(color)};font-weight:700;line-height:1.2;">${esc(block.headline)}</h1>`);
+    parts.push(`<h1 style="margin:0 0 12px;font-size:28px;font-family:${esc(headingFont)};color:${esc(color)};font-weight:700;line-height:1.2;">${esc(block.headline)}</h1>`);
   }
   if (block.subtitle) {
-    parts.push(`<p style="margin:0;font-size:16px;font-family:${esc(font)};color:${esc(color)};line-height:1.5;opacity:0.85;">${esc(block.subtitle)}</p>`);
+    parts.push(`<p style="margin:0;font-size:16px;font-family:${esc(bodyFont)};color:${esc(color)};line-height:1.5;opacity:0.85;">${esc(block.subtitle)}</p>`);
   }
 
   return `<tr>
@@ -105,7 +107,7 @@ function renderHero(block: HeroBlock, brand: EmailBrandSettings | null): string 
 
 function renderStory(block: StoryBlock, brand: EmailBrandSettings | null): string {
   const color = brand?.text_color || '#111827';
-  const font = brand?.default_font || 'Arial, sans-serif';
+  const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
   const content = (block.content || '').trim();
 
   const paragraphs = content
@@ -113,10 +115,10 @@ function renderStory(block: StoryBlock, brand: EmailBrandSettings | null): strin
         .split(/\n\n+/)
         .map(
           (p) =>
-            `<p style="margin:0 0 14px;font-size:15px;font-family:${esc(font)};color:${esc(color)};line-height:1.6;">${esc(p).replace(/\n/g, '<br>')}</p>`,
+            `<p style="margin:0 0 14px;font-size:15px;font-family:${esc(bodyFont)};color:${esc(color)};line-height:1.6;">${esc(p).replace(/\n/g, '<br>')}</p>`,
         )
         .join('')
-    : `<p style="margin:0;font-size:15px;font-family:${esc(font)};color:#9ca3af;">No content.</p>`;
+    : `<p style="margin:0;font-size:15px;font-family:${esc(bodyFont)};color:#9ca3af;">No content.</p>`;
 
   return `<tr>
   <td style="padding:24px 30px;background-color:#ffffff;">
@@ -126,7 +128,8 @@ function renderStory(block: StoryBlock, brand: EmailBrandSettings | null): strin
 }
 
 function renderHighlight(block: HighlightBlock, brand: EmailBrandSettings | null): string {
-  const font = brand?.default_font || 'Arial, sans-serif';
+  const headingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
+  const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
   const primary = brand?.primary_color || '#1a56db';
   const accent = brand?.accent_color || '#e8f0fe';
   const text = brand?.text_color || '#111827';
@@ -137,8 +140,8 @@ function renderHighlight(block: HighlightBlock, brand: EmailBrandSettings | null
   <td style="padding:16px 30px;background-color:#ffffff;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
       <td style="border-left:4px solid ${esc(primary)};padding:12px 20px;background-color:${esc(accent)};">
-        ${block.heading ? `<p style="margin:0 0 6px;font-size:12px;font-weight:700;font-family:${esc(font)};color:${esc(primary)};text-transform:uppercase;letter-spacing:0.05em;">${esc(block.heading)}</p>` : ''}
-        ${block.body ? `<p style="margin:0;font-size:15px;font-family:${esc(font)};color:${esc(text)};line-height:1.6;font-style:italic;">${esc(block.body)}</p>` : ''}
+        ${block.heading ? `<p style="margin:0 0 6px;font-size:12px;font-weight:700;font-family:${esc(bodyFont)};color:${esc(primary)};text-transform:uppercase;letter-spacing:0.05em;">${esc(block.heading)}</p>` : ''}
+        ${block.body ? `<p style="margin:0;font-size:15px;font-family:${esc(headingFont)};color:${esc(text)};line-height:1.6;font-style:italic;">${esc(block.body)}</p>` : ''}
       </td>
     </tr></table>
   </td>
@@ -147,12 +150,12 @@ function renderHighlight(block: HighlightBlock, brand: EmailBrandSettings | null
 
   if (block.variant === 'list') {
     const listHtml = items.length
-      ? `<ul style="margin:8px 0 0;padding:0 0 0 20px;">${items.map((i) => `<li style="margin:0 0 6px;font-size:14px;font-family:${esc(font)};color:${esc(text)};line-height:1.5;">${esc(i)}</li>`).join('')}</ul>`
+      ? `<ul style="margin:8px 0 0;padding:0 0 0 20px;">${items.map((i) => `<li style="margin:0 0 6px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(i)}</li>`).join('')}</ul>`
       : '';
     return `<tr>
   <td style="padding:24px 30px;background-color:#ffffff;">
-    ${block.heading ? `<p style="margin:0 0 10px;font-size:17px;font-weight:700;font-family:${esc(font)};color:${esc(text)};">${esc(block.heading)}</p>` : ''}
-    ${block.body ? `<p style="margin:0 0 8px;font-size:14px;font-family:${esc(font)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
+    ${block.heading ? `<p style="margin:0 0 10px;font-size:17px;font-weight:700;font-family:${esc(headingFont)};color:${esc(text)};">${esc(block.heading)}</p>` : ''}
+    ${block.body ? `<p style="margin:0 0 8px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
     ${listHtml}
   </td>
 </tr>`;
@@ -160,14 +163,14 @@ function renderHighlight(block: HighlightBlock, brand: EmailBrandSettings | null
 
   // callout
   const itemsHtml = items.length
-    ? `<ul style="margin:10px 0 0;padding:0 0 0 18px;">${items.map((i) => `<li style="font-size:14px;font-family:${esc(font)};color:${esc(text)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
+    ? `<ul style="margin:10px 0 0;padding:0 0 0 18px;">${items.map((i) => `<li style="font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
     : '';
   return `<tr>
   <td style="padding:16px 30px;background-color:#ffffff;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
       <td style="background-color:${esc(accent)};border:1px solid #d1d5db;border-radius:8px;padding:20px 24px;">
-        ${block.heading ? `<p style="margin:0 0 8px;font-size:16px;font-weight:700;font-family:${esc(font)};color:${esc(primary)};">${esc(block.heading)}</p>` : ''}
-        ${block.body ? `<p style="margin:0;font-size:14px;font-family:${esc(font)};color:${esc(text)};line-height:1.6;">${esc(block.body)}</p>` : ''}
+        ${block.heading ? `<p style="margin:0 0 8px;font-size:16px;font-weight:700;font-family:${esc(headingFont)};color:${esc(primary)};">${esc(block.heading)}</p>` : ''}
+        ${block.body ? `<p style="margin:0;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.6;">${esc(block.body)}</p>` : ''}
         ${itemsHtml}
       </td>
     </tr></table>
@@ -176,7 +179,8 @@ function renderHighlight(block: HighlightBlock, brand: EmailBrandSettings | null
 }
 
 function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
-  const font = brand?.default_font || 'Arial, sans-serif';
+  const headingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
+  const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
   const btnColor = brand?.button_color || '#1a56db';
   const btnText = brand?.button_text_color || '#ffffff';
   const text = brand?.text_color || '#111827';
@@ -186,14 +190,14 @@ function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
   const items = block.items.filter(Boolean);
 
   const btnHtml = block.buttonText
-    ? `<a href="${esc(href)}" style="display:inline-block;background-color:${esc(btnColor)};color:${esc(btnText)};font-family:${esc(font)};font-size:15px;font-weight:700;padding:12px 28px;text-decoration:none;border-radius:6px;">${esc(block.buttonText)}</a>`
+    ? `<a href="${esc(href)}" style="display:inline-block;background-color:${esc(btnColor)};color:${esc(btnText)};font-family:${esc(bodyFont)};font-size:15px;font-weight:700;padding:12px 28px;text-decoration:none;border-radius:6px;">${esc(block.buttonText)}</a>`
     : '';
 
   if (block.variant === 'button') {
     return `<tr>
   <td style="padding:24px 30px;background-color:#ffffff;text-align:center;">
-    ${block.heading ? `<p style="margin:0 0 8px;font-size:17px;font-weight:700;font-family:${esc(font)};color:${esc(text)};">${esc(block.heading)}</p>` : ''}
-    ${block.body ? `<p style="margin:0 0 16px;font-size:14px;font-family:${esc(font)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
+    ${block.heading ? `<p style="margin:0 0 8px;font-size:17px;font-weight:700;font-family:${esc(headingFont)};color:${esc(text)};">${esc(block.heading)}</p>` : ''}
+    ${block.body ? `<p style="margin:0 0 16px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
     ${btnHtml}
   </td>
 </tr>`;
@@ -201,13 +205,13 @@ function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
 
   if (block.variant === 'offer') {
     const itemsHtml = items.length
-      ? `<ul style="margin:0 0 16px;padding:0;list-style:none;">${items.map((i) => `<li style="font-size:13px;font-family:${esc(font)};color:${esc(text)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
+      ? `<ul style="margin:0 0 16px;padding:0;list-style:none;">${items.map((i) => `<li style="font-size:13px;font-family:${esc(bodyFont)};color:${esc(text)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
       : '';
     return `<tr>
   <td style="padding:24px 30px;background-color:#ffffff;text-align:center;">
-    ${block.heading ? `<p style="margin:0 0 8px;font-size:17px;font-weight:700;font-family:${esc(font)};color:${esc(text)};">${esc(block.heading)}</p>` : ''}
-    ${block.amount ? `<p style="margin:0 0 8px;font-size:36px;font-weight:800;font-family:${esc(font)};color:${esc(primary)};">${esc(block.amount)}</p>` : ''}
-    ${block.body ? `<p style="margin:0 0 16px;font-size:14px;font-family:${esc(font)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
+    ${block.heading ? `<p style="margin:0 0 8px;font-size:17px;font-weight:700;font-family:${esc(headingFont)};color:${esc(text)};">${esc(block.heading)}</p>` : ''}
+    ${block.amount ? `<p style="margin:0 0 8px;font-size:36px;font-weight:800;font-family:${esc(headingFont)};color:${esc(primary)};">${esc(block.amount)}</p>` : ''}
+    ${block.body ? `<p style="margin:0 0 16px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
     ${itemsHtml}
     ${btnHtml}
   </td>
@@ -216,14 +220,14 @@ function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
 
   // panel
   const itemsHtml = items.length
-    ? `<ul style="margin:0 0 16px;padding:0 0 0 18px;">${items.map((i) => `<li style="font-size:14px;font-family:${esc(font)};color:${esc(text)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
+    ? `<ul style="margin:0 0 16px;padding:0 0 0 18px;">${items.map((i) => `<li style="font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};margin:0 0 4px;">${esc(i)}</li>`).join('')}</ul>`
     : '';
   return `<tr>
   <td style="padding:16px 30px;background-color:#ffffff;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
       <td style="background-color:${esc(accent)};border-radius:8px;padding:24px;text-align:center;">
-        ${block.heading ? `<p style="margin:0 0 8px;font-size:18px;font-weight:700;font-family:${esc(font)};color:${esc(primary)};">${esc(block.heading)}</p>` : ''}
-        ${block.body ? `<p style="margin:0 0 16px;font-size:14px;font-family:${esc(font)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
+        ${block.heading ? `<p style="margin:0 0 8px;font-size:18px;font-weight:700;font-family:${esc(headingFont)};color:${esc(primary)};">${esc(block.heading)}</p>` : ''}
+        ${block.body ? `<p style="margin:0 0 16px;font-size:14px;font-family:${esc(bodyFont)};color:${esc(text)};line-height:1.5;">${esc(block.body)}</p>` : ''}
         ${itemsHtml}
         ${btnHtml}
       </td>
@@ -283,11 +287,11 @@ export function renderEmailBuilderHtml(
   brand: EmailBrandSettings | null,
 ): string {
   const bg = brand?.background_color || '#f9fafb';
-  const font = brand?.default_font || 'Arial, sans-serif';
+  const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
 
   const blocksHtml = design.blocks.length
     ? design.blocks.map((b) => renderBlock(b, brand)).join('\n')
-    : `<tr><td style="padding:48px 30px;text-align:center;color:#9ca3af;font-family:${esc(font)};font-size:14px;">No content blocks added yet.</td></tr>`;
+    : `<tr><td style="padding:48px 30px;text-align:center;color:#9ca3af;font-family:${esc(bodyFont)};font-size:14px;">No content blocks added yet.</td></tr>`;
 
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -304,7 +308,7 @@ table{border-collapse:collapse;}
 <body style="margin:0;padding:0;background-color:${esc(bg)};" bgcolor="${esc(bg)}">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${esc(bg)}" style="background-color:${esc(bg)};">
 <tr><td align="center" style="padding:20px 10px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;font-family:${esc(font)};">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;font-family:${esc(bodyFont)};">
 ${blocksHtml}
 </table>
 </td></tr>
