@@ -86,20 +86,23 @@ function renderHero(block: HeroBlock, brand: EmailBrandSettings | null): string 
   const align = block.alignment || 'center';
   const headingFont = brand?.heading_font || brand?.default_font || "Georgia, 'Times New Roman', serif";
   const bodyFont = brand?.body_font || brand?.default_font || 'Arial, Helvetica, sans-serif';
+  const paddingY = typeof block.paddingY === 'number' ? block.paddingY : 40;
+  const headlineSize = typeof block.headlineSize === 'number' ? block.headlineSize : 28;
+  const subtitleSize = typeof block.subtitleSize === 'number' ? block.subtitleSize : 16;
 
   const parts: string[] = [];
   if (block.eyebrow) {
     parts.push(`<p style="margin:0 0 8px;font-size:11px;font-family:${esc(bodyFont)};color:${esc(color)};text-transform:uppercase;letter-spacing:0.1em;font-weight:600;opacity:0.7;">${esc(block.eyebrow)}</p>`);
   }
   if (block.headline) {
-    parts.push(`<h1 style="margin:0 0 12px;font-size:28px;font-family:${esc(headingFont)};color:${esc(color)};font-weight:700;line-height:1.2;">${esc(block.headline)}</h1>`);
+    parts.push(`<h1 style="margin:0 0 12px;font-size:${headlineSize}px;font-family:${esc(headingFont)};color:${esc(color)};font-weight:700;line-height:1.2;">${esc(block.headline)}</h1>`);
   }
   if (block.subtitle) {
-    parts.push(`<p style="margin:0;font-size:16px;font-family:${esc(bodyFont)};color:${esc(color)};line-height:1.5;opacity:0.85;">${esc(block.subtitle)}</p>`);
+    parts.push(`<p style="margin:0;font-size:${subtitleSize}px;font-family:${esc(bodyFont)};color:${esc(color)};line-height:1.5;opacity:0.85;">${esc(block.subtitle)}</p>`);
   }
 
   return `<tr>
-  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:40px 30px;" align="${align}">
+  <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;" align="${align}">
     ${parts.join('')}
   </td>
 </tr>`;

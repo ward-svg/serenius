@@ -59,6 +59,9 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         backgroundColor: brand?.primary_color ?? "#1a56db",
         textColor: brand?.button_text_color ?? "#ffffff",
         alignment: "center",
+        paddingY: 32,
+        headlineSize: 28,
+        subtitleSize: 16,
       };
     case "story":
       return { id, type, content: "" };
@@ -615,6 +618,50 @@ function HeroEditor({
           disabled={disabled}
           placeholder="A short description or lead sentence."
         />
+      </div>
+
+      {/* ── Spacing & Size ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, alignItems: "start" }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Vertical Padding (px)</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.paddingY ?? 40}
+            min={16}
+            max={80}
+            step={4}
+            onChange={(e) => onPatch({ paddingY: Number(e.target.value) })}
+            disabled={disabled}
+          />
+          <div className="form-helper">Adds space above and below the hero text.</div>
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Headline Size (px)</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.headlineSize ?? 28}
+            min={20}
+            max={48}
+            step={2}
+            onChange={(e) => onPatch({ headlineSize: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Subtitle Size (px)</label>
+          <input
+            type="number"
+            className="form-input"
+            value={block.subtitleSize ?? 16}
+            min={12}
+            max={28}
+            step={1}
+            onChange={(e) => onPatch({ subtitleSize: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
       </div>
 
       {/* ── Layout / Text Color ── */}

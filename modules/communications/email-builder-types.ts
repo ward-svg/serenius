@@ -20,6 +20,9 @@ export interface HeroBlock {
   backgroundColor: string;
   textColor: string;
   alignment: 'left' | 'center' | 'right';
+  paddingY?: number;
+  headlineSize?: number;
+  subtitleSize?: number;
 }
 
 export interface StoryBlock {
