@@ -671,7 +671,7 @@ export default function CampaignModal({
         title="View Campaign"
         description={viewCampaign?.subject || "Campaign details"}
         onClose={onClose}
-        maxWidth={1120}
+        maxWidth={1440}
         contentPadding={0}
         headerActions={
           canEdit ? (
@@ -685,188 +685,187 @@ export default function CampaignModal({
           ) : null
         }
       >
-        <div style={{ padding: "24px 24px 128px", display: "grid", gap: 20 }}>
-          <div className="section-card" style={{ marginBottom: 0 }}>
-            <div className="section-header">
-              <span className="section-title">Campaign Details</span>
-            </div>
-            <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
-              {/* Subject — prominent */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Subject</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: viewCampaign?.subject ? "#111827" : "#d1d5db", lineHeight: 1.4 }}>
-                  {viewCampaign?.subject || "No subject set"}
+        <div style={{ padding: "24px 24px 128px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 2fr) minmax(0, 3fr)",
+              gap: 20,
+              alignItems: "start",
+            }}
+          >
+            {/* Left column */}
+            <div style={{ display: "grid", gap: 16 }}>
+              <div className="section-card" style={{ marginBottom: 0 }}>
+                <div className="section-header">
+                  <span className="section-title">Campaign Details</span>
+                </div>
+                <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
+                  {/* Subject — prominent */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Subject</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: viewCampaign?.subject ? "#111827" : "#d1d5db", lineHeight: 1.4 }}>
+                      {viewCampaign?.subject || "No subject set"}
+                    </div>
+                  </div>
+
+                  {/* Status + classification badges */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {viewCampaign?.communication_type && (
+                      <span className="badge badge-info">{viewCampaign.communication_type}</span>
+                    )}
+                    {viewCampaign?.segment && (
+                      <span className="badge" style={{ background: "#f3f4f6", color: "#374151" }}>{viewCampaign.segment}</span>
+                    )}
+                    {viewCampaign?.campaign_version && (
+                      <span className="badge" style={{ background: "#ede9fe", color: "#5b21b6" }}>{viewCampaign.campaign_version}</span>
+                    )}
+                    {viewCampaign?.sending_status && (
+                      <span className="badge" style={campaignBadgeStyle(viewCampaign.sending_status)}>{viewCampaign.sending_status}</span>
+                    )}
+                    {viewCampaign?.message_status && (
+                      <span className="badge" style={campaignBadgeStyle(viewCampaign.message_status)}>{viewCampaign.message_status}</span>
+                    )}
+                  </div>
+
+                  {/* Compact metadata grid */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
+                    <MetaItem label="Content Mode" value={viewCampaign?.email_style === "Rich Text" ? "Serenius Builder" : (viewCampaign?.email_style || "—")} />
+                    <MetaItem label="Created" value={formatDateTime(viewCampaign?.created_at)} />
+                    <MetaItem label="Delivery" value={formatDateTime(viewCampaign?.delivery_datetime)} />
+                    <MetaItem label="Email Sent At" value={formatDateTime(viewCampaign?.email_sent_at)} />
+                    <MetaItem label="Sent Type" value={prettyText(viewCampaign?.sent_type)} />
+                    <MetaItem label="Total Sent" value={viewCampaign?.total_emails_sent ?? "—"} />
+                    <MetaItem label="Opens" value={viewCampaign?.original_opens ?? "—"} />
+                    <MetaItem label="Touches" value={viewCampaign?.total_touches ?? "—"} />
+                  </div>
                 </div>
               </div>
 
-              {/* Status + classification badges */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {viewCampaign?.communication_type && (
-                  <span className="badge badge-info">{viewCampaign.communication_type}</span>
-                )}
-                {viewCampaign?.segment && (
-                  <span className="badge" style={{ background: "#f3f4f6", color: "#374151" }}>{viewCampaign.segment}</span>
-                )}
-                {viewCampaign?.campaign_version && (
-                  <span className="badge" style={{ background: "#ede9fe", color: "#5b21b6" }}>{viewCampaign.campaign_version}</span>
-                )}
-                {viewCampaign?.sending_status && (
-                  <span className="badge" style={campaignBadgeStyle(viewCampaign.sending_status)}>{viewCampaign.sending_status}</span>
-                )}
-                {viewCampaign?.message_status && (
-                  <span className="badge" style={campaignBadgeStyle(viewCampaign.message_status)}>{viewCampaign.message_status}</span>
-                )}
-              </div>
-
-              {/* Compact metadata grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
-                <MetaItem label="Content Mode" value={viewCampaign?.email_style === "Rich Text" ? "Serenius Builder" : (viewCampaign?.email_style || "—")} />
-                <MetaItem label="Created" value={formatDateTime(viewCampaign?.created_at)} />
-                <MetaItem label="Delivery" value={formatDateTime(viewCampaign?.delivery_datetime)} />
-                <MetaItem label="Email Sent At" value={formatDateTime(viewCampaign?.email_sent_at)} />
-                <MetaItem label="Sent Type" value={prettyText(viewCampaign?.sent_type)} />
-                <MetaItem label="Total Sent" value={viewCampaign?.total_emails_sent ?? "—"} />
-                <MetaItem label="Opens" value={viewCampaign?.original_opens ?? "—"} />
-                <MetaItem label="Touches" value={viewCampaign?.total_touches ?? "—"} />
-              </div>
-            </div>
-          </div>
-
-          <div className="section-card" style={{ marginBottom: 0 }}>
-            <div className="section-header">
-              <span className="section-title">
-                {viewCampaign?.message_raw_html ? "HTML Preview" : viewCampaign?.message ? "Message Preview" : "Campaign Preview"}
-              </span>
-            </div>
-            <div style={{ padding: "16px 18px 18px", display: "grid", gap: 14 }}>
-              {viewCampaign?.html_file_url && (
-                <div style={{ fontSize: 13, color: "#374151" }}>
-                  <span style={{ fontWeight: 600 }}>HTML File:</span>{" "}
-                  <a
-                    href={viewCampaign.html_file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="action-link"
-                  >
-                    {viewCampaign.html_file_name || "Open HTML file"}
-                  </a>
-                </div>
-              )}
-
-              {viewCampaign?.message_raw_html ? (
-                <div
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    background: "#fff",
-                  }}
-                >
-                  <iframe
-                    title="Campaign HTML Preview"
-                    sandbox=""
-                    srcDoc={viewCampaign.message_raw_html}
-                    style={{
-                      width: "100%",
-                      minHeight: 360,
-                      border: 0,
-                      display: "block",
-                      background: "#fff",
-                    }}
-                  />
-                </div>
-              ) : viewCampaign?.message ? (
-                <div
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 12,
-                    padding: 16,
-                    background: "#fafaf8",
-                    whiteSpace: "pre-wrap",
-                    lineHeight: 1.6,
-                    fontSize: 13,
-                    color: "#111827",
-                  }}
-                >
-                  {viewCampaign.message}
-                </div>
+              {viewCampaign?.id ? (
+                <RecordAttachments
+                  tenantId={tenantId}
+                  recordType="partner_email"
+                  recordId={viewCampaign.id}
+                  title="Campaign Files"
+                  emptyMessage="HTML and media file upload will use shared attachments in the next slice."
+                  readonly={isReadOnlyCampaign || !canManage}
+                />
               ) : (
-                <div className="empty-state">
-                  No preview content available yet.
+                <div className="section-card" style={{ marginBottom: 0 }}>
+                  <div className="section-header">
+                    <span className="section-title">Campaign Files</span>
+                  </div>
+                  <div className="empty-state">
+                    Save the campaign to manage HTML and media files.
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
 
-          {viewCampaign?.id ? (
-            <RecordAttachments
-              tenantId={tenantId}
-              recordType="partner_email"
-              recordId={viewCampaign.id}
-              title="Campaign Files"
-              emptyMessage="HTML and media file upload will use shared attachments in the next slice."
-              readonly={isReadOnlyCampaign || !canManage}
-            />
-          ) : (
-            <div className="section-card" style={{ marginBottom: 0 }}>
-              <div className="section-header">
-                <span className="section-title">Campaign Files</span>
-              </div>
-              <div className="empty-state">
-                Save the campaign to manage HTML and media files.
+              {/* Send Test Email */}
+              <div className="section-card" style={{ marginBottom: 0 }}>
+                <div className="section-header">
+                  <span className="section-title">Send Test Email</span>
+                </div>
+                <div style={{ padding: "16px 18px 18px", display: "grid", gap: 12 }}>
+                  <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5, margin: 0 }}>
+                    Sends this campaign only to configured test recipients. No partner or contact lists are included.
+                  </p>
+                  <div style={{ display: "grid", gap: 5 }}>
+                    <ReadinessItem ok={hasSubject} text="Subject" />
+                    <ReadinessItem ok={hasContent} text="Message content (HTML or plain text)" />
+                    <ReadinessItem
+                      ok={!!mailReady}
+                      text={
+                        mailSettings
+                          ? `Mail sender connected, enabled, and set to Test Only (current: ${mailSettings.send_mode ?? "not set"})`
+                          : "Mail sender not configured — set up in Setup → Integrations"
+                      }
+                    />
+                    <ReadinessItem
+                      ok={hasTestRecipients}
+                      text={
+                        hasTestRecipients
+                          ? `${testRecipientCount} active test recipient${testRecipientCount === 1 ? "" : "s"} configured`
+                          : "No active test recipients — add them in Setup → Integrations"
+                      }
+                    />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      disabled={!canTestSend || testSending}
+                      onClick={handleTestSend}
+                    >
+                      {testSending ? "Sending…" : "Send Test Email"}
+                    </button>
+                    {testSendResult && (
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: testSendResult.ok ? "#15803d" : "#b91c1c",
+                        }}
+                      >
+                        {testSendResult.message}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Send Test Email */}
-          <div className="section-card" style={{ marginBottom: 0 }}>
-            <div className="section-header">
-              <span className="section-title">Send Test Email</span>
-            </div>
-            <div style={{ padding: "16px 18px 18px", display: "grid", gap: 12 }}>
-              <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5, margin: 0 }}>
-                Sends this campaign only to configured test recipients. No partner or contact lists are included.
-              </p>
-              <div style={{ display: "grid", gap: 5 }}>
-                <ReadinessItem ok={hasSubject} text="Subject" />
-                <ReadinessItem ok={hasContent} text="Message content (HTML or plain text)" />
-                <ReadinessItem
-                  ok={!!mailReady}
-                  text={
-                    mailSettings
-                      ? `Mail sender connected, enabled, and set to Test Only (current: ${mailSettings.send_mode ?? "not set"})`
-                      : "Mail sender not configured — set up in Setup → Integrations"
-                  }
-                />
-                <ReadinessItem
-                  ok={hasTestRecipients}
-                  text={
-                    hasTestRecipients
-                      ? `${testRecipientCount} active test recipient${testRecipientCount === 1 ? "" : "s"} configured`
-                      : "No active test recipients — add them in Setup → Integrations"
-                  }
-                />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={!canTestSend || testSending}
-                  onClick={handleTestSend}
-                >
-                  {testSending ? "Sending…" : "Send Test Email"}
-                </button>
-                {testSendResult && (
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: testSendResult.ok ? "#15803d" : "#b91c1c",
-                    }}
-                  >
-                    {testSendResult.message}
+            {/* Right column: preview — sticky */}
+            <div style={{ position: "sticky", top: 0 }}>
+              <div className="section-card" style={{ marginBottom: 0, border: "1px solid #e5e7eb" }}>
+                <div className="section-header">
+                  <span className="section-title">
+                    {viewCampaign?.message_raw_html ? "HTML Preview" : viewCampaign?.message ? "Message Preview" : "Campaign Preview"}
                   </span>
-                )}
+                </div>
+                <div style={{ padding: "8px 12px 12px", overflowY: "auto", maxHeight: "calc(100vh - 260px)", minHeight: 200 }}>
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+                    {viewCampaign?.message_raw_html ? (
+                      <iframe
+                        title="Campaign HTML Preview"
+                        sandbox=""
+                        srcDoc={viewCampaign.message_raw_html}
+                        style={{ width: "100%", height: Math.max(previewHeight, 5000), border: 0, display: "block", pointerEvents: "none" }}
+                      />
+                    ) : viewCampaign?.message ? (
+                      <div
+                        style={{
+                          padding: 16,
+                          background: "#fafaf8",
+                          whiteSpace: "pre-wrap",
+                          lineHeight: 1.6,
+                          fontSize: 13,
+                          color: "#111827",
+                        }}
+                      >
+                        {viewCampaign.message}
+                      </div>
+                    ) : (
+                      <div style={{ padding: "24px 16px", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+                        No preview content available yet.
+                      </div>
+                    )}
+                  </div>
+                  {viewCampaign?.html_file_url && (
+                    <div style={{ marginTop: 10, fontSize: 13, color: "#374151" }}>
+                      <span style={{ fontWeight: 600 }}>HTML File:</span>{" "}
+                      <a
+                        href={viewCampaign.html_file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="action-link"
+                      >
+                        {viewCampaign.html_file_name || "Open HTML file"}
+                      </a>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
