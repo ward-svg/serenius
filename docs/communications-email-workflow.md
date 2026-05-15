@@ -55,21 +55,24 @@ The test-send route (`/api/mail/google/test-send`) sends a basic plaintext + HTM
 
 ## 3. Communications IA / Navigation Direction
 
-The intended Communications area structure:
+The current Communications area structure:
 
 ```
 /[slug]/communications
   ├── Campaigns          (current)
-  ├── Templates          (planned — Phase 1)
-  ├── Brand Kit          (planned — Phase 2)
+  ├── Templates          (current)
+  ├── Image Gallery      (current)
+  ├── Brand Kit          (current)
+  ├── Delivery Setup     (current)
   ├── Metrics            (planned — future)
   └── Suppressions       (planned — future)
 ```
 
 **Information architecture decisions:**
 
-- **Mail Sender connection** belongs under **Setup → Integrations**. It is tenant infrastructure configuration that requires admin access and OAuth credentials. Marketing users should not need to reconfigure the mail provider to send campaigns.
-- **Templates and Brand Kit** belong under **Communications**, not Setup. Marketing staff must be able to manage email templates and brand defaults without needing general Setup or admin access.
+- **Mail Sender connection** belongs under **Setup → Integrations**. It is tenant infrastructure configuration that requires admin access and OAuth credentials. Marketing users should not need to reconfigure the mail provider to send campaigns. A **Delivery Setup** tab in Communications provides a read-only summary and link, keeping it accessible without duplicating configuration.
+- **Templates, Image Gallery, and Brand Kit** belong under **Communications**, not Setup. Marketing staff must be able to manage email templates, images, and brand defaults without needing general Setup or admin access.
+- **Image Gallery** is a top-level Communications tab for Public Email Assets (uploaded images used across campaigns, templates, and builder blocks). It is separate from Brand Kit so assets are discoverable independently of brand configuration. "Use as Logo" in Image Gallery immediately saves the selected URL to brand settings.
 - **Suppressions / Opt-outs** belong under **Communications**. They are a compliance and deliverability concern tied directly to the campaign workflow, not to tenant system configuration.
 
 ---

@@ -185,4 +185,4 @@ export interface EmailBrandSettings {
   updated_at: string
 }
 
-export type CommWorkspaceTab = 'campaigns' | 'templates' | 'brandkit' | 'delivery-setup'
+export type CommWorkspaceTab = 'campaigns' | 'templates' | 'image-gallery' | 'brandkit' | 'delivery-setup'

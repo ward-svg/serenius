@@ -2,16 +2,13 @@
 
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import type { CommunicationEmailAsset, EmailBrandSettings } from "../types";
-import EmailAssetsSection from "./EmailAssetsSection";
+import type { EmailBrandSettings } from "../types";
 
 interface Props {
   tenantId: string;
   brandSettings: EmailBrandSettings | null;
   canManage: boolean;
-  emailAssets: CommunicationEmailAsset[];
   onSaved: (settings: EmailBrandSettings) => void;
-  onAssetsChange: (assets: CommunicationEmailAsset[]) => void;
 }
 
 type FormData = {
@@ -152,7 +149,7 @@ function ColorField({
   );
 }
 
-export default function BrandKitTab({ tenantId, brandSettings, canManage, emailAssets, onSaved, onAssetsChange }: Props) {
+export default function BrandKitTab({ tenantId, brandSettings, canManage, onSaved }: Props) {
   const [form, setForm] = useState<FormData>(() =>
     brandSettings ? settingsToForm(brandSettings) : { ...DEFAULTS },
   );
@@ -250,10 +247,6 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
     onSaved(saved);
   }
 
-  function handleUseAsLogo(url: string) {
-    field("logo_url", url);
-  }
-
   const footerPreviewLines = [
     form.organization_name,
     [form.mailing_address, form.city, form.state, form.zip].filter(Boolean).join(", "),
@@ -263,7 +256,6 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
   ].filter(Boolean);
 
   return (
-    <>
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 360px", gap: 16, alignItems: "start" }}>
       <div className="section-card">
         <div className="section-header">
@@ -359,33 +351,59 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
           </div>
 
           <SectionTitle>Logo</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16 }}>
-            <div className="form-group">
-              <label className="form-label">Logo URL</label>
-              {form.logo_url ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16, alignItems: "start" }}>
+            <div>
+              {/* Checkerboard preview — same pattern as Image Gallery asset cards */}
+              <div
+                style={{
+                  height: 140,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  borderRadius: 8,
+                  border: "1px solid #e5e7eb",
+                  backgroundColor: "#e5e7eb",
+                  backgroundImage: [
+                    "linear-gradient(45deg, #d1d5db 25%, transparent 25%)",
+                    "linear-gradient(-45deg, #d1d5db 25%, transparent 25%)",
+                    "linear-gradient(45deg, transparent 75%, #d1d5db 75%)",
+                    "linear-gradient(-45deg, transparent 75%, #d1d5db 75%)",
+                  ].join(", "),
+                  backgroundSize: "12px 12px",
+                  backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0px",
+                  marginBottom: 8,
+                }}
+              >
+                {form.logo_url ? (
                   <img
                     src={form.logo_url}
                     alt="Logo preview"
-                    style={{ height: 40, maxWidth: 120, objectFit: "contain", border: "1px solid #e5e7eb", borderRadius: 6, background: "#f9fafb", padding: "4px 8px" }}
+                    style={{ maxWidth: "90%", maxHeight: 120, objectFit: "contain", display: "block" }}
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                   />
-                  <span style={{ fontSize: 12, color: "#6b7280", wordBreak: "break-all", flex: 1 }}>{form.logo_url}</span>
+                ) : (
+                  <span style={{ fontSize: 12, color: "#9ca3af" }}>No logo selected</span>
+                )}
+              </div>
+              {form.logo_url ? (
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, color: "#9ca3af", wordBreak: "break-all", flex: 1, minWidth: 0, lineHeight: 1.4 }}>
+                    {form.logo_url}
+                  </span>
                   {canManage && (
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      style={{ fontSize: 12, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0 }}
+                      style={{ fontSize: 12, padding: "2px 10px", whiteSpace: "nowrap", flexShrink: 0 }}
                       onClick={() => field("logo_url", "")}
                     >
                       Remove
                     </button>
                   )}
                 </div>
-              ) : (
-                <div style={{ fontSize: 13, color: "#9ca3af", padding: "7px 0" }}>No logo selected.</div>
-              )}
-              <div className="form-helper">Set via "Use as Logo" in the Public Email Assets section below.</div>
+              ) : null}
+              <div className="form-helper">Set via &ldquo;Use as Logo&rdquo; in the Image Gallery tab.</div>
             </div>
             <div className="form-group">
               <label className="form-label">Logo Width (px)</label>
@@ -632,14 +650,5 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, emailA
         </div>
       </div>
     </div>
-    <EmailAssetsSection
-      tenantId={tenantId}
-      assets={emailAssets}
-      canManage={canManage}
-      brandSettings={brandSettings}
-      onAssetsChange={onAssetsChange}
-      onUseAsLogo={handleUseAsLogo}
-    />
-    </>
   );
 }

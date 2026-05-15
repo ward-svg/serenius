@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type {
   CommWorkspaceTab,
   CommunicationEmailAsset,
@@ -10,6 +11,7 @@ import type {
 } from "../types";
 import CommunicationsDashboard from "./CommunicationsDashboard";
 import TemplatesTab from "./TemplatesTab";
+import ImageGalleryTab from "./ImageGalleryTab";
 import BrandKitTab from "./BrandKitTab";
 import DeliverySetupTab from "./DeliverySetupTab";
 
@@ -24,6 +26,19 @@ export default function CommunicationsWorkspace(props: Props) {
     props.brandSettings,
   );
   const [emailAssets, setEmailAssets] = useState<CommunicationEmailAsset[]>(props.emailAssets);
+
+  async function handleUseAsLogo(url: string) {
+    if (!brandSettings) return;
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from("communication_email_brand_settings")
+      .update({ logo_url: url })
+      .eq("id", brandSettings.id)
+      .eq("tenant_id", props.orgId);
+    if (!error) {
+      setBrandSettings({ ...brandSettings, logo_url: url });
+    }
+  }
 
   return (
     <div style={{ maxWidth: 1400, margin: "0 auto" }}>
@@ -50,6 +65,13 @@ export default function CommunicationsWorkspace(props: Props) {
           onClick={() => setActiveTab("templates")}
         >
           Templates
+        </button>
+        <button
+          type="button"
+          className={`tab${activeTab === "image-gallery" ? " active" : ""}`}
+          onClick={() => setActiveTab("image-gallery")}
+        >
+          Image Gallery
         </button>
         <button
           type="button"
@@ -85,14 +107,22 @@ export default function CommunicationsWorkspace(props: Props) {
           onAssetsChange={setEmailAssets}
         />
       )}
+      {activeTab === "image-gallery" && (
+        <ImageGalleryTab
+          tenantId={props.orgId}
+          emailAssets={emailAssets}
+          canManage={props.canManage}
+          brandSettings={brandSettings}
+          onAssetsChange={setEmailAssets}
+          onUseAsLogo={handleUseAsLogo}
+        />
+      )}
       {activeTab === "brandkit" && (
         <BrandKitTab
           tenantId={props.orgId}
           brandSettings={brandSettings}
           canManage={props.canManage}
-          emailAssets={emailAssets}
           onSaved={setBrandSettings}
-          onAssetsChange={setEmailAssets}
         />
       )}
       {activeTab === "delivery-setup" && (
