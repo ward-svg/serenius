@@ -124,7 +124,34 @@ The following rules govern live send recipient resolution. These are not yet enf
 
 ---
 
-## 6. Required Footer and Opt-Out Workflow
+## 6. Campaign Live Send Readiness Checklist (Implemented)
+
+The "Live Send Readiness" section card appears in Campaign View mode in `CampaignModal`. It is informational only — no live send button is present. It shows three status states:
+
+| Icon | State | Meaning |
+|---|---|---|
+| ✓ | Ready | Condition met |
+| ○ | Needs attention | Not yet done, user can address now |
+| — | Pending | Infrastructure not yet built — coming in a future slice |
+
+**Checklist items:**
+
+| Item | Field / Logic | State logic |
+|---|---|---|
+| Mail sender connected and enabled | `mailSettings.connection_status === 'connected' && is_enabled === true` | Ready / Needs |
+| Subject line present | `campaign.subject` non-empty | Ready / Needs |
+| Email content present | `message_raw_html` or `message` non-empty | Ready / Needs |
+| Recipient segment selected | `campaign.segment` non-empty | Ready / Needs |
+| Recipient estimate > 0 | Existing `estimate` useMemo (segment + version + suppression) | Ready / Needs |
+| Test email sent and verified | `campaign.message_status === 'Test Sent'` | Ready / Needs |
+| Required footer / organization identity | Not yet implemented | Always Pending |
+| Opt-out workflow | Not yet implemented | Always Pending |
+
+**Live send gate:** Final/live send will remain disabled until Required footer, Opt-out workflow, suppression pre-check, per-recipient token injection, and `email_send_jobs` live send pipeline are all implemented and verified. The checklist makes this visible to operators without implying the feature is available.
+
+---
+
+## 7. Required Footer and Opt-Out Workflow
 
 Every campaign email sent to real recipients must include a required footer before live sending is enabled. This is non-negotiable for CAN-SPAM and nonprofit trust compliance.
 
@@ -301,7 +328,7 @@ Recommended sequencing. Each milestone is a safe, shippable slice.
 2. ~~**Communications Templates tab shell**~~ — ✅ Done. Templates tab with full create/edit/trash lifecycle.
 3. ~~**Brand Kit foundation**~~ — ✅ Done. Full brand settings form with logo, colors, typography, footer fields.
 4. ~~**Campaign test send with campaign content**~~ — ✅ Done. `/api/mail/google/campaign-test-send` sends actual `message_raw_html` with per-recipient `{firstname}` token replacement (subject + body), amber test footer ("This is a test email. Opt-out links are not active."), `email_send_jobs` + `email_send_recipients` audit rows (`job_type/recipient_type = test`), no opt-out tokens, no suppression writes. Campaign `message_status` → "Test Sent" on full success.
-5. **Campaign readiness checklist** — Add a checklist panel to `CampaignModal` before any send action: mail sender connected, send mode correct, test recipients configured, subject present, HTML content present, recipient estimate > 0.
+5. ~~**Campaign readiness checklist**~~ — ✅ Done. "Live Send Readiness" section card in Campaign View mode. Checks: sender connected, subject present, content present, segment selected, recipient estimate > 0, test email sent. Required footer and opt-out workflow marked Pending until those slices are implemented. Live send button NOT added — checklist is informational only.
 6. **Opt-out token model and suppression workflow** — DB/import agent adds send recipient or token table. Implement opt-out endpoint. Wire suppression write. Footer opt-out link becomes real.
 7. **Live send job and batching** — Only after all above are complete and tested. Batch sending with per-recipient token injection, suppression pre-check, error logging to `email_send_jobs`.
 

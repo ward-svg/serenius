@@ -441,6 +441,39 @@ function ReadinessItem({ ok, text }: { ok: boolean; text: string }) {
   );
 }
 
+type LiveReadinessStatus = "ready" | "needs" | "pending";
+
+function LiveReadinessItem({
+  status,
+  text,
+  helper,
+}: {
+  status: LiveReadinessStatus;
+  text: string;
+  helper?: string;
+}) {
+  const icon = status === "ready" ? "✓" : status === "needs" ? "○" : "—";
+  const iconColor =
+    status === "ready" ? "#15803d" : status === "needs" ? "#92400e" : "#9ca3af";
+  const textColor =
+    status === "ready" ? "#374151" : status === "needs" ? "#374151" : "#6b7280";
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 7, fontSize: 12, lineHeight: 1.4 }}>
+      <span style={{ fontWeight: 700, flexShrink: 0, color: iconColor, width: 12, marginTop: 1 }}>
+        {icon}
+      </span>
+      <div>
+        <span style={{ color: textColor }}>{text}</span>
+        {helper ? (
+          <span style={{ color: "#9ca3af", display: "block", fontSize: 11, marginTop: 1 }}>
+            {helper}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function CampaignModal({
   tenantId,
   mailSettings,
@@ -917,6 +950,84 @@ export default function CampaignModal({
                       </span>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Live Send Readiness Checklist */}
+              <div className="section-card" style={{ marginBottom: 0 }}>
+                <div className="section-header">
+                  <span className="section-title">Live Send Readiness</span>
+                </div>
+                <div style={{ padding: "16px 18px 18px", display: "grid", gap: 10 }}>
+                  <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5, margin: "0 0 2px" }}>
+                    Live sending is not enabled yet. This checklist shows what must be complete before live sends are available.
+                  </p>
+                  <LiveReadinessItem
+                    status={
+                      mailSettings?.connection_status === "connected" &&
+                      mailSettings?.is_enabled === true
+                        ? "ready"
+                        : "needs"
+                    }
+                    text="Mail sender connected and enabled"
+                    helper={
+                      mailSettings
+                        ? `${mailSettings.from_email ?? mailSettings.provider_account_email ?? "configured"} · ${mailSettings.provider ?? "provider"}`
+                        : "Configure in Delivery Setup → Integrations"
+                    }
+                  />
+                  <LiveReadinessItem
+                    status={hasSubject ? "ready" : "needs"}
+                    text="Subject line present"
+                  />
+                  <LiveReadinessItem
+                    status={hasContent ? "ready" : "needs"}
+                    text="Email content present (HTML or plain text)"
+                  />
+                  <LiveReadinessItem
+                    status={viewCampaign?.segment?.trim() ? "ready" : "needs"}
+                    text="Recipient segment selected"
+                  />
+                  <LiveReadinessItem
+                    status={
+                      !estimate.ready
+                        ? "needs"
+                        : estimate.estimatedRecipients > 0
+                          ? "ready"
+                          : "needs"
+                    }
+                    text={
+                      !estimate.ready
+                        ? "Recipient estimate — select a segment first"
+                        : estimate.estimatedRecipients > 0
+                          ? `Recipient estimate: ${estimate.estimatedRecipients.toLocaleString()} eligible contact${estimate.estimatedRecipients === 1 ? "" : "s"}`
+                          : "Recipient estimate: 0 eligible contacts in this segment"
+                    }
+                    helper={
+                      estimate.ready && (estimate.suppressedCount > 0 || estimate.noEmailCount > 0 || estimate.skippedCount > 0)
+                        ? `${estimate.suppressedCount} suppressed · ${estimate.noEmailCount} no email · ${estimate.skippedCount} skipped`
+                        : undefined
+                    }
+                  />
+                  <LiveReadinessItem
+                    status={viewCampaign?.message_status === "Test Sent" ? "ready" : "needs"}
+                    text="Test email sent and verified"
+                    helper={
+                      viewCampaign?.message_status === "Test Sent"
+                        ? undefined
+                        : "Use Send Test Email above to verify delivery before live send."
+                    }
+                  />
+                  <LiveReadinessItem
+                    status="pending"
+                    text="Required footer / organization identity"
+                    helper="Needed before live sends are enabled."
+                  />
+                  <LiveReadinessItem
+                    status="pending"
+                    text="Opt-out workflow"
+                    helper="Needed before live sends are enabled."
+                  />
                 </div>
               </div>
             </div>
