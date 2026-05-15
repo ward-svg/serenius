@@ -185,8 +185,8 @@ Every campaign email sent to real recipients must include a required footer befo
 - The test banner remains visible above the footer so recipients see the "test only" notice clearly.
 
 **Live send (not yet implemented):**
-- Live sends will pass a per-recipient tokenized `unsubscribeUrl` as the second argument.
-- The footer renderer is already wired to handle this — it just needs the opt-out token generation slice.
+- Live sends will call `createEmailOptOutToken` (see 7.3) per recipient, then pass the returned `preferenceUrl` as `unsubscribeUrl` to `buildCampaignEmailFooter`.
+- The footer renderer is already wired to handle this.
 
 ### 7.2 Opt-Out Redemption Endpoint (Implemented)
 
@@ -220,19 +220,52 @@ This is a public Server Component page — no authentication required. The raw t
 - All four outcome messages are intentionally generic — no internal details exposed.
 
 **What is still deferred:**
-- Token generation at send time (live send not enabled).
-- Unsubscribe link injection into outbound campaign HTML.
+- Unsubscribe link injection into outbound campaign HTML (requires live send route).
 - Preference center UI (preference management beyond simple opt-out).
 
 **Test send guardrails (unchanged):**
 - Test sends pass `unsubscribeUrl = null` to the footer renderer — no opt-out link in test emails.
-- Test sends do not create `email_opt_out_tokens` rows.
+- Test sends do not call `createEmailOptOutToken` and do not create `email_opt_out_tokens` rows.
 - Test sends do not write suppression records.
 
 **Nonprofit opt-out notifications:**
 - Nonprofits may want to be alerted when a partner opts out, since it signals a relationship change.
 - Future workflow: opt-out may trigger creation of a `partner_communications` log entry and/or a `partner_communication_followups` task assigned to the partner's staff contact.
 - Do not implement this automatically — it requires user configuration.
+
+### 7.3 Opt-Out Token Generation Helper (Implemented)
+
+**File:** `lib/mail/opt-out-tokens.ts`
+
+**Export:** `createEmailOptOutToken(params): Promise<{ tokenId, rawToken, tokenHash, preferenceUrl }>`
+
+**Parameters:**
+- `supabase` — service-role client (required; table has superadmin-only RLS)
+- `tenantId` — required; validated before insert
+- `email` — required; validated before insert
+- `partnerContactId` — optional; stored on token row for suppression linkback
+- `partnerEmailId` — optional; stored on token row for audit linkback
+- `suppressionType` — default `'unsubscribed'`; enum: `unsubscribed | manually_suppressed | bounced | complained | invalid_email`
+- `expiresAt` — default `null` (no expiration for standard unsubscribe links)
+- `baseUrl` — optional; if provided, returns an absolute URL (`{baseUrl}/mail/preferences/{rawToken}`); otherwise returns a relative path
+
+**Token generation:**
+- `randomBytes(32).toString('hex')` — 256 bits of entropy, 64-char hex, URL-safe, no padding.
+- `createHash('sha256').update(rawToken).digest('hex')` — only the hash is stored.
+- Raw token is returned to the caller only; never stored, never logged.
+
+**Collision handling:**
+- `token_hash` has a `UNIQUE` constraint. On a `23505` Postgres error the helper retries up to 3 times with a fresh token. Any other DB error is thrown immediately (not swallowed). After 3 failed attempts, throws with a clear message.
+
+**Preference URL:**
+- Relative: `/mail/preferences/{rawToken}`
+- Absolute (if `baseUrl` provided): `{baseUrl}/mail/preferences/{rawToken}` (trailing slash stripped from baseUrl)
+- `preference_center_url` override from brand settings is deferred — the live send route will need to decide whether to use the Serenius-hosted path or a custom URL.
+
+**Wiring status:**
+- Helper is not called from any send route yet — live send route is still deferred.
+- Test send route does not call this helper (by design).
+- No unsubscribe links are injected into any email in the current codebase.
 
 ---
 
