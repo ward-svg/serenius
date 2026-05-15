@@ -106,7 +106,14 @@ The following rules govern live send recipient resolution. These are not yet enf
 
 **Required per contact:**
 - `primary_email` must be present and non-empty.
-- `email_segment` must include the campaign's segment value.
+- `contact.email_segment` (a `string[]`) must include the campaign's segment value as an exact match (`email_segment.includes(campaignSegment)`).
+
+**Segment values:**
+- Campaign segment is selected from `CAMPAIGN_SEGMENT_OPTIONS` in `modules/communications/constants.ts` — a controlled list of the individual strings assignable to `partner_contacts.email_segment`.
+- Current options: `Donors`, `All US`, `Prospects`, `Staff`, `Test Emails`, `New Donor`, `New Prospect`, `iMessage Test`, `Mission Trips`.
+- These match the `EMAIL_SEGMENT_OPTIONS` used in `ContactDetailModal` and `AddContactPanel` in the Partners module.
+- Free-text segment entry was removed — campaigns must select from this list to avoid typo-driven targeting failures.
+- Campaigns with a previously saved segment value not in the list display a "Saved: {value}" option and retain it until changed.
 
 **Campaign version filtering:**
 - Campaign version `A+B`: include contacts where `campaign_version` is `A` or `B`.

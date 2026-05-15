@@ -18,6 +18,7 @@ import type { EmailBuilderDesign } from "../email-builder-types";
 import { hasBuilderBlocks, parseDesign, renderEmailBuilderHtml } from "../email-builder-renderer";
 import BlockComposer from "./BlockComposer";
 import {
+  CAMPAIGN_SEGMENT_OPTIONS,
   CAMPAIGN_VERSION_OPTIONS,
   COMMUNICATION_TYPE_OPTIONS,
   TEMPLATE_TYPE_LABELS,
@@ -1228,14 +1229,20 @@ export default function CampaignModal({
                     <div className="form-row">
                       <div className="form-group">
                         <label className="form-label">Segment</label>
-                        <input
+                        <select
                           className="form-input"
-                          type="text"
                           value={formData.segment}
                           onChange={(e) => handleChange("segment", e.target.value)}
-                          placeholder="Donors, All US"
                           disabled={!isCreate && !canEdit}
-                        />
+                        >
+                          <option value="">Select segment…</option>
+                          {CAMPAIGN_SEGMENT_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                          {formData.segment && !(CAMPAIGN_SEGMENT_OPTIONS as readonly string[]).includes(formData.segment) && (
+                            <option value={formData.segment}>Saved: {formData.segment}</option>
+                          )}
+                        </select>
                       </div>
                       <div className="form-group">
                         <label className="form-label">Campaign Version</label>
@@ -1398,14 +1405,20 @@ export default function CampaignModal({
                   <div className="form-row">
                     <div className="form-group">
                       <label className="form-label">Segment</label>
-                      <input
+                      <select
                         className="form-input"
-                        type="text"
                         value={formData.segment}
                         onChange={(e) => handleChange("segment", e.target.value)}
-                        placeholder="Donors, All US"
                         disabled={!isCreate && !canEdit}
-                      />
+                      >
+                        <option value="">Select segment…</option>
+                        {CAMPAIGN_SEGMENT_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                        {formData.segment && !(CAMPAIGN_SEGMENT_OPTIONS as readonly string[]).includes(formData.segment) && (
+                          <option value={formData.segment}>Saved: {formData.segment}</option>
+                        )}
+                      </select>
                     </div>
                     <div className="form-group">
                       <label className="form-label">Campaign Version</label>

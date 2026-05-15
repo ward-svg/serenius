@@ -60,3 +60,17 @@ export const CONTACT_EMAIL_SEGMENT_SUGGESTIONS = [
   'iMessage Test',
   'Mission Trips',
 ] as const
+
+// Controlled segment values that match the individual strings assignable to partner_contacts.email_segment.
+// Campaigns select one of these — the estimate logic checks contacts.email_segment.includes(segment).
+export const CAMPAIGN_SEGMENT_OPTIONS = [
+  'Donors',
+  'All US',
+  'Prospects',
+  'Staff',
+  'Test Emails',
+  'New Donor',
+  'New Prospect',
+  'iMessage Test',
+  'Mission Trips',
+] as const
