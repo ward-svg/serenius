@@ -49,7 +49,8 @@ The following features are live in the application:
 | Brand Kit / Email Studio | **Not implemented** |
 | Required footer renderer (`lib/mail/campaign-email-footer.ts`) | **Live — test sends only** |
 | Footer org identity fields in Brand Kit | **Live — UI input + save** |
-| Opt-out endpoint / token generation | **Not implemented** |
+| Opt-out redemption endpoint (`/mail/preferences/[token]`) | **Live — endpoint exists** |
+| Opt-out token generation at live send time | **Not implemented** |
 | Suppression pre-check at send time | **Not implemented** |
 
 The test-send route (`/api/mail/google/test-send`) sends a basic plaintext + HTML verification message to active test recipients only. It does not send campaign content, does not append a footer, and does not exercise the opt-out system. It exists to validate OAuth credentials and connectivity.
@@ -180,29 +181,51 @@ Every campaign email sent to real recipients must include a required footer befo
 - Live sends will pass a per-recipient tokenized `unsubscribeUrl` as the second argument.
 - The footer renderer is already wired to handle this — it just needs the opt-out token generation slice.
 
-### 7.2 Opt-Out Workflow (Not yet implemented)
+### 7.2 Opt-Out Redemption Endpoint (Implemented)
 
-**Footer requirements:**
-- Organization name and address — ✅ implemented via Brand Kit + footer renderer.
-- Opt-out / manage preferences link — per-recipient token required, not yet implemented.
-- The link must be tenant-scoped and contact-scoped (a unique token per recipient per send).
+**Route:** `app/mail/preferences/[token]/page.tsx` → `/mail/preferences/{rawToken}`
 
-**Opt-out mechanics:**
-- Opt-out link click must write a suppression record to `partner_email_suppressions` with `suppression_type = unsubscribed`.
-- Suppression is by email address, optionally linked to `partner_contact_id`.
-- The opt-out endpoint must be anonymous (no auth required — the token is the credential).
-- Token model: `email_opt_out_tokens` table exists. Raw token in URL → sha256 hash → lookup `token_hash` → mark `used_at` → insert `partner_email_suppressions`.
-- No API route exists yet at `app/api/email/` — the endpoint is the next major slice after live send is enabled.
+This is a public Server Component page — no authentication required. The raw token in the URL is the credential.
+
+**Token redemption flow:**
+1. Raw token extracted from URL param `[token]`.
+2. Hashed with `sha256` via Node.js `crypto.createHash`. Raw token is never stored, logged, or compared directly.
+3. Service-role Supabase client used for all queries (`createSupabaseServiceClient`) — `email_opt_out_tokens` RLS is superadmin-only.
+4. Lookup `email_opt_out_tokens` where `token_hash = sha256(rawToken)`.
+5. Four lookup outcomes:
+   - **Not found** → "Invalid link." — no DB writes.
+   - **Already used** (`used_at` is set) → idempotent "Already unsubscribed." — no DB writes.
+   - **Expired** (`expires_at` is set and in the past) → "This link has expired." — no DB writes.
+   - **Valid** → proceed with suppression write.
+
+**Valid token behavior:**
+- Check for existing `partner_email_suppressions` row (same `tenant_id` + `email` case-insensitive + `suppression_type`) to avoid duplicates on crash recovery.
+- If no existing suppression: insert `partner_email_suppressions` with `source = 'email_opt_out'`, `reason = 'Recipient opted out via email link'`, `suppression_type` from token (default `unsubscribed`), `partner_contact_id` from token (nullable).
+- Email address comes from `email_opt_out_tokens.email` (NOT NULL in schema) — no missing email issue.
+- `partner_email_id` is NOT stored in `partner_email_suppressions` (no such column in schema).
+- After suppression is written: mark `token.used_at = now()`. Suppression is written first — it is the safety-critical record.
+
+**Security:**
+- `noindex, nofollow` metadata — page not indexed by search engines.
+- Raw token never appears in logs, DB selects, or responses.
+- `token_hash` is not selected back from the DB.
+- Recipient email is not displayed on the confirmation page.
+- All four outcome messages are intentionally generic — no internal details exposed.
+
+**What is still deferred:**
+- Token generation at send time (live send not enabled).
+- Unsubscribe link injection into outbound campaign HTML.
+- Preference center UI (preference management beyond simple opt-out).
+
+**Test send guardrails (unchanged):**
+- Test sends pass `unsubscribeUrl = null` to the footer renderer — no opt-out link in test emails.
+- Test sends do not create `email_opt_out_tokens` rows.
+- Test sends do not write suppression records.
 
 **Nonprofit opt-out notifications:**
 - Nonprofits may want to be alerted when a partner opts out, since it signals a relationship change.
 - Future workflow: opt-out may trigger creation of a `partner_communications` log entry and/or a `partner_communication_followups` task assigned to the partner's staff contact.
 - Do not implement this automatically — it requires user configuration.
-
-**Test email guardrails:**
-- Test emails sent to `organization_mail_test_recipients` display a clear banner: "This is a test email. Opt-out links are not active."
-- Opt-out tokens are not generated for test sends — `unsubscribeUrl` is always `null`.
-- Test sends do not write suppression records.
 
 ---
 

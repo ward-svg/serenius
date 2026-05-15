@@ -1031,7 +1031,7 @@ export default function CampaignModal({
                   <LiveReadinessItem
                     status="pending"
                     text="Opt-out workflow"
-                    helper="Needed before live sends are enabled."
+                    helper="Opt-out endpoint exists. Live send token generation and link injection are still pending."
                   />
                 </div>
               </div>
