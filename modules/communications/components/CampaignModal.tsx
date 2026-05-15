@@ -479,7 +479,7 @@ export default function CampaignModal({
   const activeTemplates = useMemo(
     () =>
       templates
-        .filter((t) => t.status === "active")
+        .filter((t) => t.status === "active" && !t.deleted_at)
         .sort((a, b) => {
           const ta = TEMPLATE_TYPE_LABELS[a.template_type] ?? a.template_type;
           const tb = TEMPLATE_TYPE_LABELS[b.template_type] ?? b.template_type;

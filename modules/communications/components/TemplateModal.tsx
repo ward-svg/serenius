@@ -162,7 +162,7 @@ function PersonalizationPanel() {
 }
 
 const SELECT_FIELDS =
-  "id, tenant_id, name, description, template_type, status, is_default, email_style, subject_default, preheader_default, html_template, plain_text_template, design_json, thumbnail_url, created_by, created_at, updated_at";
+  "id, tenant_id, name, description, template_type, status, is_default, email_style, subject_default, preheader_default, html_template, plain_text_template, design_json, thumbnail_url, created_by, created_at, updated_at, deleted_at";
 
 export default function TemplateModal({
   tenantId,

@@ -173,7 +173,33 @@ Do not jump directly to a heavy WYSIWYG or drag-and-drop builder. Build in safe,
 - Brand Kit values are injected into template placeholders and into the required footer at send time.
 - Brand Kit is managed under Communications, not Setup.
 
-### 7.3 Create Campaign from Template (Implemented — Raw HTML and Serenius Builder)
+### 7.3 Template Trash Lifecycle (Implemented)
+
+Templates support a soft-delete / trash workflow. `communication_email_templates.deleted_at` is `NULL` for active templates and a timestamp when trashed.
+
+**Trash rules:**
+- Move to Trash: sets `deleted_at` to now and clears `is_default`. No confirmation required. Reversible.
+- Restore: clears `deleted_at`. No confirmation required.
+- Delete Permanently: hard deletes the row. Requires in-app confirmation modal. Cannot be undone.
+- Empty Trash: hard deletes all trashed templates in one operation. Requires in-app confirmation modal.
+
+**Effect on campaigns:**
+- `partner_emails.template_id` is `ON DELETE SET NULL`. Hard-deleting a template nulls the reference but does not affect campaign content — campaigns hold an independent copy of template content at creation time.
+- Trashed templates are excluded from the campaign creation template selector (`activeTemplates` filter in `CampaignModal`).
+
+**TemplatesTab filter tabs:**
+- **Available**: not trashed, status ≠ archived (default view)
+- **Draft**: not trashed, status = draft
+- **Active**: not trashed, status = active
+- **Archived**: not trashed, status = archived
+- **All**: not trashed (all statuses)
+- **Trash**: deleted_at is set
+
+Trashed templates are viewable but not editable (modal opens read-only regardless of `canManage`).
+
+---
+
+### 7.4 Create Campaign from Template (Implemented — Raw HTML and Serenius Builder)
 
 Templates function as **launchpads**, not live-linked parents. Creating a campaign from a template copies the template's content into the new `partner_emails` row at creation time. After that point, the campaign and the template are fully independent:
 
