@@ -1,14 +1,13 @@
 const TEST_FOOTER_HTML =
   '<div style="margin:32px 0 0;padding:14px 20px;border-top:3px solid #f59e0b;background:#fffbeb;font-family:sans-serif;font-size:12px;color:#78350f;line-height:1.6;">' +
-  '<strong>Serenius Test Email</strong> — Sent only to configured test recipients. ' +
-  'Partner/contact campaign sending is not enabled yet.<br>' +
-  'Opt-out links are disabled for test recipients.' +
+  '<strong>&#9888; This is a test email.</strong> Sent only to configured test recipients — not to campaign contacts.<br>' +
+  'Opt-out links are not active. No suppression records are written for test sends.' +
   '</div>'
 
 const TEST_FOOTER_TEXT =
-  '\n\n---\nSERENIUS TEST EMAIL\n' +
-  'Sent only to configured test recipients. Partner/contact campaign sending is not enabled yet.\n' +
-  'Opt-out links are disabled for test recipients.\n---'
+  '\n\n---\nTHIS IS A TEST EMAIL\n' +
+  'Sent only to configured test recipients — not to campaign contacts.\n' +
+  'Opt-out links are not active. No suppression records are written for test sends.\n---'
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => {
@@ -23,7 +22,7 @@ function escapeHtml(value: string): string {
   })
 }
 
-function resolveFirstName(displayName: string | null | undefined): string {
+export function resolveTestFirstName(displayName: string | null | undefined): string {
   const trimmed = (displayName ?? '').trim()
   if (!trimmed) return 'Friend'
   return trimmed.split(/\s+/)[0]
@@ -43,7 +42,7 @@ export function buildCampaignTestEmailContent(input: {
   recipientDisplayName: string | null
   orgName: string
 }): { html: string; text: string } {
-  const firstName = resolveFirstName(input.recipientDisplayName)
+  const firstName = resolveTestFirstName(input.recipientDisplayName)
 
   if (input.messageRawHtml) {
     const resolved = input.messageRawHtml.replace(/\{firstname\}/gi, firstName)

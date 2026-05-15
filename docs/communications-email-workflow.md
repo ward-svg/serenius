@@ -297,10 +297,10 @@ Public media assets (images for email templates and campaigns) are uploaded thro
 
 Recommended sequencing. Each milestone is a safe, shippable slice.
 
-1. **Template and Brand schema** — DB/import agent designs and applies `communication_email_templates` and `communication_email_brand_settings`. Schema doc updated.
-2. **Communications Templates tab shell** — Read-only listing of templates. No edit UI yet. Establishes the navigation tab.
-3. **Brand Kit foundation** — Form to manage `email_brand_settings` for the tenant. Logo, colors, footer address, social links.
-4. **Campaign test send with campaign content** — Update test-send route to use actual campaign HTML (`message_raw_html`) plus a clearly labeled test footer ("This is a test — opt-out links are not active."). No real opt-out tokens yet.
+1. ~~**Template and Brand schema**~~ — ✅ Done. `communication_email_templates` and `communication_email_brand_settings` live. Schema doc updated.
+2. ~~**Communications Templates tab shell**~~ — ✅ Done. Templates tab with full create/edit/trash lifecycle.
+3. ~~**Brand Kit foundation**~~ — ✅ Done. Full brand settings form with logo, colors, typography, footer fields.
+4. ~~**Campaign test send with campaign content**~~ — ✅ Done. `/api/mail/google/campaign-test-send` sends actual `message_raw_html` with per-recipient `{firstname}` token replacement (subject + body), amber test footer ("This is a test email. Opt-out links are not active."), `email_send_jobs` + `email_send_recipients` audit rows (`job_type/recipient_type = test`), no opt-out tokens, no suppression writes. Campaign `message_status` → "Test Sent" on full success.
 5. **Campaign readiness checklist** — Add a checklist panel to `CampaignModal` before any send action: mail sender connected, send mode correct, test recipients configured, subject present, HTML content present, recipient estimate > 0.
 6. **Opt-out token model and suppression workflow** — DB/import agent adds send recipient or token table. Implement opt-out endpoint. Wire suppression write. Footer opt-out link becomes real.
 7. **Live send job and batching** — Only after all above are complete and tested. Batch sending with per-recipient token injection, suppression pre-check, error logging to `email_send_jobs`.

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { assertTenantAccess } from '@/lib/auth/tenant-access'
 import { createSupabaseServiceClient } from '@/lib/supabase-service'
-import { buildCampaignTestEmailContent } from '@/lib/mail/campaign-content'
+import { buildCampaignTestEmailContent, resolveTestFirstName } from '@/lib/mail/campaign-content'
 import {
   buildGmailRawMessage,
   refreshGoogleMailAccessToken,
@@ -233,7 +233,6 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const subject = `[TEST] ${campaign.subject}`
   const failedRecipients: Array<{ email: string; error: string }> = []
   type RecipientRow = {
     tenant_id: string
@@ -251,6 +250,9 @@ export async function POST(request: NextRequest) {
   let recipientsSent = 0
 
   for (const recipient of recipients) {
+    const firstName = resolveTestFirstName(recipient.display_name)
+    const subject = `[TEST] ${campaign.subject.replace(/\{firstname\}/gi, firstName)}`
+
     const { html, text } = buildCampaignTestEmailContent({
       messageRawHtml: campaign.message_raw_html,
       messagePlain: campaign.message,
