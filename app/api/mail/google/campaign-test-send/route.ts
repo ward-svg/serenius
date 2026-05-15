@@ -8,6 +8,7 @@ import {
   refreshGoogleMailAccessToken,
   sendGmailMessage,
 } from '@/lib/mail/google'
+import { buildCampaignEmailFooter } from '@/lib/mail/campaign-email-footer'
 
 function isGoogleTokenExpired(expiryDate: string | null) {
   if (!expiryDate) return false
@@ -98,6 +99,16 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     )
   }
+
+  const { data: brandSettingsRow } = await serviceSupabase
+    .from('communication_email_brand_settings')
+    .select(
+      'organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_html, preference_center_url',
+    )
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+
+  const brandFooter = buildCampaignEmailFooter(brandSettingsRow ?? null, null)
 
   const { data: recipients, error: recipientsError } = await serviceSupabase
     .from('organization_mail_test_recipients')
@@ -258,6 +269,7 @@ export async function POST(request: NextRequest) {
       messagePlain: campaign.message,
       recipientDisplayName: recipient.display_name,
       orgName: accessCheck.organization.name,
+      brandFooter,
     })
 
     const rawMessage = buildGmailRawMessage({

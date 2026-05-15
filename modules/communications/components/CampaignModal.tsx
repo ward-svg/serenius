@@ -797,6 +797,7 @@ export default function CampaignModal({
 
     const hasSubject = !!(viewCampaign?.subject?.trim());
     const hasContent = !!(viewCampaign?.message_raw_html?.trim() || viewCampaign?.message?.trim());
+    const hasOrgIdentity = !!(brandSettings?.organization_name?.trim() && brandSettings?.mailing_address?.trim());
     const mailReady =
       mailSettings?.connection_status === "connected" &&
       mailSettings?.is_enabled === true &&
@@ -1019,9 +1020,13 @@ export default function CampaignModal({
                     }
                   />
                   <LiveReadinessItem
-                    status="pending"
+                    status={hasOrgIdentity ? "ready" : "needs"}
                     text="Required footer / organization identity"
-                    helper="Needed before live sends are enabled."
+                    helper={
+                      hasOrgIdentity
+                        ? "Organization name and mailing address configured in Brand Kit."
+                        : "Add organization name and mailing address in Brand Kit."
+                    }
                   />
                   <LiveReadinessItem
                     status="pending"

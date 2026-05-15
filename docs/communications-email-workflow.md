@@ -47,7 +47,10 @@ The following features are live in the application:
 | Live / final campaign send | **Not enabled** |
 | Campaign template system | **Not implemented** |
 | Brand Kit / Email Studio | **Not implemented** |
-| Required footer / opt-out workflow | **Not implemented** |
+| Required footer renderer (`lib/mail/campaign-email-footer.ts`) | **Live — test sends only** |
+| Footer org identity fields in Brand Kit | **Live — UI input + save** |
+| Opt-out endpoint / token generation | **Not implemented** |
+| Suppression pre-check at send time | **Not implemented** |
 
 The test-send route (`/api/mail/google/test-send`) sends a basic plaintext + HTML verification message to active test recipients only. It does not send campaign content, does not append a footer, and does not exercise the opt-out system. It exists to validate OAuth credentials and connectivity.
 
@@ -144,7 +147,7 @@ The "Live Send Readiness" section card appears in Campaign View mode in `Campaig
 | Recipient segment selected | `campaign.segment` non-empty | Ready / Needs |
 | Recipient estimate > 0 | Existing `estimate` useMemo (segment + version + suppression) | Ready / Needs |
 | Test email sent and verified | `campaign.message_status === 'Test Sent'` | Ready / Needs |
-| Required footer / organization identity | Not yet implemented | Always Pending |
+| Required footer / organization identity | `brandSettings.organization_name` + `mailing_address` both non-empty | Ready / Needs |
 | Opt-out workflow | Not yet implemented | Always Pending |
 
 **Live send gate:** Final/live send will remain disabled until Required footer, Opt-out workflow, suppression pre-check, per-recipient token injection, and `email_send_jobs` live send pipeline are all implemented and verified. The checklist makes this visible to operators without implying the feature is available.
@@ -155,16 +158,41 @@ The "Live Send Readiness" section card appears in Campaign View mode in `Campaig
 
 Every campaign email sent to real recipients must include a required footer before live sending is enabled. This is non-negotiable for CAN-SPAM and nonprofit trust compliance.
 
+### 7.1 Footer Renderer (Implemented — Test Sends)
+
+`lib/mail/campaign-email-footer.ts` exports `buildCampaignEmailFooter(brandSettings, unsubscribeUrl)`.
+
+**Identity source:** `communication_email_brand_settings` — fields `organization_name`, `mailing_address`, `city`, `state`, `zip`, `country`, `unsubscribe_text`, `footer_html`.
+
+**Behavior:**
+- If `footer_html` is set, it is used as the HTML footer. Plain text is always built from the identity fields regardless.
+- If `footer_html` is absent, a structured neutral footer is rendered from identity fields.
+- If `unsubscribeUrl` is provided, an unsubscribe link is included in both HTML and text using `unsubscribe_text`.
+- If `unsubscribeUrl` is null (test sends), no opt-out link is rendered — no fake link, no placeholder.
+
+**Test send integration:**
+- The campaign test-send route (`/api/mail/google/campaign-test-send`) loads `communication_email_brand_settings` and calls `buildCampaignEmailFooter(brandSettings, null)`.
+- Test emails include: campaign content → test banner (amber) → organization footer (neutral).
+- `buildCampaignTestEmailContent` accepts `brandFooter?: { html, text }` and appends it after the test banner.
+- The test banner remains visible above the footer so recipients see the "test only" notice clearly.
+
+**Live send (not yet implemented):**
+- Live sends will pass a per-recipient tokenized `unsubscribeUrl` as the second argument.
+- The footer renderer is already wired to handle this — it just needs the opt-out token generation slice.
+
+### 7.2 Opt-Out Workflow (Not yet implemented)
+
 **Footer requirements:**
-- Organization name and address (from `organization_branding` or a future mailing address field).
-- Opt-out / manage preferences link.
+- Organization name and address — ✅ implemented via Brand Kit + footer renderer.
+- Opt-out / manage preferences link — per-recipient token required, not yet implemented.
 - The link must be tenant-scoped and contact-scoped (a unique token per recipient per send).
 
 **Opt-out mechanics:**
 - Opt-out link click must write a suppression record to `partner_email_suppressions` with `suppression_type = unsubscribed`.
 - Suppression is by email address, optionally linked to `partner_contact_id`.
 - The opt-out endpoint must be anonymous (no auth required — the token is the credential).
-- Token model: a unique per-recipient token generated at send time, stored in a future send audit or opt-out token table, resolved on click.
+- Token model: `email_opt_out_tokens` table exists. Raw token in URL → sha256 hash → lookup `token_hash` → mark `used_at` → insert `partner_email_suppressions`.
+- No API route exists yet at `app/api/email/` — the endpoint is the next major slice after live send is enabled.
 
 **Nonprofit opt-out notifications:**
 - Nonprofits may want to be alerted when a partner opts out, since it signals a relationship change.
@@ -172,9 +200,9 @@ Every campaign email sent to real recipients must include a required footer befo
 - Do not implement this automatically — it requires user configuration.
 
 **Test email guardrails:**
-- Test emails sent to `organization_mail_test_recipients` must display a clear banner: "This is a test email. Opt-out links are not active."
-- Opt-out tokens must not be generated for test sends until a real opt-out token model exists.
-- Test sends must not write suppression records.
+- Test emails sent to `organization_mail_test_recipients` display a clear banner: "This is a test email. Opt-out links are not active."
+- Opt-out tokens are not generated for test sends — `unsubscribeUrl` is always `null`.
+- Test sends do not write suppression records.
 
 ---
 

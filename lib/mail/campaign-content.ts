@@ -28,27 +28,29 @@ export function resolveTestFirstName(displayName: string | null | undefined): st
   return trimmed.split(/\s+/)[0]
 }
 
-function appendTestFooterToHtml(html: string): string {
-  const closeBodyIdx = html.toLowerCase().lastIndexOf('</body>')
-  if (closeBodyIdx !== -1) {
-    return html.slice(0, closeBodyIdx) + TEST_FOOTER_HTML + html.slice(closeBodyIdx)
-  }
-  return html + TEST_FOOTER_HTML
-}
-
 export function buildCampaignTestEmailContent(input: {
   messageRawHtml: string | null
   messagePlain: string | null
   recipientDisplayName: string | null
   orgName: string
+  brandFooter?: { html: string; text: string } | null
 }): { html: string; text: string } {
   const firstName = resolveTestFirstName(input.recipientDisplayName)
+  const orgFooterHtml = input.brandFooter?.html ?? ''
+  const orgFooterText = input.brandFooter?.text ?? ''
 
   if (input.messageRawHtml) {
     const resolved = input.messageRawHtml.replace(/\{firstname\}/gi, firstName)
+    // Insert test banner + org footer before </body> if present, otherwise append
+    const suffix = TEST_FOOTER_HTML + orgFooterHtml
+    const closeBodyIdx = resolved.toLowerCase().lastIndexOf('</body>')
+    const html =
+      closeBodyIdx !== -1
+        ? resolved.slice(0, closeBodyIdx) + suffix + resolved.slice(closeBodyIdx)
+        : resolved + suffix
     return {
-      html: appendTestFooterToHtml(resolved),
-      text: `(HTML email — view in your email client.)${TEST_FOOTER_TEXT}`,
+      html,
+      text: `(HTML email — view in your email client.)${TEST_FOOTER_TEXT}${orgFooterText}`,
     }
   }
 
@@ -57,13 +59,14 @@ export function buildCampaignTestEmailContent(input: {
     return {
       html:
         `<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#111827;white-space:pre-wrap;">${escapeHtml(resolved)}</div>` +
-        TEST_FOOTER_HTML,
-      text: resolved + TEST_FOOTER_TEXT,
+        TEST_FOOTER_HTML +
+        orgFooterHtml,
+      text: resolved + TEST_FOOTER_TEXT + orgFooterText,
     }
   }
 
   return {
-    html: `<p style="font-family:sans-serif;">(No content.)</p>${TEST_FOOTER_HTML}`,
-    text: `(No content.)${TEST_FOOTER_TEXT}`,
+    html: `<p style="font-family:sans-serif;">(No content.)</p>${TEST_FOOTER_HTML}${orgFooterHtml}`,
+    text: `(No content.)${TEST_FOOTER_TEXT}${orgFooterText}`,
   }
 }

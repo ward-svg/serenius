@@ -270,6 +270,21 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
           ) : null}
 
           <SectionTitle>Organization Identity</SectionTitle>
+          <div
+            style={{
+              background: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: 6,
+              padding: "8px 12px",
+              marginBottom: 16,
+              fontSize: 12,
+              color: "#1e40af",
+              lineHeight: 1.5,
+            }}
+          >
+            <strong>Required for live sending.</strong>{" "}
+            These organization identity fields are used in the required email footer before live campaign sends are enabled.
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div className="form-group" style={{ gridColumn: "1 / -1" }}>
               <label className="form-label">Organization Name</label>
