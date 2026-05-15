@@ -9,7 +9,7 @@ import {
   type SortState,
   type SortValue,
 } from "@/lib/ui/sort";
-import type { EmailTemplate } from "../types";
+import type { CommunicationEmailAsset, EmailBrandSettings, EmailTemplate } from "../types";
 import { TEMPLATE_STATUS_LABELS, TEMPLATE_TYPE_LABELS } from "../constants";
 import TemplateModal from "./TemplateModal";
 
@@ -17,7 +17,10 @@ interface Props {
   tenantId: string;
   templates: EmailTemplate[];
   canManage: boolean;
+  brandSettings: EmailBrandSettings | null;
+  emailAssets: CommunicationEmailAsset[];
   onTemplatesChange: (templates: EmailTemplate[]) => void;
+  onAssetsChange?: (assets: CommunicationEmailAsset[]) => void;
 }
 
 type TemplateSortKey = "name" | "templateType" | "status" | "isDefault" | "updatedAt";
@@ -45,7 +48,15 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export default function TemplatesTab({ tenantId, templates, canManage, onTemplatesChange }: Props) {
+export default function TemplatesTab({
+  tenantId,
+  templates,
+  canManage,
+  brandSettings,
+  emailAssets,
+  onTemplatesChange,
+  onAssetsChange,
+}: Props) {
   const [sort, setSort] = useState<SortState<TemplateSortKey> | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "view" | "edit">("create");
@@ -172,6 +183,9 @@ export default function TemplatesTab({ tenantId, templates, canManage, onTemplat
           template={selectedTemplate}
           mode={modalMode}
           canManage={canManage}
+          brandSettings={brandSettings}
+          emailAssets={emailAssets}
+          onAssetUploaded={(asset) => onAssetsChange?.([asset, ...emailAssets])}
           onClose={handleClose}
           onSaved={handleSaved}
           onModeChange={setModalMode}

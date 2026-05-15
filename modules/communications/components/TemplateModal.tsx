@@ -1,21 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import SereniusModal from "@/components/ui/SereniusModal";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import type { CampaignFormMode, EmailTemplate } from "../types";
+import type {
+  CampaignFormMode,
+  CommunicationEmailAsset,
+  EmailBrandSettings,
+  EmailTemplate,
+} from "../types";
 import {
   TEMPLATE_STATUS_LABELS,
   TEMPLATE_STATUS_OPTIONS,
   TEMPLATE_TYPE_LABELS,
   TEMPLATE_TYPE_OPTIONS,
 } from "../constants";
+import BlockComposer from "./BlockComposer";
+import { parseDesign, renderEmailBuilderHtml } from "../email-builder-renderer";
+import type { EmailBuilderDesign } from "../email-builder-types";
 
 interface Props {
   tenantId: string;
   template: EmailTemplate | null;
   mode: CampaignFormMode;
   canManage: boolean;
+  brandSettings: EmailBrandSettings | null;
+  emailAssets: CommunicationEmailAsset[];
+  onAssetUploaded?: (asset: CommunicationEmailAsset) => void;
   onClose: () => void;
   onSaved: (template: EmailTemplate) => void;
   onModeChange: (mode: CampaignFormMode) => void;
@@ -33,6 +44,7 @@ type FormData = {
   preheader_default: string;
   html_template: string;
   plain_text_template: string;
+  design_json: Record<string, unknown>;
 };
 
 function blankForm(): FormData {
@@ -47,6 +59,7 @@ function blankForm(): FormData {
     preheader_default: "",
     html_template: "",
     plain_text_template: "",
+    design_json: {},
   };
 }
 
@@ -62,6 +75,10 @@ function templateToForm(t: EmailTemplate): FormData {
     preheader_default: t.preheader_default ?? "",
     html_template: t.html_template ?? "",
     plain_text_template: t.plain_text_template ?? "",
+    design_json:
+      t.design_json && typeof t.design_json === "object" && !Array.isArray(t.design_json)
+        ? t.design_json
+        : {},
   };
 }
 
@@ -70,11 +87,17 @@ function prettyText(value: string | null | undefined): string {
   return value;
 }
 
+const SELECT_FIELDS =
+  "id, tenant_id, name, description, template_type, status, is_default, email_style, subject_default, preheader_default, html_template, plain_text_template, design_json, thumbnail_url, created_by, created_at, updated_at";
+
 export default function TemplateModal({
   tenantId,
   template,
   mode,
   canManage,
+  brandSettings,
+  emailAssets,
+  onAssetUploaded,
   onClose,
   onSaved,
   onModeChange,
@@ -87,9 +110,44 @@ export default function TemplateModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHtmlPreview, setShowHtmlPreview] = useState(false);
+  const [previewHeight, setPreviewHeight] = useState(680);
+
+  const parsedDesign: EmailBuilderDesign = useMemo(
+    () => parseDesign(form.design_json),
+    [form.design_json],
+  );
+
+  const isBuilder = form.email_style === "Rich Text";
 
   function field(key: keyof FormData, value: string | boolean) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => ({ ...prev, [key]: value } as FormData));
+  }
+
+  function updateDesignJson(design: EmailBuilderDesign) {
+    setForm((prev) => ({
+      ...prev,
+      design_json: design as unknown as Record<string, unknown>,
+    }));
+  }
+
+  function handlePreviewLoad(e: React.SyntheticEvent<HTMLIFrameElement>) {
+    const iframeEl = e.currentTarget;
+    function measure() {
+      try {
+        const doc = iframeEl.contentDocument;
+        if (!doc) return;
+        const h = Math.max(
+          doc.documentElement.scrollHeight || 0,
+          doc.body?.scrollHeight || 0,
+          doc.documentElement.offsetHeight || 0,
+          doc.body?.offsetHeight || 0,
+        );
+        if (h > 0) setPreviewHeight(h);
+      } catch { /* noop: cross-origin guard */ }
+    }
+    measure();
+    requestAnimationFrame(measure);
+    setTimeout(measure, 100);
   }
 
   function enterEdit() {
@@ -117,6 +175,10 @@ export default function TemplateModal({
 
     const supabase = createSupabaseBrowserClient();
 
+    const renderedHtml = isBuilder
+      ? renderEmailBuilderHtml(parsedDesign, brandSettings)
+      : form.html_template.trim() || null;
+
     const payload = {
       tenant_id: tenantId,
       name: form.name.trim(),
@@ -127,8 +189,9 @@ export default function TemplateModal({
       email_style: form.email_style,
       subject_default: form.subject_default.trim() || null,
       preheader_default: form.preheader_default.trim() || null,
-      html_template: form.html_template.trim() || null,
+      html_template: renderedHtml,
       plain_text_template: form.plain_text_template.trim() || null,
+      design_json: form.design_json,
     };
 
     let saved: EmailTemplate | null = null;
@@ -139,9 +202,7 @@ export default function TemplateModal({
         .update(payload)
         .eq("id", template.id)
         .eq("tenant_id", tenantId)
-        .select(
-          "id, tenant_id, name, description, template_type, status, is_default, email_style, subject_default, preheader_default, html_template, plain_text_template, design_json, thumbnail_url, created_by, created_at, updated_at",
-        )
+        .select(SELECT_FIELDS)
         .single();
 
       if (err || !data) {
@@ -155,9 +216,7 @@ export default function TemplateModal({
       const { data, error: err } = await supabase
         .from("communication_email_templates")
         .insert(payload)
-        .select(
-          "id, tenant_id, name, description, template_type, status, is_default, email_style, subject_default, preheader_default, html_template, plain_text_template, design_json, thumbnail_url, created_by, created_at, updated_at",
-        )
+        .select(SELECT_FIELDS)
         .single();
 
       if (err || !data) {
@@ -177,7 +236,9 @@ export default function TemplateModal({
         .neq("id", saved.id);
 
       if (clearErr) {
-        setError(`Template saved, but could not clear default flag from other templates: ${clearErr.message}`);
+        setError(
+          `Template saved, but could not clear default flag from other templates: ${clearErr.message}`,
+        );
         setSaving(false);
         onSaved(saved);
         return;
@@ -215,12 +276,17 @@ export default function TemplateModal({
       showCloseButton={!isEditing}
       closeOnOverlayClick={!isEditing}
       closeOnEscape={!isEditing}
-      maxWidth={960}
+      maxWidth={isBuilder ? 1440 : 960}
       headerActions={headerActions}
       footer={
         isEditing ? (
           <>
-            <button type="button" className="btn btn-ghost" onClick={cancelEdit} disabled={saving}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={cancelEdit}
+              disabled={saving}
+            >
               Cancel
             </button>
             <button
@@ -242,6 +308,7 @@ export default function TemplateModal({
       ) : null}
 
       {mode === "view" && template ? (
+        /* ── VIEW MODE ── */
         <div>
           <ViewRow label="Name" value={prettyText(template.name)} />
           <ViewRow
@@ -254,7 +321,11 @@ export default function TemplateModal({
           />
           <ViewRow
             label="Content Mode"
-            value={template.email_style === "Rich Text" ? "Serenius Builder" : (template.email_style || "Raw HTML")}
+            value={
+              template.email_style === "Rich Text"
+                ? "Serenius Builder"
+                : (template.email_style || "Raw HTML")
+            }
           />
           <ViewRow label="Default" value={template.is_default ? "Yes" : "No"} />
           <ViewRow label="Description" value={prettyText(template.description)} />
@@ -272,18 +343,20 @@ export default function TemplateModal({
                 }}
               >
                 <span style={{ fontSize: 12, fontWeight: 500, color: "#6b7280" }}>
-                  HTML Template
+                  {template.email_style === "Rich Text" ? "Rendered Preview" : "HTML Template"}
                 </span>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setShowHtmlPreview((v) => !v)}
-                >
-                  {showHtmlPreview ? "Show Source" : "Preview"}
-                </button>
+                {template.email_style !== "Rich Text" ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setShowHtmlPreview((v) => !v)}
+                  >
+                    {showHtmlPreview ? "Show Source" : "Preview"}
+                  </button>
+                ) : null}
               </div>
 
-              {showHtmlPreview ? (
+              {template.email_style === "Rich Text" || showHtmlPreview ? (
                 <iframe
                   srcDoc={template.html_template}
                   sandbox="allow-same-origin"
@@ -294,7 +367,7 @@ export default function TemplateModal({
                     borderRadius: 8,
                     background: "#fff",
                   }}
-                  title="HTML preview"
+                  title="Template preview"
                 />
               ) : (
                 <pre
@@ -318,37 +391,46 @@ export default function TemplateModal({
               )}
             </div>
           ) : (
-            <ViewRow label="HTML Template" value="—" />
+            <ViewRow
+              label={template.email_style === "Rich Text" ? "Rendered Preview" : "HTML Template"}
+              value="—"
+            />
           )}
 
-          {template.plain_text_template ? (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: "#6b7280", marginBottom: 6 }}>
-                Plain Text Template
+          {template.email_style !== "Rich Text" ? (
+            template.plain_text_template ? (
+              <div style={{ marginTop: 16 }}>
+                <div
+                  style={{ fontSize: 12, fontWeight: 500, color: "#6b7280", marginBottom: 6 }}
+                >
+                  Plain Text Template
+                </div>
+                <pre
+                  style={{
+                    background: "#f9fafb",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    padding: "12px 16px",
+                    fontSize: 12,
+                    fontFamily: "monospace",
+                    whiteSpace: "pre-wrap",
+                    maxHeight: 200,
+                    overflowY: "auto",
+                    color: "#374151",
+                  }}
+                >
+                  {template.plain_text_template}
+                </pre>
               </div>
-              <pre
-                style={{
-                  background: "#f9fafb",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 8,
-                  padding: "12px 16px",
-                  fontSize: 12,
-                  fontFamily: "monospace",
-                  whiteSpace: "pre-wrap",
-                  maxHeight: 200,
-                  overflowY: "auto",
-                  color: "#374151",
-                }}
-              >
-                {template.plain_text_template}
-              </pre>
-            </div>
-          ) : (
-            <ViewRow label="Plain Text Template" value="—" />
-          )}
+            ) : (
+              <ViewRow label="Plain Text Template" value="—" />
+            )
+          ) : null}
         </div>
       ) : (
+        /* ── CREATE / EDIT MODE ── */
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Metadata — always shown */}
           <div className="form-group">
             <label className="form-label">
               Name <span style={{ color: "#ef4444" }}>*</span>
@@ -362,7 +444,7 @@ export default function TemplateModal({
             />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
             <div className="form-group">
               <label className="form-label">Type</label>
               <select
@@ -392,34 +474,18 @@ export default function TemplateModal({
                 ))}
               </select>
             </div>
-          </div>
 
-          <div className="form-group">
-            <label className="form-label">Content Mode</label>
-            <select
-              className="form-select"
-              value={form.email_style}
-              onChange={(e) => field("email_style", e.target.value)}
-            >
-              <option value="Raw HTML">Raw HTML</option>
-              <option value="Rich Text" disabled>
-                Serenius Builder (coming soon)
-              </option>
-            </select>
-            <div className="form-helper">
-              Builder template editing is coming next. For now, create Raw HTML templates.
+            <div className="form-group">
+              <label className="form-label">Content Mode</label>
+              <select
+                className="form-select"
+                value={form.email_style}
+                onChange={(e) => field("email_style", e.target.value)}
+              >
+                <option value="Raw HTML">Raw HTML</option>
+                <option value="Rich Text">Serenius Builder</option>
+              </select>
             </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Description</label>
-            <textarea
-              className="form-textarea"
-              value={form.description}
-              onChange={(e) => field("description", e.target.value)}
-              rows={2}
-              placeholder="Optional description"
-            />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -447,6 +513,17 @@ export default function TemplateModal({
           </div>
 
           <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea
+              className="form-textarea"
+              value={form.description}
+              onChange={(e) => field("description", e.target.value)}
+              rows={2}
+              placeholder="Optional description"
+            />
+          </div>
+
+          <div className="form-group">
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input
                 type="checkbox"
@@ -462,29 +539,99 @@ export default function TemplateModal({
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">HTML Template</label>
-            <textarea
-              className="form-textarea"
-              value={form.html_template}
-              onChange={(e) => field("html_template", e.target.value)}
-              rows={14}
-              style={{ fontFamily: "monospace", fontSize: 12 }}
-              placeholder="Paste raw HTML here"
-            />
-          </div>
+          {/* Content area — conditional on email_style */}
+          {isBuilder ? (
+            /* BUILDER MODE — editor + sticky live preview */
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 3fr) minmax(0, 2fr)",
+                gap: 20,
+                alignItems: "start",
+              }}
+            >
+              <div>
+                <BlockComposer
+                  design={parsedDesign}
+                  brandSettings={brandSettings}
+                  emailAssets={emailAssets}
+                  tenantId={tenantId}
+                  canEdit={true}
+                  onChange={updateDesignJson}
+                  onAssetUploaded={onAssetUploaded}
+                />
+              </div>
 
-          <div className="form-group">
-            <label className="form-label">Plain Text Template</label>
-            <textarea
-              className="form-textarea"
-              value={form.plain_text_template}
-              onChange={(e) => field("plain_text_template", e.target.value)}
-              rows={6}
-              style={{ fontFamily: "monospace", fontSize: 12 }}
-              placeholder="Plain text version of the email"
-            />
-          </div>
+              <div style={{ position: "sticky", top: 0 }}>
+                <div
+                  className="section-card"
+                  style={{ marginBottom: 0, border: "1px solid #e5e7eb" }}
+                >
+                  <div className="section-header">
+                    <span className="section-title">Live Preview</span>
+                  </div>
+                  <div
+                    style={{
+                      padding: "8px 12px 12px",
+                      overflowY: "auto",
+                      maxHeight: "calc(100vh - 260px)",
+                      minHeight: 200,
+                    }}
+                  >
+                    <div
+                      style={{
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        background: "#fff",
+                      }}
+                    >
+                      <iframe
+                        srcDoc={renderEmailBuilderHtml(parsedDesign, brandSettings)}
+                        sandbox=""
+                        onLoad={handlePreviewLoad}
+                        style={{
+                          width: "100%",
+                          height: Math.max(previewHeight, 5000),
+                          border: 0,
+                          display: "block",
+                          pointerEvents: "none",
+                        }}
+                        title="Live Preview"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* RAW HTML MODE */
+            <>
+              <div className="form-group">
+                <label className="form-label">HTML Template</label>
+                <textarea
+                  className="form-textarea"
+                  value={form.html_template}
+                  onChange={(e) => field("html_template", e.target.value)}
+                  rows={14}
+                  style={{ fontFamily: "monospace", fontSize: 12 }}
+                  placeholder="Paste raw HTML here"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Plain Text Template</label>
+                <textarea
+                  className="form-textarea"
+                  value={form.plain_text_template}
+                  onChange={(e) => field("plain_text_template", e.target.value)}
+                  rows={6}
+                  style={{ fontFamily: "monospace", fontSize: 12 }}
+                  placeholder="Plain text version of the email"
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
     </SereniusModal>

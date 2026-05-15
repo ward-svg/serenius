@@ -173,7 +173,7 @@ Do not jump directly to a heavy WYSIWYG or drag-and-drop builder. Build in safe,
 - Brand Kit values are injected into template placeholders and into the required footer at send time.
 - Brand Kit is managed under Communications, not Setup.
 
-### 7.3 Create Campaign from Template (Implemented — Raw HTML)
+### 7.3 Create Campaign from Template (Implemented — Raw HTML and Serenius Builder)
 
 Templates function as **launchpads**, not live-linked parents. Creating a campaign from a template copies the template's content into the new `partner_emails` row at creation time. After that point, the campaign and the template are fully independent:
 
@@ -181,11 +181,18 @@ Templates function as **launchpads**, not live-linked parents. Creating a campai
 - Later edits to the campaign do not affect the original template.
 - `partner_emails.template_id` records which template was used (nullable, SET NULL on template delete — for future reporting/analytics only).
 
-**V1 scope:**
-- Supported: Raw HTML templates (`html_template`, `subject_default`).
-- Fields copied on create: `subject_default → subject`, `html_template → message_raw_html`, `email_style` forced to `"Raw HTML"`.
+**Template editing in TemplateModal:**
+- Both Raw HTML and Serenius Builder templates can be created and edited in `TemplateModal`.
+- For Builder templates (`email_style = "Rich Text"`): `design_json` is the editable source. `html_template` is saved as the rendered output of `renderEmailBuilderHtml(design_json, brandSettings)` at save time.
+- For Raw HTML templates (`email_style = "Raw HTML"`): `html_template` is edited directly. `design_json` is preserved as-is (defaults to `{}`).
+- Switching Content Mode in the editor changes the UI immediately: Builder shows `BlockComposer` with a live preview; Raw HTML shows the textarea.
+- The modal expands to 1440px wide in Builder mode to accommodate the two-column layout.
+
+**Campaign creation from template (copy-on-create):**
+- `email_style`, `design_json`, and `html_template` are all copied from the template into the new campaign at creation time.
+- For Builder templates: `email_style = "Rich Text"`, `design_json` is copied, `message_raw_html` is copied from `html_template` (the pre-rendered snapshot).
 - `preheader_default` is not copied — `partner_emails` has no preheader column (deferred).
-- Builder (`design_json`) template support is deferred to a later app wiring/UI slice. `communication_email_templates` now has both `email_style` (text, NOT NULL DEFAULT 'Raw HTML') and `design_json` (jsonb) columns — the schema prerequisites are in place. What remains is UI wiring: surfacing a Builder editor in `TemplateModal` and handling `design_json` copy-on-create in `CampaignModal`.
+- After creation, the campaign and template are fully independent.
 
 **Phase 3 — Simple Block Editor**
 - Structured email layout stored as design JSON (blocks: header, text, image, button, divider, footer).

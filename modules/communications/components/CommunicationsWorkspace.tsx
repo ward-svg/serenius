@@ -79,7 +79,10 @@ export default function CommunicationsWorkspace(props: Props) {
           tenantId={props.orgId}
           templates={templates}
           canManage={props.canManage}
+          brandSettings={brandSettings}
+          emailAssets={emailAssets}
           onTemplatesChange={setTemplates}
+          onAssetsChange={setEmailAssets}
         />
       )}
       {activeTab === "brandkit" && (
