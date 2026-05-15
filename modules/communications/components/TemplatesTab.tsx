@@ -119,6 +119,7 @@ export default function TemplatesTab({ tenantId, templates, canManage, onTemplat
                     sort={sort}
                     onSort={(key) => setSort((s) => nextSortState(s, key))}
                   />
+                  <th>Mode</th>
                   <SortableHeader
                     label="Status"
                     sortKey="status"
@@ -153,6 +154,7 @@ export default function TemplatesTab({ tenantId, templates, canManage, onTemplat
                     </td>
                     <td>{template.name}</td>
                     <td>{TEMPLATE_TYPE_LABELS[template.template_type] ?? template.template_type}</td>
+                    <td>{template.email_style === "Rich Text" ? "Serenius Builder" : "Raw HTML"}</td>
                     <td>{TEMPLATE_STATUS_LABELS[template.status] ?? template.status}</td>
                     <td>{template.is_default ? "Yes" : "—"}</td>
                     <td>{formatDate(template.updated_at)}</td>

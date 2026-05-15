@@ -138,10 +138,12 @@ export interface EmailTemplate {
   template_type: string
   status: string
   is_default: boolean
+  email_style: string
   subject_default: string | null
   preheader_default: string | null
   html_template: string | null
   plain_text_template: string | null
+  design_json: Record<string, unknown>
   thumbnail_url: string | null
   created_by: string | null
   created_at: string

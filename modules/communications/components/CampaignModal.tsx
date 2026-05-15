@@ -631,12 +631,15 @@ export default function CampaignModal({
     if (!id) return;
     const tpl = activeTemplates.find((t) => t.id === id);
     if (!tpl) return;
+    const style = tpl.email_style || "Raw HTML";
     setFormData((prev) => ({
       ...prev,
-      email_style: "Raw HTML",
+      email_style: style,
       subject: tpl.subject_default ?? prev.subject,
       message_raw_html: tpl.html_template ?? "",
-      design_json: {},
+      design_json: (style === "Rich Text" && tpl.design_json && typeof tpl.design_json === "object" && !Array.isArray(tpl.design_json))
+        ? tpl.design_json
+        : {},
     }));
     setRawHtmlPreviewDoc(tpl.html_template ?? "");
   }

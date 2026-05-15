@@ -28,6 +28,7 @@ type FormData = {
   template_type: string;
   status: string;
   is_default: boolean;
+  email_style: string;
   subject_default: string;
   preheader_default: string;
   html_template: string;
@@ -41,6 +42,7 @@ function blankForm(): FormData {
     template_type: "general",
     status: "draft",
     is_default: false,
+    email_style: "Raw HTML",
     subject_default: "",
     preheader_default: "",
     html_template: "",
@@ -55,6 +57,7 @@ function templateToForm(t: EmailTemplate): FormData {
     template_type: t.template_type,
     status: t.status,
     is_default: t.is_default,
+    email_style: t.email_style ?? "Raw HTML",
     subject_default: t.subject_default ?? "",
     preheader_default: t.preheader_default ?? "",
     html_template: t.html_template ?? "",
@@ -121,6 +124,7 @@ export default function TemplateModal({
       template_type: form.template_type,
       status: form.status,
       is_default: form.is_default,
+      email_style: form.email_style,
       subject_default: form.subject_default.trim() || null,
       preheader_default: form.preheader_default.trim() || null,
       html_template: form.html_template.trim() || null,
@@ -136,7 +140,7 @@ export default function TemplateModal({
         .eq("id", template.id)
         .eq("tenant_id", tenantId)
         .select(
-          "id, tenant_id, name, description, template_type, status, is_default, subject_default, preheader_default, html_template, plain_text_template, thumbnail_url, created_by, created_at, updated_at",
+          "id, tenant_id, name, description, template_type, status, is_default, email_style, subject_default, preheader_default, html_template, plain_text_template, design_json, thumbnail_url, created_by, created_at, updated_at",
         )
         .single();
 
@@ -152,7 +156,7 @@ export default function TemplateModal({
         .from("communication_email_templates")
         .insert(payload)
         .select(
-          "id, tenant_id, name, description, template_type, status, is_default, subject_default, preheader_default, html_template, plain_text_template, thumbnail_url, created_by, created_at, updated_at",
+          "id, tenant_id, name, description, template_type, status, is_default, email_style, subject_default, preheader_default, html_template, plain_text_template, design_json, thumbnail_url, created_by, created_at, updated_at",
         )
         .single();
 
@@ -247,6 +251,10 @@ export default function TemplateModal({
           <ViewRow
             label="Status"
             value={TEMPLATE_STATUS_LABELS[template.status] ?? template.status}
+          />
+          <ViewRow
+            label="Content Mode"
+            value={template.email_style === "Rich Text" ? "Serenius Builder" : (template.email_style || "Raw HTML")}
           />
           <ViewRow label="Default" value={template.is_default ? "Yes" : "No"} />
           <ViewRow label="Description" value={prettyText(template.description)} />
@@ -383,6 +391,23 @@ export default function TemplateModal({
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Content Mode</label>
+            <select
+              className="form-select"
+              value={form.email_style}
+              onChange={(e) => field("email_style", e.target.value)}
+            >
+              <option value="Raw HTML">Raw HTML</option>
+              <option value="Rich Text" disabled>
+                Serenius Builder (coming soon)
+              </option>
+            </select>
+            <div className="form-helper">
+              Builder template editing is coming next. For now, create Raw HTML templates.
             </div>
           </div>
 
