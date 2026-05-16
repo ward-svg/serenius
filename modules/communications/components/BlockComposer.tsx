@@ -14,6 +14,7 @@ import type {
 } from "../email-builder-types";
 import { applyBrandDefaultsToDesign } from "../email-builder-renderer";
 import type { CommunicationEmailAsset, EmailBrandSettings } from "../types";
+import BrandColorField from "./BrandColorField";
 
 interface Props {
   design: EmailBuilderDesign;
@@ -371,28 +372,15 @@ function HeaderEditor({
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {/* ── Header Background Color ── */}
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Header Background Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="color"
-            value={block.backgroundColor || "#1a56db"}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
-          />
-          <input
-            type="text"
-            className="form-input"
-            value={block.backgroundColor}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#1a56db"
-            style={{ fontFamily: "monospace" }}
-          />
-        </div>
-        <div className="form-helper">Sets the header band color.</div>
-      </div>
+      <BrandColorField
+        label="Header Background Color"
+        value={block.backgroundColor}
+        onChange={(v) => onPatch({ backgroundColor: v })}
+        disabled={disabled}
+        placeholder="#1a56db"
+        brandSettings={brandSettings}
+        helper="Sets the header band color."
+      />
 
       {/* ── Logo Source ── */}
       <div className="form-group" style={{ margin: 0 }}>
@@ -598,7 +586,15 @@ function HeaderEditor({
         />
       </div>
 
-      {/* ── Tagline Style ── size | color | font */}
+      {/* ── Tagline Style ── color | size | font */}
+      <BrandColorField
+        label="Tagline Color"
+        value={block.taglineColor ?? ""}
+        onChange={(v) => onPatch({ taglineColor: v })}
+        disabled={disabled}
+        placeholder="#ffffff"
+        brandSettings={brandSettings}
+      />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
         <div className="form-group" style={{ margin: 0, flex: "0 0 56px" }}>
           <label className="form-label">Size</label>
@@ -611,27 +607,6 @@ function HeaderEditor({
             step={1}
             onChange={(e) => onPatch({ taglineSize: Number(e.target.value) })}
             disabled={disabled}
-          />
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
-          <div>
-            <label className="form-label">Color</label>
-            <input
-              type="color"
-              value={block.taglineColor || "#ffffff"}
-              onChange={(e) => onPatch({ taglineColor: e.target.value })}
-              disabled={disabled}
-              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" } as const}
-            />
-          </div>
-          <input
-            type="text"
-            className="form-input"
-            value={block.taglineColor ?? ""}
-            onChange={(e) => onPatch({ taglineColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#ffffff"
-            style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }}
           />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
@@ -678,37 +653,26 @@ function HeaderEditor({
 
 function HeroEditor({
   block,
+  brandSettings,
   disabled,
   onPatch,
 }: {
   block: HeroBlock;
+  brandSettings: EmailBrandSettings | null;
   disabled: boolean;
   onPatch: (patch: Partial<HeroBlock>) => void;
 }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {/* A. Hero Background Color */}
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Hero Background Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="color"
-            value={block.backgroundColor || "#1a56db"}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
-          />
-          <input
-            type="text"
-            className="form-input"
-            value={block.backgroundColor}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#1a56db"
-            style={{ fontFamily: "monospace" }}
-          />
-        </div>
-      </div>
+      <BrandColorField
+        label="Hero Background Color"
+        value={block.backgroundColor}
+        onChange={(v) => onPatch({ backgroundColor: v })}
+        disabled={disabled}
+        placeholder="#1a56db"
+        brandSettings={brandSettings}
+      />
 
       {/* B. Eyebrow */}
       <div className="form-group" style={{ margin: 0 }}>
@@ -722,6 +686,14 @@ function HeroEditor({
           placeholder="MINISTRY UPDATE — MAY 2026"
         />
       </div>
+      <BrandColorField
+        label="Eyebrow Color"
+        value={block.eyebrowColor ?? ""}
+        onChange={(v) => onPatch({ eyebrowColor: v })}
+        disabled={disabled}
+        placeholder={block.textColor || "#ffffff"}
+        brandSettings={brandSettings}
+      />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
         <div className="form-group" style={{ margin: 0, flex: "0 0 56px" }}>
           <label className="form-label">Size</label>
@@ -734,27 +706,6 @@ function HeroEditor({
             step={1}
             onChange={(e) => onPatch({ eyebrowSize: Number(e.target.value) })}
             disabled={disabled}
-          />
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
-          <div>
-            <label className="form-label">Color</label>
-            <input
-              type="color"
-              value={block.eyebrowColor || block.textColor || "#ffffff"}
-              onChange={(e) => onPatch({ eyebrowColor: e.target.value })}
-              disabled={disabled}
-              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" }}
-            />
-          </div>
-          <input
-            type="text"
-            className="form-input"
-            value={block.eyebrowColor ?? ""}
-            onChange={(e) => onPatch({ eyebrowColor: e.target.value })}
-            disabled={disabled}
-            placeholder={block.textColor || "#ffffff"}
-            style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }}
           />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
@@ -796,6 +747,14 @@ function HeroEditor({
           placeholder="God is moving in Honduras"
         />
       </div>
+      <BrandColorField
+        label="Headline Color"
+        value={block.headlineColor ?? ""}
+        onChange={(v) => onPatch({ headlineColor: v })}
+        disabled={disabled}
+        placeholder={block.textColor || "#ffffff"}
+        brandSettings={brandSettings}
+      />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
         <div className="form-group" style={{ margin: 0, flex: "0 0 56px" }}>
           <label className="form-label">Size</label>
@@ -808,27 +767,6 @@ function HeroEditor({
             step={2}
             onChange={(e) => onPatch({ headlineSize: Number(e.target.value) })}
             disabled={disabled}
-          />
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
-          <div>
-            <label className="form-label">Color</label>
-            <input
-              type="color"
-              value={block.headlineColor || block.textColor || "#ffffff"}
-              onChange={(e) => onPatch({ headlineColor: e.target.value })}
-              disabled={disabled}
-              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" }}
-            />
-          </div>
-          <input
-            type="text"
-            className="form-input"
-            value={block.headlineColor ?? ""}
-            onChange={(e) => onPatch({ headlineColor: e.target.value })}
-            disabled={disabled}
-            placeholder={block.textColor || "#ffffff"}
-            style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }}
           />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
@@ -857,6 +795,14 @@ function HeroEditor({
           placeholder="A short description or lead sentence."
         />
       </div>
+      <BrandColorField
+        label="Subtitle Color"
+        value={block.subtitleColor ?? ""}
+        onChange={(v) => onPatch({ subtitleColor: v })}
+        disabled={disabled}
+        placeholder={block.textColor || "#ffffff"}
+        brandSettings={brandSettings}
+      />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
         <div className="form-group" style={{ margin: 0, flex: "0 0 56px" }}>
           <label className="form-label">Size</label>
@@ -869,27 +815,6 @@ function HeroEditor({
             step={1}
             onChange={(e) => onPatch({ subtitleSize: Number(e.target.value) })}
             disabled={disabled}
-          />
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
-          <div>
-            <label className="form-label">Color</label>
-            <input
-              type="color"
-              value={block.subtitleColor || block.textColor || "#ffffff"}
-              onChange={(e) => onPatch({ subtitleColor: e.target.value })}
-              disabled={disabled}
-              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" }}
-            />
-          </div>
-          <input
-            type="text"
-            className="form-input"
-            value={block.subtitleColor ?? ""}
-            onChange={(e) => onPatch({ subtitleColor: e.target.value })}
-            disabled={disabled}
-            placeholder={block.textColor || "#ffffff"}
-            style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }}
           />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
@@ -936,38 +861,27 @@ function HeroEditor({
 
 function StoryEditor({
   block,
+  brandSettings,
   disabled,
   onPatch,
 }: {
   block: StoryBlock;
+  brandSettings: EmailBrandSettings | null;
   disabled: boolean;
   onPatch: (patch: Partial<StoryBlock>) => void;
 }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {/* A. Story Background Color */}
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Story Background Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="color"
-            value={block.backgroundColor || "#ffffff"}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 }}
-          />
-          <input
-            type="text"
-            className="form-input"
-            value={block.backgroundColor ?? ""}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#ffffff"
-            style={{ fontFamily: "monospace" }}
-          />
-        </div>
-        <div className="form-helper">Sets the story block background.</div>
-      </div>
+      <BrandColorField
+        label="Story Background Color"
+        value={block.backgroundColor ?? ""}
+        onChange={(v) => onPatch({ backgroundColor: v })}
+        disabled={disabled}
+        placeholder="#ffffff"
+        brandSettings={brandSettings}
+        helper="Sets the story block background."
+      />
 
       {/* B. Content */}
       <div className="form-group" style={{ margin: 0 }}>
@@ -984,6 +898,14 @@ function StoryEditor({
       </div>
 
       {/* C. Text Style */}
+      <BrandColorField
+        label="Text Color"
+        value={block.textColor ?? ""}
+        onChange={(v) => onPatch({ textColor: v })}
+        disabled={disabled}
+        placeholder="#111827"
+        brandSettings={brandSettings}
+      />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
         <div className="form-group" style={{ margin: 0, flex: "0 0 56px" }}>
           <label className="form-label">Size</label>
@@ -996,27 +918,6 @@ function StoryEditor({
             step={1}
             onChange={(e) => onPatch({ textSize: Number(e.target.value) })}
             disabled={disabled}
-          />
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
-          <div>
-            <label className="form-label">Color</label>
-            <input
-              type="color"
-              value={block.textColor || "#111827"}
-              onChange={(e) => onPatch({ textColor: e.target.value })}
-              disabled={disabled}
-              style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" }}
-            />
-          </div>
-          <input
-            type="text"
-            className="form-input"
-            value={block.textColor ?? ""}
-            onChange={(e) => onPatch({ textColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#111827"
-            style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }}
           />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
@@ -1063,81 +964,42 @@ function StoryEditor({
 
 function HighlightEditor({
   block,
+  brandSettings,
   disabled,
   onPatch,
 }: {
   block: HighlightBlock;
+  brandSettings: EmailBrandSettings | null;
   disabled: boolean;
   onPatch: (patch: Partial<HighlightBlock>) => void;
 }) {
-  const chipStyle = { width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 } as const;
-
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {/* A. Highlight Style */}
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Background Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="color"
-            value={block.backgroundColor || "#e8f0fe"}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            style={chipStyle}
-          />
-          <input
-            type="text"
-            className="form-input"
-            value={block.backgroundColor ?? ""}
-            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#e8f0fe"
-            style={{ fontFamily: "monospace" }}
-          />
-        </div>
-      </div>
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Accent Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="color"
-            value={block.accentColor || "#1a56db"}
-            onChange={(e) => onPatch({ accentColor: e.target.value })}
-            disabled={disabled}
-            style={chipStyle}
-          />
-          <input
-            type="text"
-            className="form-input"
-            value={block.accentColor ?? ""}
-            onChange={(e) => onPatch({ accentColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#1a56db"
-            style={{ fontFamily: "monospace" }}
-          />
-        </div>
-      </div>
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Text Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="color"
-            value={block.textColor || "#111827"}
-            onChange={(e) => onPatch({ textColor: e.target.value })}
-            disabled={disabled}
-            style={chipStyle}
-          />
-          <input
-            type="text"
-            className="form-input"
-            value={block.textColor ?? ""}
-            onChange={(e) => onPatch({ textColor: e.target.value })}
-            disabled={disabled}
-            placeholder="#111827"
-            style={{ fontFamily: "monospace" }}
-          />
-        </div>
-      </div>
+      <BrandColorField
+        label="Background Color"
+        value={block.backgroundColor ?? ""}
+        onChange={(v) => onPatch({ backgroundColor: v })}
+        disabled={disabled}
+        placeholder="#e8f0fe"
+        brandSettings={brandSettings}
+      />
+      <BrandColorField
+        label="Accent Color"
+        value={block.accentColor ?? ""}
+        onChange={(v) => onPatch({ accentColor: v })}
+        disabled={disabled}
+        placeholder="#1a56db"
+        brandSettings={brandSettings}
+      />
+      <BrandColorField
+        label="Text Color"
+        value={block.textColor ?? ""}
+        onChange={(v) => onPatch({ textColor: v })}
+        disabled={disabled}
+        placeholder="#111827"
+        brandSettings={brandSettings}
+      />
 
       {/* B. Content */}
       <div className="form-group" style={{ margin: 0 }}>
@@ -1267,53 +1129,58 @@ function HighlightEditor({
 
 function CtaEditor({
   block,
+  brandSettings,
   disabled,
   onPatch,
 }: {
   block: CtaBlock;
+  brandSettings: EmailBrandSettings | null;
   disabled: boolean;
   onPatch: (patch: Partial<CtaBlock>) => void;
 }) {
-  const chipStyle = { width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 } as const;
-
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {/* A. CTA Style */}
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Background Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input type="color" value={block.backgroundColor || "#ffffff"} onChange={(e) => onPatch({ backgroundColor: e.target.value })} disabled={disabled} style={chipStyle} />
-          <input type="text" className="form-input" value={block.backgroundColor ?? ""} onChange={(e) => onPatch({ backgroundColor: e.target.value })} disabled={disabled} placeholder="#ffffff" style={{ fontFamily: "monospace" }} />
-        </div>
-      </div>
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Accent / Panel Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input type="color" value={block.accentColor || "#e8f0fe"} onChange={(e) => onPatch({ accentColor: e.target.value })} disabled={disabled} style={chipStyle} />
-          <input type="text" className="form-input" value={block.accentColor ?? ""} onChange={(e) => onPatch({ accentColor: e.target.value })} disabled={disabled} placeholder="#e8f0fe" style={{ fontFamily: "monospace" }} />
-        </div>
-      </div>
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Text Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input type="color" value={block.textColor || "#111827"} onChange={(e) => onPatch({ textColor: e.target.value })} disabled={disabled} style={chipStyle} />
-          <input type="text" className="form-input" value={block.textColor ?? ""} onChange={(e) => onPatch({ textColor: e.target.value })} disabled={disabled} placeholder="#111827" style={{ fontFamily: "monospace" }} />
-        </div>
-      </div>
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Button Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input type="color" value={block.buttonColor || "#1a56db"} onChange={(e) => onPatch({ buttonColor: e.target.value })} disabled={disabled} style={chipStyle} />
-          <input type="text" className="form-input" value={block.buttonColor ?? ""} onChange={(e) => onPatch({ buttonColor: e.target.value })} disabled={disabled} placeholder="#1a56db" style={{ fontFamily: "monospace" }} />
-        </div>
-      </div>
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Button Text Color</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input type="color" value={block.buttonTextColor || "#ffffff"} onChange={(e) => onPatch({ buttonTextColor: e.target.value })} disabled={disabled} style={chipStyle} />
-          <input type="text" className="form-input" value={block.buttonTextColor ?? ""} onChange={(e) => onPatch({ buttonTextColor: e.target.value })} disabled={disabled} placeholder="#ffffff" style={{ fontFamily: "monospace" }} />
-        </div>
-      </div>
+      <BrandColorField
+        label="Background Color"
+        value={block.backgroundColor ?? ""}
+        onChange={(v) => onPatch({ backgroundColor: v })}
+        disabled={disabled}
+        placeholder="#ffffff"
+        brandSettings={brandSettings}
+      />
+      <BrandColorField
+        label="Accent / Panel Color"
+        value={block.accentColor ?? ""}
+        onChange={(v) => onPatch({ accentColor: v })}
+        disabled={disabled}
+        placeholder="#e8f0fe"
+        brandSettings={brandSettings}
+      />
+      <BrandColorField
+        label="Text Color"
+        value={block.textColor ?? ""}
+        onChange={(v) => onPatch({ textColor: v })}
+        disabled={disabled}
+        placeholder="#111827"
+        brandSettings={brandSettings}
+      />
+      <BrandColorField
+        label="Button Color"
+        value={block.buttonColor ?? ""}
+        onChange={(v) => onPatch({ buttonColor: v })}
+        disabled={disabled}
+        placeholder="#1a56db"
+        brandSettings={brandSettings}
+      />
+      <BrandColorField
+        label="Button Text Color"
+        value={block.buttonTextColor ?? ""}
+        onChange={(v) => onPatch({ buttonTextColor: v })}
+        disabled={disabled}
+        placeholder="#ffffff"
+        brandSettings={brandSettings}
+      />
 
       {/* B. Content */}
       <div className="form-group" style={{ margin: 0 }}>
@@ -1395,6 +1262,7 @@ function CtaEditor({
 
 function ImageEditor({
   block,
+  brandSettings,
   emailAssets,
   tenantId,
   disabled,
@@ -1402,13 +1270,13 @@ function ImageEditor({
   onAssetUploaded,
 }: {
   block: ImageBlock;
+  brandSettings: EmailBrandSettings | null;
   emailAssets: CommunicationEmailAsset[];
   tenantId: string;
   disabled: boolean;
   onPatch: (patch: Partial<ImageBlock>) => void;
   onAssetUploaded?: (asset: CommunicationEmailAsset) => void;
 }) {
-  const chipStyle = { width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", flexShrink: 0 } as const;
   const imageAssets = emailAssets.filter((a) => a.mime_type.startsWith("image/"));
   const layoutCount = block.layout === "two" ? 2 : block.layout === "three" ? 3 : 1;
 
@@ -1622,30 +1490,22 @@ function ImageEditor({
       </div>
 
       {/* C. Image Style */}
+      <BrandColorField
+        label="Background"
+        value={block.backgroundColor ?? ""}
+        onChange={(v) => onPatch({ backgroundColor: v })}
+        disabled={disabled}
+        placeholder="#ffffff"
+        brandSettings={brandSettings}
+      />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
-          <div>
-            <label className="form-label">Background</label>
-            <input type="color" value={block.backgroundColor || "#ffffff"} onChange={(e) => onPatch({ backgroundColor: e.target.value })} disabled={disabled} style={{ ...chipStyle, display: "block" }} />
-          </div>
-          <input type="text" className="form-input" value={block.backgroundColor ?? ""} onChange={(e) => onPatch({ backgroundColor: e.target.value })} disabled={disabled} placeholder="#ffffff" style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }} />
-        </div>
-        <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 120px" }}>
           <label className="form-label">Border</label>
           <select className="form-input" value={block.borderStyle || "none"} onChange={(e) => onPatch({ borderStyle: e.target.value as ImageBlock["borderStyle"] })} disabled={disabled}>
             <option value="none">None</option>
             <option value="thin">Thin (1px)</option>
             <option value="medium">Medium (2px)</option>
           </select>
-        </div>
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, flex: "1 1 120px" }}>
-          <div>
-            <label className="form-label">Border Color</label>
-            <input type="color" value={block.borderColor || "#e5e7eb"} onChange={(e) => onPatch({ borderColor: e.target.value })} disabled={disabled || (block.borderStyle || "none") === "none"} style={{ ...chipStyle, display: "block" }} />
-          </div>
-          <input type="text" className="form-input" value={block.borderColor ?? ""} onChange={(e) => onPatch({ borderColor: e.target.value })} disabled={disabled || (block.borderStyle || "none") === "none"} placeholder="#e5e7eb" style={{ fontFamily: "monospace", flex: 1, minWidth: 0 }} />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
           <label className="form-label">Corners</label>
@@ -1665,6 +1525,14 @@ function ImageEditor({
           <input type="number" className="form-input" value={block.paddingX ?? 0} min={0} max={80} step={4} onChange={(e) => onPatch({ paddingX: Number(e.target.value) })} disabled={disabled} />
         </div>
       </div>
+      <BrandColorField
+        label="Border Color"
+        value={block.borderColor ?? ""}
+        onChange={(v) => onPatch({ borderColor: v })}
+        disabled={disabled || (block.borderStyle || "none") === "none"}
+        placeholder="#e5e7eb"
+        brandSettings={brandSettings}
+      />
       <div className="form-helper">Top/Bottom Space adds room above and below the image block. Left/Right Space adds room on each side.</div>
     </div>
   );
@@ -1676,10 +1544,12 @@ function ImageEditor({
 
 function DividerEditor({
   block,
+  brandSettings,
   disabled,
   onPatch,
 }: {
   block: DividerBlock;
+  brandSettings: EmailBrandSettings | null;
   disabled: boolean;
   onPatch: (patch: Partial<DividerBlock>) => void;
 }) {
@@ -1691,47 +1561,25 @@ function DividerEditor({
         </div>
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 160 }}>
-              <label className="form-label">Background Color</label>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <input
-                  type="color"
-                  value={block.backgroundColor ?? "#ffffff"}
-                  disabled={disabled}
-                  onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-                  style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" } as const}
-                />
-                <input
-                  type="text"
-                  className="form-input"
-                  value={block.backgroundColor ?? "#ffffff"}
-                  disabled={disabled}
-                  onChange={(e) => onPatch({ backgroundColor: e.target.value })}
-                  style={{ flex: 1, fontFamily: "monospace", fontSize: 12 }}
-                  maxLength={7}
-                />
-              </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <BrandColorField
+                label="Background Color"
+                value={block.backgroundColor ?? "#ffffff"}
+                onChange={(v) => onPatch({ backgroundColor: v })}
+                disabled={disabled}
+                placeholder="#ffffff"
+                brandSettings={brandSettings}
+              />
             </div>
-            <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 160 }}>
-              <label className="form-label">Line Color</label>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <input
-                  type="color"
-                  value={block.lineColor ?? "#e5e7eb"}
-                  disabled={disabled}
-                  onChange={(e) => onPatch({ lineColor: e.target.value })}
-                  style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: disabled ? "default" : "pointer", display: "block" } as const}
-                />
-                <input
-                  type="text"
-                  className="form-input"
-                  value={block.lineColor ?? "#e5e7eb"}
-                  disabled={disabled}
-                  onChange={(e) => onPatch({ lineColor: e.target.value })}
-                  style={{ flex: 1, fontFamily: "monospace", fontSize: 12 }}
-                  maxLength={7}
-                />
-              </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <BrandColorField
+                label="Line Color"
+                value={block.lineColor ?? "#e5e7eb"}
+                onChange={(v) => onPatch({ lineColor: v })}
+                disabled={disabled}
+                placeholder="#e5e7eb"
+                brandSettings={brandSettings}
+              />
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -1959,6 +1807,7 @@ function BlockCard({
           {block.type === "hero" && (
             <HeroEditor
               block={block}
+              brandSettings={brandSettings}
               disabled={disabled}
               onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
             />
@@ -1966,6 +1815,7 @@ function BlockCard({
           {block.type === "story" && (
             <StoryEditor
               block={block}
+              brandSettings={brandSettings}
               disabled={disabled}
               onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
             />
@@ -1973,6 +1823,7 @@ function BlockCard({
           {block.type === "highlight" && (
             <HighlightEditor
               block={block}
+              brandSettings={brandSettings}
               disabled={disabled}
               onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
             />
@@ -1980,6 +1831,7 @@ function BlockCard({
           {block.type === "cta" && (
             <CtaEditor
               block={block}
+              brandSettings={brandSettings}
               disabled={disabled}
               onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
             />
@@ -1987,6 +1839,7 @@ function BlockCard({
           {block.type === "image" && (
             <ImageEditor
               block={block}
+              brandSettings={brandSettings}
               emailAssets={emailAssets}
               tenantId={tenantId}
               disabled={disabled}
@@ -1997,6 +1850,7 @@ function BlockCard({
           {block.type === "divider" && (
             <DividerEditor
               block={block}
+              brandSettings={brandSettings}
               disabled={disabled}
               onPatch={(patch) => onPatch(patch as Record<string, unknown>)}
             />
