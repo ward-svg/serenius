@@ -28,7 +28,6 @@ type MailSenderFormState = {
   from_name: string;
   from_email: string;
   reply_to: string;
-  is_enabled: boolean;
   send_mode: "disabled" | "test_only" | "live";
 }
 
@@ -47,7 +46,6 @@ function buildDefaultMailSenderForm(): MailSenderFormState {
     from_name: "",
     from_email: "",
     reply_to: "",
-    is_enabled: false,
     send_mode: "disabled",
   };
 }
@@ -58,7 +56,6 @@ function mapSettingsToForm(settings: OrganizationMailSettings | null): MailSende
     from_name: settings?.from_name ?? "",
     from_email: settings?.from_email ?? "",
     reply_to: settings?.reply_to ?? "",
-    is_enabled: Boolean(settings?.is_enabled),
     send_mode: (settings?.send_mode as MailSenderFormState["send_mode"]) ?? "disabled",
   };
 }
@@ -117,40 +114,25 @@ function humanizeMailStatus(value: string | null | undefined): string {
 function getTestSendDisableReason(options: {
   hasMailCredentials: boolean;
   connectionStatus: string | null | undefined;
-  isEnabled: boolean | null | undefined;
   sendMode: MailSenderFormState["send_mode"] | null | undefined;
   activeRecipientCount: number;
 }): string {
   const reasons: string[] = [];
 
-  if (!options.hasMailCredentials) {
+  if (!options.hasMailCredentials || options.connectionStatus !== "connected") {
     reasons.push("Connect Google Workspace.");
   }
-  if (options.connectionStatus !== "connected") {
-    reasons.push("Connect Google Workspace.");
-  }
-  if (options.isEnabled !== true) {
-    reasons.push("Enable the sender.");
-  }
-  if (options.sendMode !== "test_only") {
-    if (options.sendMode === "live") {
-      reasons.push("Set Send Mode to Test only.");
-    } else {
-      reasons.push("Set Send Mode to Test only.");
-    }
+  if (!options.sendMode || options.sendMode === "disabled") {
+    reasons.push("Set Send Mode to Test only or Live.");
   }
   if (options.activeRecipientCount <= 0) {
     reasons.push("Add at least one active test recipient.");
   }
 
-  const uniqueReasons = Array.from(new Set(reasons));
-  if (uniqueReasons.length === 1 && uniqueReasons[0] === "Set Send Mode to Test only.") {
-    return "Set Send Mode to Test only to enable test sending.";
-  }
-  if (uniqueReasons.length === 0) {
+  if (reasons.length === 0) {
     return "Ready to send to configured test recipients.";
   }
-  return uniqueReasons.join(" ");
+  return Array.from(new Set(reasons)).join(" ");
 }
 
 function getTestSendReadyText(activeRecipientCount: number): string {
@@ -199,6 +181,7 @@ export default function MailSenderSection({
   const [recipientError, setRecipientError] = useState<string | null>(null);
   const [savingRecipient, setSavingRecipient] = useState(false);
   const [recipientSort, setRecipientSort] = useState<SortState<RecipientSortKey> | null>(null);
+  const [liveAgreement, setLiveAgreement] = useState(false);
 
   const activeRecipients = useMemo(
     () => recipients.filter((recipient) => recipient.is_active),
@@ -218,13 +201,11 @@ export default function MailSenderSection({
   const canSendTestEmail =
     hasMailCredentials &&
     settings?.connection_status === "connected" &&
-    settings?.is_enabled === true &&
-    settings?.send_mode === "test_only" &&
+    (settings?.send_mode === "test_only" || settings?.send_mode === "live") &&
     activeRecipients.length > 0;
   const sendTestHelpText = getTestSendDisableReason({
     hasMailCredentials,
     connectionStatus: settings?.connection_status,
-    isEnabled: settings?.is_enabled,
     sendMode: settings?.send_mode,
     activeRecipientCount: activeRecipients.length,
   });
@@ -288,6 +269,11 @@ export default function MailSenderSection({
   }, [tenantId]);
 
   async function saveMailSenderSettings() {
+    if (settingsForm.send_mode === "live" && !liveAgreement) {
+      setSettingsError("Check the live mode agreement checkbox before saving.");
+      return;
+    }
+
     setSavingSettings(true);
     setSettingsError(null);
     setSettingsSuccess(null);
@@ -300,7 +286,7 @@ export default function MailSenderSection({
         from_name: settingsForm.from_name.trim() || null,
         from_email: settingsForm.from_email.trim() || null,
         reply_to: settingsForm.reply_to.trim() || null,
-        is_enabled: settingsForm.is_enabled,
+        is_enabled: settingsForm.send_mode !== "disabled",
         send_mode: settingsForm.send_mode,
         connection_status: settings?.connection_status ?? "manual",
         provider_account_email: settings?.provider_account_email ?? null,
@@ -575,7 +561,7 @@ export default function MailSenderSection({
           <div>
             <h2 className="text-base font-semibold text-gray-800">Mail Sender</h2>
             <p className="text-xs text-gray-400 mt-1">
-              Marketing mail settings and test recipients for this tenant.
+              Outbound email settings and test recipients for this tenant.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -651,12 +637,11 @@ export default function MailSenderSection({
                 <select
                   className="form-input"
                   value={settingsForm.send_mode}
-                  onChange={(e) =>
-                    setSettingsForm((prev) => ({
-                      ...prev,
-                      send_mode: e.target.value as MailSenderFormState["send_mode"],
-                    }))
-                  }
+                  onChange={(e) => {
+                    const newMode = e.target.value as MailSenderFormState["send_mode"];
+                    setSettingsForm((prev) => ({ ...prev, send_mode: newMode }));
+                    setLiveAgreement(false);
+                  }}
                 >
                   {sendModeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -666,27 +651,24 @@ export default function MailSenderSection({
                 </select>
                 <p className="form-helper text-xs text-gray-500">
                   {settingsForm.send_mode === "disabled"
-                    ? "No emails will be sent."
+                    ? "Outbound email is disabled for this tenant."
                     : settingsForm.send_mode === "test_only"
-                      ? "Only configured test recipients can receive emails."
-                      : "Live campaign sending is enabled. Campaigns still require readiness checks before sending."}
+                      ? "Only configured test recipients can receive email through this sender."
+                      : "Production email is allowed through this sender. Individual features may still require their own readiness checks."}
                 </p>
-              </div>
-              <div className="flex items-center">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={settingsForm.is_enabled}
-                    onChange={(e) =>
-                      setSettingsForm((prev) => ({
-                        ...prev,
-                        is_enabled: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 rounded border-gray-300 text-[color:var(--color-primary)] focus:ring-[color:var(--color-primary)]"
-                  />
-                  Enabled
-                </label>
+                {settingsForm.send_mode === "live" && (
+                  <label className="flex items-start gap-2 text-sm text-gray-700 mt-3">
+                    <input
+                      type="checkbox"
+                      checked={liveAgreement}
+                      onChange={(e) => setLiveAgreement(e.target.checked)}
+                      className="h-4 w-4 mt-0.5 rounded border-gray-300 text-[color:var(--color-primary)] focus:ring-[color:var(--color-primary)] flex-shrink-0"
+                    />
+                    <span>
+                      I understand Live mode allows this tenant to send production email through this connected sender. Individual features may apply additional safeguards.
+                    </span>
+                  </label>
+                )}
               </div>
             </div>
           </div>
@@ -755,7 +737,7 @@ export default function MailSenderSection({
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={() => setSettingsForm(mapSettingsToForm(settings))}
+              onClick={() => { setSettingsForm(mapSettingsToForm(settings)); setLiveAgreement(false); }}
               disabled={savingSettings}
             >
               Reset Changes
@@ -764,7 +746,7 @@ export default function MailSenderSection({
               type="button"
               className="btn btn-primary"
               onClick={saveMailSenderSettings}
-              disabled={savingSettings}
+              disabled={savingSettings || (settingsForm.send_mode === "live" && !liveAgreement)}
             >
               {savingSettings ? "Saving..." : "Save Mail Sender Settings"}
             </button>
@@ -776,7 +758,7 @@ export default function MailSenderSection({
             <div>
               <div className="text-sm font-semibold text-gray-800">Test Send</div>
               <p className="text-xs text-gray-500 mt-1">
-                Test sends only go to the active test recipients configured below. Partner/contact campaign sending is not enabled yet.
+                Use this to verify the connected sender and delivery identity. It only sends to configured test recipients.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -786,17 +768,13 @@ export default function MailSenderSection({
                 onClick={sendTestEmail}
                 disabled={!canSendTestEmail || sendingTestEmail}
                 title={
-                  !hasMailCredentials
+                  !hasMailCredentials || settings?.connection_status !== "connected"
                     ? "Connect Google Workspace before sending a test email."
-                    : settings?.connection_status !== "connected"
-                      ? "Google Workspace must be connected before sending a test email."
-                      : settings?.is_enabled !== true
-                        ? "Enable the mail sender before sending a test email."
-                        : settings?.send_mode !== "test_only"
-                          ? "Set Send Mode to Test only before sending a test email."
-                          : activeRecipients.length === 0
-                            ? "Add at least one active test recipient before sending a test email."
-                            : undefined
+                    : settings?.send_mode === "disabled"
+                      ? "Set Send Mode to Test only or Live before sending a test email."
+                      : activeRecipients.length === 0
+                        ? "Add at least one active test recipient before sending a test email."
+                        : undefined
                 }
               >
                 {sendingTestEmail ? "Sending…" : "Send Test Email"}

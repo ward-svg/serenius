@@ -54,17 +54,25 @@ The following features are live in the application:
 | Controlled live campaign send route (`/api/mail/google/campaign-live-send`) | **Live — Test Emails segment only, cap 10** |
 | Suppression pre-check at live send time | **Live** |
 
-The test-send route (`/api/mail/google/test-send`) sends a basic plaintext + HTML verification message to active test recipients only. It does not send campaign content, does not append a footer, and does not exercise the opt-out system. It exists to validate OAuth credentials and connectivity.
+**Mail Sender is a tenant-wide email conduit.** It is not campaign-specific infrastructure. The connected Google Workspace sender may be used by communications campaigns today, and by workflow emails, notifications, receipts, or other system emails in the future. Feature-specific safeguards (campaign readiness checks, segment gating, suppression, opt-out) belong inside those features — not in the global Mail Sender setup.
+
+The setup test-send route (`/api/mail/google/test-send`) sends a basic plaintext + HTML verification message to active test recipients only. It does not send campaign content, does not append a footer, and does not exercise the opt-out system. It exists to validate OAuth credentials and delivery identity. Available in both Test only and Live mode (blocked only in Disabled mode).
 
 **Mail sender `send_mode` values** (configured in Setup → Integrations, stored in `organization_mail_settings`):
 
 | Value | Label | Behavior |
 |---|---|---|
-| `disabled` | Disabled | No emails of any kind will be sent. |
-| `test_only` | Test only | Only configured test recipients can receive emails. Required for campaign test sends. |
-| `live` | Live | Live campaign sending is enabled. Campaigns still require per-campaign readiness checks before sending. Controlled live send remains gated to the Test Emails segment (max 10 recipients) until broad sending is intentionally enabled. |
+| `disabled` | Disabled | Outbound email is disabled for this tenant. Setup test send is also blocked. |
+| `test_only` | Test only | Only configured test recipients can receive email through this sender. Required for campaign test sends via `CampaignModal`. |
+| `live` | Live | Production email is allowed through this sender. Individual features may still require their own readiness checks. Campaign live send remains gated to the Test Emails segment (max 10 recipients). Setup test send remains available. |
 
-The Send Mode dropdown in Setup → Integrations exposes all three values. Selecting Live does not bypass campaign readiness checks — the live send route independently validates `send_mode === 'live'`, `segment === 'Test Emails'`, suppression checks, and recipient cap before sending.
+**`send_mode` is the primary user-facing control.** `is_enabled` is internal — it is derived from `send_mode` at save time (`disabled` → `false`; `test_only`/`live` → `true`) and is not shown in the setup UI.
+
+**Live mode agreement:** Selecting Live in Setup → Integrations requires checking an explicit agreement checkbox before saving: "I understand Live mode allows this tenant to send production email through this connected sender. Individual features may apply additional safeguards." This agreement is not stored in the database — it must be re-confirmed each editing session. It acknowledges the tenant-wide change, not any specific feature.
+
+The Send Mode dropdown in Setup → Integrations exposes all three values. Selecting Live does not bypass feature-level safeguards — the campaign live send route independently validates `send_mode === 'live'`, `segment === 'Test Emails'`, suppression checks, and recipient cap before sending.
+
+**Future:** Communications → Delivery Setup may add a campaign-specific acknowledgment separate from the global Mail Sender agreement. This would require the user to confirm they have tested campaign sending, reviewed the recipient list, and accept responsibility for campaign distribution — concerns that belong at the campaign feature level, not at the tenant email conduit level.
 
 ---
 
