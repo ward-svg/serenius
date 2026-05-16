@@ -92,6 +92,7 @@ export default function CommunicationsWorkspace(props: Props) {
       {activeTab === "campaigns" && (
         <CommunicationsDashboard
           {...props}
+          brandSettings={brandSettings}
           emailAssets={emailAssets}
           onAssetsChange={setEmailAssets}
         />

@@ -232,6 +232,8 @@ Every campaign email sent to real recipients must include a required footer befo
 - A preview label "Required email footer · Unsubscribe link generated per recipient at send time" appears below the footer in the preview iframe.
 - Previews show the actual final email structure so users see the footer before sending.
 - The footer is not stored inside `message_raw_html` or `design_json` — it is appended at render/send/preview time.
+- **Brand Kit save → preview update:** `CommunicationsWorkspace` holds `brandSettings` in React state and passes it explicitly to `CommunicationsDashboard` (and therefore `CampaignModal`). After saving Brand Kit, campaign previews automatically reflect the updated footer styles — no page refresh required.
+- **"Apply Brand Kit Defaults"** (in Serenius Builder) applies Brand Kit colors and logo to builder blocks only. It has no effect on the required compliance footer, which always uses current Brand Kit settings from the shared state.
 
 ### 7.2 Opt-Out Redemption Endpoint (Implemented)
 

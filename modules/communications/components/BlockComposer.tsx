@@ -2087,7 +2087,7 @@ export default function BlockComposer({ design, brandSettings, emailAssets, tena
           Serenius Builder renders structured blocks into email-safe HTML. Add blocks below, then save to generate the rendered preview.
           {brandSettings && canEdit && (
             <span style={{ display: "block", marginTop: 4, fontSize: 11, color: "#9ca3af" }}>
-              Use "Apply Brand Kit Defaults" after Brand Kit changes to refresh an existing draft.
+              Use &ldquo;Apply Brand Kit Defaults&rdquo; to apply Brand Kit colors and logo to builder blocks. The required email footer always reflects current Brand Kit settings automatically.
             </span>
           )}
         </p>
