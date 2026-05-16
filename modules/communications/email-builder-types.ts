@@ -46,6 +46,7 @@ export interface StoryBlock {
   fontRole?: 'heading' | 'body';
   alignment?: 'left' | 'center' | 'right';
   paddingY?: number;
+  bodyFormat?: 'plain' | 'basic_html';
 }
 
 export interface HighlightBlock {

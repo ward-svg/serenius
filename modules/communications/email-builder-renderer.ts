@@ -30,6 +30,41 @@ function safeUrl(url: string): string {
   return '#';
 }
 
+// ---------------------------------------------------------------------------
+// Basic HTML sanitizer — used by Story blocks in basic_html format mode.
+// Allowed tags: strong, b, em, i, u, br, p, a (safe href only).
+// All other tags are escaped. Attributes stripped except href on <a>.
+// Known limitation: bare < not inside a tag sequence is left as-is.
+// ---------------------------------------------------------------------------
+
+const _BASIC_INLINE = new Set(['strong', 'b', 'em', 'i', 'u', 'br']);
+const _BASIC_SAFE_HREF = /^(https?:\/\/|mailto:|tel:|\/|#)/i;
+const _BASIC_STRIP = new Set([
+  'script', 'style', 'iframe', 'object', 'embed', 'form',
+  'input', 'button', 'meta', 'link', 'base', 'noscript', 'template',
+]);
+
+function sanitizeBasicHtml(raw: string): string {
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^>]*)>/g, (_m, slash, rawTag, attrs: string) => {
+      const tag = rawTag.toLowerCase();
+      const closing = slash === '/';
+      if (_BASIC_STRIP.has(tag)) return '';
+      if (_BASIC_INLINE.has(tag)) return `<${closing ? '/' : ''}${tag}>`;
+      if (tag === 'p') return `<${closing ? '/' : ''}p>`;
+      if (tag === 'a') {
+        if (closing) return '</a>';
+        const m = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|(\S+))/i);
+        const href = (m ? (m[1] ?? m[2] ?? m[3] ?? '') : '').trim();
+        return href && _BASIC_SAFE_HREF.test(href)
+          ? `<a href="${href.replace(/"/g, '&quot;')}">`
+          : '';
+      }
+      return `&lt;${slash}${rawTag}${attrs}&gt;`;
+    });
+}
+
 export function hasBuilderBlocks(design: EmailBuilderDesign): boolean {
   return design.blocks.length > 0;
 }
@@ -133,15 +168,19 @@ function renderStory(block: StoryBlock, brand: EmailBrandSettings | null): strin
   const paddingY = typeof block.paddingY === 'number' ? block.paddingY : 24;
   const content = (block.content || '').trim();
 
-  const paragraphs = content
+  const paragraphs = block.bodyFormat === 'basic_html'
     ? content
-        .split(/\n\n+/)
-        .map(
-          (p) =>
-            `<p style="margin:0 0 14px;font-size:${textSize}px;font-family:${esc(font)};color:${esc(color)};line-height:1.6;">${esc(p).replace(/\n/g, '<br>')}</p>`,
-        )
-        .join('')
-    : `<p style="margin:0;font-size:${textSize}px;font-family:${esc(font)};color:#9ca3af;">No content.</p>`;
+      ? `<div style="font-size:${textSize}px;font-family:${esc(font)};color:${esc(color)};line-height:1.6;">${sanitizeBasicHtml(content)}</div>`
+      : `<p style="margin:0;font-size:${textSize}px;font-family:${esc(font)};color:#9ca3af;">No content.</p>`
+    : content
+        ? content
+            .split(/\n\n+/)
+            .map(
+              (p) =>
+                `<p style="margin:0 0 14px;font-size:${textSize}px;font-family:${esc(font)};color:${esc(color)};line-height:1.6;">${esc(p).replace(/\n/g, '<br>')}</p>`,
+            )
+            .join('')
+        : `<p style="margin:0;font-size:${textSize}px;font-family:${esc(font)};color:#9ca3af;">No content.</p>`;
 
   return `<tr>
   <td bgcolor="${esc(bg)}" style="background-color:${esc(bg)};padding:${paddingY}px 30px;text-align:${align};">

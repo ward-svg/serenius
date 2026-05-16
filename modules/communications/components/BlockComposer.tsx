@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   CtaBlock,
   DividerBlock,
@@ -860,6 +860,165 @@ function HeroEditor({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Story / Basic HTML formatted editor helpers
+// ---------------------------------------------------------------------------
+
+// Normalizes raw innerHTML from contentEditable to clean semantic HTML.
+// Converts browser-specific output (div wrappers, styled spans) to allowed tags.
+// The renderer's sanitizeBasicHtml is still the final safety gate at render time.
+function normalizeEditorHtml(html: string): string {
+  return html
+    // Strip all attributes except href — keeps editor output clean and safe
+    .replace(/<([a-zA-Z][a-zA-Z0-9]*)\s([^>]*)>/g, (_m, tag, attrs: string) => {
+      const m = attrs.match(/\bhref="([^"]*)"/i);
+      return m ? `<${tag} href="${m[1]}">` : `<${tag}>`;
+    })
+    // Unwrap spans (execCommand produces them in some browsers)
+    .replace(/<\/?span>/gi, "")
+    // Empty div/p containing only a br → plain br (Chrome empty-line representation)
+    .replace(/<(div|p)>\s*<br\s*\/?>\s*<\/(div|p)>/gi, "<br>")
+    // Convert div wrappers → p (Chrome wraps contentEditable paragraphs in divs)
+    .replace(/<div>/gi, "<p>")
+    .replace(/<\/div>/gi, "</p>");
+}
+
+const _STORY_SAFE_HREF = /^(https?:\/\/|mailto:|tel:|\/|#)/i;
+
+function StoryFormattedEditor({
+  content,
+  disabled,
+  onChange,
+}: {
+  content: string;
+  disabled: boolean;
+  onChange: (html: string) => void;
+}) {
+  const [editorView, setEditorView] = useState<"formatted" | "html">("formatted");
+  const [linkError, setLinkError] = useState("");
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // Sync content → editor DOM on mount and when switching back to Formatted view.
+  // content is intentionally omitted from deps to avoid resetting cursor during typing.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (editorView === "formatted" && editorRef.current) {
+      editorRef.current.innerHTML = content;
+    }
+  }, [editorView]);
+
+  function handleInput() {
+    if (!editorRef.current) return;
+    onChange(normalizeEditorHtml(editorRef.current.innerHTML));
+  }
+
+  function handleLink() {
+    // Selection is preserved because toolbar uses onMouseDown + preventDefault
+    const url = window.prompt("Enter link URL (https://, mailto:, tel:, /, or #):");
+    if (!url) return;
+    const trimmed = url.trim();
+    if (!_STORY_SAFE_HREF.test(trimmed)) {
+      setLinkError("Invalid URL. Allowed: https://, http://, mailto:, tel:, /, #.");
+      return;
+    }
+    setLinkError("");
+    document.execCommand("createLink", false, trimmed);
+    handleInput();
+  }
+
+  const tabStyle = (active: boolean) => ({
+    padding: "2px 10px",
+    fontSize: 12,
+    border: "1px solid #d1d5db",
+    borderBottom: active ? "1px solid #ffffff" : "1px solid #d1d5db",
+    borderRadius: "4px 4px 0 0",
+    background: active ? "#ffffff" : "#f9fafb",
+    fontWeight: active ? 600 : 400,
+    cursor: disabled ? "default" as const : "pointer" as const,
+    marginBottom: -1,
+    color: "#374151",
+    position: "relative" as const,
+    zIndex: active ? 1 : 0,
+  });
+
+  const fmtBtn = {
+    padding: "1px 8px",
+    fontSize: 12,
+    border: "1px solid #d1d5db",
+    borderRadius: 3,
+    background: "#ffffff",
+    cursor: "pointer" as const,
+    lineHeight: "20px",
+    color: "#374151",
+  };
+
+  return (
+    <div style={{ display: "grid", gap: 0 }}>
+      {/* Tab strip */}
+      <div style={{ display: "flex", gap: 2 }}>
+        <button type="button" style={tabStyle(editorView === "formatted")} onClick={() => setEditorView("formatted")} disabled={disabled}>
+          Formatted
+        </button>
+        <button type="button" style={tabStyle(editorView === "html")} onClick={() => setEditorView("html")} disabled={disabled}>
+          HTML
+        </button>
+      </div>
+
+      {/* Panel */}
+      <div style={{ border: "1px solid #d1d5db", borderRadius: "0 4px 4px 4px", padding: 8, background: "#ffffff", display: "grid", gap: 6 }}>
+        {editorView === "formatted" && (
+          <>
+            {!disabled && (
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                <button type="button" title="Bold" onMouseDown={(e) => { e.preventDefault(); document.execCommand("bold"); handleInput(); }} style={fmtBtn}><strong>B</strong></button>
+                <button type="button" title="Italic" onMouseDown={(e) => { e.preventDefault(); document.execCommand("italic"); handleInput(); }} style={fmtBtn}><em>I</em></button>
+                <button type="button" title="Underline" onMouseDown={(e) => { e.preventDefault(); document.execCommand("underline"); handleInput(); }} style={fmtBtn}><u>U</u></button>
+                <button type="button" title="Insert link" onMouseDown={(e) => { e.preventDefault(); handleLink(); }} style={fmtBtn}>Link</button>
+              </div>
+            )}
+            <div
+              ref={editorRef}
+              contentEditable={!disabled}
+              suppressHydrationWarning
+              onInput={handleInput}
+              style={{
+                minHeight: 120,
+                padding: "6px 8px",
+                border: "1px solid #e5e7eb",
+                borderRadius: 4,
+                fontSize: 14,
+                lineHeight: 1.6,
+                outline: "none",
+                color: "#111827",
+                background: disabled ? "#f9fafb" : "#ffffff",
+                cursor: disabled ? "default" : "text",
+                overflowY: "auto",
+              }}
+            />
+            {linkError && <div className="form-error" style={{ fontSize: 12 }}>{linkError}</div>}
+            <div className="form-helper">Enter = new paragraph · Shift+Enter = line break · Select text then use toolbar to format.</div>
+          </>
+        )}
+
+        {editorView === "html" && (
+          <>
+            <textarea
+              className="form-textarea"
+              rows={7}
+              value={content}
+              onChange={(e) => onChange(e.target.value)}
+              disabled={disabled}
+              style={{ margin: 0 }}
+              placeholder='<strong>bold</strong>, <em>italic</em>, <u>underline</u>, <a href="https://…">link</a>, <p>, <br>'
+            />
+            <div className="form-helper">Allowed: &lt;strong&gt; &lt;b&gt; &lt;em&gt; &lt;i&gt; &lt;u&gt; &lt;br&gt; &lt;p&gt; &lt;a href=""&gt;. Other tags and attributes stripped at render time.</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StoryEditor({
   block,
   brandSettings,
@@ -884,18 +1043,58 @@ function StoryEditor({
         helper="Sets the story block background."
       />
 
-      {/* B. Content */}
+      {/* B. Body Format toggle */}
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Body Format</label>
+        <div style={{ display: "flex", border: "1px solid #d1d5db", borderRadius: 6, overflow: "hidden", width: "fit-content" }}>
+          {(["plain", "basic_html"] as const).map((fmt) => {
+            const active = (block.bodyFormat ?? "plain") === fmt;
+            return (
+              <button
+                key={fmt}
+                type="button"
+                onClick={() => onPatch({ bodyFormat: fmt })}
+                disabled={disabled}
+                style={{
+                  padding: "4px 14px",
+                  fontSize: 12,
+                  border: "none",
+                  borderRight: fmt === "plain" ? "1px solid #d1d5db" : "none",
+                  background: active ? "#374151" : "#ffffff",
+                  color: active ? "#ffffff" : "#374151",
+                  fontWeight: active ? 600 : 400,
+                  cursor: disabled ? "default" : "pointer",
+                }}
+              >
+                {fmt === "plain" ? "Plain text" : "Basic HTML"}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* C. Content */}
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">Content</label>
-        <textarea
-          className="form-textarea"
-          rows={7}
-          value={block.content}
-          onChange={(e) => onPatch({ content: e.target.value })}
-          disabled={disabled}
-          placeholder="Write your story content here. Double line breaks create new paragraphs."
-        />
-        <div className="form-helper">Double line breaks become paragraphs. Single line breaks become &lt;br&gt;.</div>
+        {block.bodyFormat === "basic_html" ? (
+          <StoryFormattedEditor
+            content={block.content}
+            disabled={disabled}
+            onChange={(html) => onPatch({ content: html })}
+          />
+        ) : (
+          <>
+            <textarea
+              className="form-textarea"
+              rows={7}
+              value={block.content}
+              onChange={(e) => onPatch({ content: e.target.value })}
+              disabled={disabled}
+              placeholder="Write your story content here. Double line breaks create new paragraphs."
+            />
+            <div className="form-helper">Double line breaks become paragraphs. Single line breaks become &lt;br&gt;.</div>
+          </>
+        )}
       </div>
 
       {/* C. Text Style */}
