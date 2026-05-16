@@ -320,7 +320,9 @@ Every campaign email sent to real recipients must include a required footer befo
 
 **Route:** `app/mail/preferences/[token]/page.tsx` → `/mail/preferences/{rawToken}`
 
-This is a public Server Component page — no authentication required. The raw token in the URL is the credential.
+This is a **public** Server Component page — no Serenius authentication required. The raw token in the URL is the credential. Recipients must never be redirected to the login screen to complete an unsubscribe; the token itself is the authorization.
+
+**Middleware exemption:** `middleware.ts` explicitly lists `/mail/preferences/` as a public path. Unauthenticated visitors reach the page directly. Valid, expired, already-used, and invalid tokens each produce a distinct friendly outcome message. No dashboard data is exposed.
 
 **Token redemption flow:**
 1. Raw token extracted from URL param `[token]`.
@@ -348,7 +350,6 @@ This is a public Server Component page — no authentication required. The raw t
 - All four outcome messages are intentionally generic — no internal details exposed.
 
 **What is still deferred:**
-- Unsubscribe link injection into outbound campaign HTML (requires live send route).
 - Preference center UI (preference management beyond simple opt-out).
 
 **Test send guardrails (unchanged):**
@@ -393,7 +394,7 @@ This is a public Server Component page — no authentication required. The raw t
 **Wiring status:**
 - Called per-recipient in `/api/mail/google/campaign-live-send/route.ts`. Token generation failure for a contact aborts that recipient and records a `failed` audit row; the send loop continues for remaining contacts.
 - Test send route does not call this helper (by design — no opt-out links in test emails).
-- `baseUrl` is extracted from `request.url` in the live send route (`new URL(request.url)` → `${protocol}//${host}`).
+- `baseUrl` is extracted from `request.url` in the live send route (`new URL(request.url)` → `${protocol}//${host}`). In production this is the public app hostname (e.g. `https://www.serenius.app`). In local development it is `http://localhost:3000` — acceptable since live sends should always be triggered from the production deployment. There is no `SERENIUS_APP_URL` override variable; the request-derived URL is the current mechanism.
 
 ### 7.4 Live Email Content Builder (Implemented)
 
