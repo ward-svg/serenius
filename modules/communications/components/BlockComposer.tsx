@@ -125,6 +125,7 @@ function createBlock(type: EmailBuilderBlock["type"], brand: EmailBrandSettings 
         buttonTextColor: brand?.button_text_color ?? "#ffffff",
         headingSize: 18,
         bodySize: 14,
+        buttonTextSize: 15,
         headingFontRole: "heading",
         bodyFontRole: "body",
         alignment: "center",
@@ -1222,27 +1223,31 @@ function CtaEditor({
 
       {/* C. Text Style */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
-        <div className="form-group" style={{ margin: 0, flex: "0 0 64px" }}>
-          <label className="form-label">H. Size</label>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 90px" }}>
+          <label className="form-label">Heading Size</label>
           <input type="number" className="form-input" value={block.headingSize ?? 18} min={2} max={120} step={1} onChange={(e) => onPatch({ headingSize: Number(e.target.value) })} disabled={disabled} />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
-          <label className="form-label">H. Font</label>
+          <label className="form-label">Heading Font</label>
           <select className="form-input" value={block.headingFontRole ?? "heading"} onChange={(e) => onPatch({ headingFontRole: e.target.value as "heading" | "body" })} disabled={disabled}>
             <option value="heading">Heading</option>
             <option value="body">Body</option>
           </select>
         </div>
-        <div className="form-group" style={{ margin: 0, flex: "0 0 64px" }}>
-          <label className="form-label">B. Size</label>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 90px" }}>
+          <label className="form-label">Body Size</label>
           <input type="number" className="form-input" value={block.bodySize ?? 14} min={2} max={120} step={1} onChange={(e) => onPatch({ bodySize: Number(e.target.value) })} disabled={disabled} />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
-          <label className="form-label">B. Font</label>
+          <label className="form-label">Body Font</label>
           <select className="form-input" value={block.bodyFontRole ?? "body"} onChange={(e) => onPatch({ bodyFontRole: e.target.value as "heading" | "body" })} disabled={disabled}>
             <option value="body">Body</option>
             <option value="heading">Heading</option>
           </select>
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "0 0 90px" }}>
+          <label className="form-label">Button Size</label>
+          <input type="number" className="form-input" value={block.buttonTextSize ?? 15} min={2} max={120} step={1} onChange={(e) => onPatch({ buttonTextSize: Number(e.target.value) })} disabled={disabled} />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
           <label className="form-label">Alignment</label>

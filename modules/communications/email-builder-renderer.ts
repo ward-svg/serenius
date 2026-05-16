@@ -232,9 +232,10 @@ function renderCta(block: CtaBlock, brand: EmailBrandSettings | null): string {
   const paddingY = typeof block.paddingY === 'number' ? block.paddingY : paddingYFallback;
   const href = safeUrl(block.buttonUrl || brand?.default_donation_url || '');
   const items = block.items.filter(Boolean);
+  const buttonFontSize = typeof block.buttonTextSize === 'number' ? block.buttonTextSize : 15;
 
   const btnHtml = block.buttonText
-    ? `<a href="${esc(href)}" style="display:inline-block;background-color:${esc(btnBg)};color:${esc(btnTxt)};font-family:${esc(bFont)};font-size:15px;font-weight:700;padding:12px 28px;text-decoration:none;border-radius:6px;">${esc(block.buttonText)}</a>`
+    ? `<a href="${esc(href)}" style="display:inline-block;background-color:${esc(btnBg)};color:${esc(btnTxt)};font-family:${esc(bFont)};font-size:${buttonFontSize}px;font-weight:700;padding:12px 28px;text-decoration:none;border-radius:6px;">${esc(block.buttonText)}</a>`
     : '';
 
   if (block.variant === 'button') {

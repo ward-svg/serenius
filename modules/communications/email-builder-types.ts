@@ -83,6 +83,7 @@ export interface CtaBlock {
   buttonTextColor?: string;
   headingSize?: number;
   bodySize?: number;
+  buttonTextSize?: number;
   headingFontRole?: 'heading' | 'body';
   bodyFontRole?: 'heading' | 'body';
   alignment?: 'left' | 'center' | 'right';
