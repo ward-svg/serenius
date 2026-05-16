@@ -10,6 +10,12 @@ export type BrandSettingsForFooter = {
   unsubscribe_text: string | null
   footer_html: string | null
   preference_center_url: string | null
+  footer_background_color: string | null
+  footer_text_color: string | null
+  footer_link_color: string | null
+  footer_font_size: number | null
+  footer_divider_enabled: boolean | null
+  footer_divider_color: string | null
 }
 
 function escapeHtml(value: string): string {
@@ -46,14 +52,21 @@ function buildIdentityLines(s: BrandSettingsForFooter): string[] {
 }
 
 /**
- * Builds the required email footer for a campaign send.
+ * Builds the required compliance footer for a campaign email.
  *
- * @param brandSettings - Org identity fields from communication_email_brand_settings (null = no settings yet)
- * @param unsubscribeUrl - Tokenized opt-out URL for the recipient, or null for test sends
+ * The footer always contains the organization identity (name, mailing address) and,
+ * when unsubscribeUrl is provided, a working unsubscribe link. These elements cannot
+ * be removed or replaced — they are system-owned for CAN-SPAM compliance.
  *
- * Returns { html, text } ready to be appended after campaign content.
- * If footer_html is set on brandSettings, it is used as the HTML footer override.
- * If unsubscribeUrl is null, no opt-out link is rendered (test send behavior).
+ * Tenant-controlled style fields (footer_background_color, footer_text_color,
+ * footer_link_color, footer_font_size, footer_divider_enabled, footer_divider_color)
+ * control the visual presentation within system guardrails.
+ *
+ * If footer_html is set on brandSettings, it is rendered as an intro section that appears
+ * BEFORE the required compliance block — not instead of it.
+ *
+ * @param brandSettings - Org identity and style fields from communication_email_brand_settings
+ * @param unsubscribeUrl - Per-recipient tokenized opt-out URL, or null for test/preview sends
  */
 export function buildCampaignEmailFooter(
   brandSettings: BrandSettingsForFooter | null,
@@ -63,37 +76,47 @@ export function buildCampaignEmailFooter(
   const identityLines = s ? buildIdentityLines(s) : []
   const unsubscribeText = s?.unsubscribe_text?.trim() || 'Unsubscribe or manage preferences'
 
-  // Plain text footer — always built from identity fields regardless of footer_html override
+  // Style values — clamp font size to DB constraint range server-side as a safety net
+  const bgColor = s?.footer_background_color?.trim() || '#f4f4f0'
+  const textColor = s?.footer_text_color?.trim() || '#6b7280'
+  const linkColor = s?.footer_link_color?.trim() || '#3d5a80'
+  const fontSize = Math.min(16, Math.max(11, s?.footer_font_size ?? 12))
+  const dividerEnabled = s?.footer_divider_enabled !== false
+  const dividerColor = s?.footer_divider_color?.trim() || '#e5e7eb'
+
+  // Plain text — always built from identity fields and unsubscribe line (when URL provided)
   const textLines: string[] = [...identityLines]
   if (unsubscribeUrl) {
     textLines.push(`${unsubscribeText}: ${unsubscribeUrl}`)
   }
   const text = textLines.length > 0 ? '\n\n' + textLines.join('\n') : ''
 
-  // HTML footer
-  let html: string
+  // HTML compliance block — always includes org identity + unsubscribe link (when URL provided).
+  // This block is system-owned and cannot be suppressed.
+  const identityHtml = identityLines.map(l => escapeHtml(l)).join('<br>')
 
-  if (s?.footer_html?.trim()) {
-    // Custom HTML override — rendered as-is; plain text is still built from identity fields above
-    html = s.footer_html.trim()
-  } else {
-    const identityHtml = identityLines.map(l => escapeHtml(l)).join('<br>')
-    const unsubscribeHtml = unsubscribeUrl
-      ? `<div style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px;">` +
-        `<a href="${escapeHtml(unsubscribeUrl)}" style="color:#6b7280;text-decoration:underline;">` +
-        `${escapeHtml(unsubscribeText)}</a></div>`
-      : ''
+  const dividerTopStyle = dividerEnabled ? `border-top:1px solid ${escapeHtml(dividerColor)};` : ''
 
-    html =
-      identityHtml || unsubscribeHtml
-        ? `<div style="margin:32px 0 0;padding:16px 24px;border-top:1px solid #e5e7eb;` +
-          `font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6b7280;` +
-          `line-height:1.7;text-align:center;">` +
-          identityHtml +
-          unsubscribeHtml +
-          `</div>`
-        : ''
-  }
+  const unsubscribeHtml = unsubscribeUrl
+    ? `<div style="margin-top:10px;${dividerTopStyle}padding-top:10px;">` +
+      `<a href="${escapeHtml(unsubscribeUrl)}" style="color:${escapeHtml(linkColor)};text-decoration:underline;">` +
+      `${escapeHtml(unsubscribeText)}</a></div>`
+    : ''
+
+  const complianceBlock = identityHtml || unsubscribeHtml
+    ? `<div style="margin:32px 0 0;padding:16px 24px;${dividerTopStyle}` +
+      `background-color:${escapeHtml(bgColor)};` +
+      `font-family:Arial,Helvetica,sans-serif;font-size:${fontSize}px;` +
+      `color:${escapeHtml(textColor)};line-height:1.7;text-align:center;">` +
+      identityHtml + unsubscribeHtml +
+      `</div>`
+    : ''
+
+  // footer_html (if set) is an intro section prepended before the required compliance block.
+  // It cannot replace the required org identity or unsubscribe link.
+  const html = s?.footer_html?.trim()
+    ? s.footer_html.trim() + complianceBlock
+    : complianceBlock
 
   return { html, text }
 }

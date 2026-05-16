@@ -181,6 +181,12 @@ export interface EmailBrandSettings {
   phone: string | null
   website_url: string | null
   unsubscribe_text: string
+  footer_background_color: string
+  footer_text_color: string
+  footer_link_color: string
+  footer_font_size: number
+  footer_divider_enabled: boolean
+  footer_divider_color: string
   created_by: string | null
   created_at: string
   updated_at: string

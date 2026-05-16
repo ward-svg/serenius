@@ -194,27 +194,44 @@ The "Live Send" section card appears in Campaign View mode in `CampaignModal`. I
 
 Every campaign email sent to real recipients must include a required footer before live sending is enabled. This is non-negotiable for CAN-SPAM and nonprofit trust compliance.
 
-### 7.1 Footer Renderer (Implemented — Test Sends)
+### 7.1 Footer Renderer (Implemented)
 
 `lib/mail/campaign-email-footer.ts` exports `buildCampaignEmailFooter(brandSettings, unsubscribeUrl)`.
 
+**The required compliance footer is system-owned.** Organization identity (name, mailing address) and a working unsubscribe link are always included and cannot be removed. Tenants may adjust the unsubscribe wording via `unsubscribe_text` in Brand Kit, but Serenius always includes a working unsubscribe link in every live campaign email.
+
 **Identity source:** `communication_email_brand_settings` — fields `organization_name`, `mailing_address`, `city`, `state`, `zip`, `country`, `unsubscribe_text`, `footer_html`.
 
+**Footer styling:** Six style columns on `communication_email_brand_settings` control visual presentation within system guardrails: `footer_background_color`, `footer_text_color`, `footer_link_color` (all hex strings), `footer_font_size` (integer 11–16, DB CHECK constraint), `footer_divider_enabled` (boolean), `footer_divider_color` (hex). These are configurable in Brand Kit under "Required Email Footer → Footer Appearance."
+
+**Safe defaults:** The renderer always falls back to safe defaults when style fields are null or empty: background `#f4f4f0`, text `#6b7280`, link `#3d5a80`, font size 12, divider enabled with color `#e5e7eb`. Brand Kit `settingsToForm` also applies these same defaults when reading DB values — null or blank values never fall through to black (`#000000`). This prevents invisible-on-invisible footer rendering.
+
+**Brand Kit save validation:** Before saving, the app validates hex format for all four color fields (background, text, link, divider-when-enabled) and blocks if any match would make content invisible: text==background, link==background, or (when divider enabled) divider==background. Font size must be 11–16. Clear inline errors direct the user to the specific field.
+
+**Brand Kit footer preview:** Brand Kit includes a live footer preview rendered directly by `buildCampaignEmailFooter` in an iframe, using current unsaved form values. The preview updates as the user changes colors, font size, divider settings, and organization identity fields. The preview passes a `#` placeholder unsubscribe URL so the user can see the link color and placement; a note below the iframe explains that a unique opt-out link is generated per recipient at send time. The preview is inline, positioned below the Footer Appearance controls in the main form.
+
 **Behavior:**
-- If `footer_html` is set, it is used as the HTML footer. Plain text is always built from the identity fields regardless.
-- If `footer_html` is absent, a structured neutral footer is rendered from identity fields.
-- If `unsubscribeUrl` is provided, an unsubscribe link is included in both HTML and text using `unsubscribe_text`.
-- If `unsubscribeUrl` is null (test sends), no opt-out link is rendered — no fake link, no placeholder.
+- The org identity block (name, address) and unsubscribe link (when `unsubscribeUrl` is provided) are always rendered in both HTML and plain text. These elements are system-enforced.
+- If `footer_html` is set in Brand Kit, it is rendered as an **intro section** that appears before the required compliance block — it does not replace the org identity or unsubscribe link.
+- If `unsubscribeUrl` is null (test sends, previews), no opt-out link is rendered — no fake link, no placeholder.
+- The compliance block is generated from identity fields regardless of `footer_html`.
 
 **Test send integration:**
 - The campaign test-send route (`/api/mail/google/campaign-test-send`) loads `communication_email_brand_settings` and calls `buildCampaignEmailFooter(brandSettings, null)`.
-- Test emails include: campaign content → test banner (amber) → organization footer (neutral).
+- Test emails include: campaign content → test banner (amber) → organization footer (neutral, no live unsubscribe link).
 - `buildCampaignTestEmailContent` accepts `brandFooter?: { html, text }` and appends it after the test banner.
 - The test banner remains visible above the footer so recipients see the "test only" notice clearly.
 
-**Live send (not yet implemented):**
-- Live sends will call `createEmailOptOutToken` (see 7.3) per recipient, then pass the returned `preferenceUrl` as `unsubscribeUrl` to `buildCampaignEmailFooter`.
-- The footer renderer is already wired to handle this.
+**Live send:**
+- The live-send route calls `createEmailOptOutToken` per recipient, then passes the returned `preferenceUrl` as `unsubscribeUrl` to `buildCampaignEmailFooter`.
+- The footer renderer appends the org identity + working unsubscribe link to every live recipient email.
+- The live-send route enforces that `organization_name` and `mailing_address` are present before sending (HTTP 400 if missing).
+
+**Campaign previews:**
+- Campaign View, Builder Edit, and Raw HTML Edit previews in `CampaignModal` all append the required footer using `buildCampaignEmailFooter(brandSettings, null)` (no live unsubscribe link).
+- A preview label "Required email footer · Unsubscribe link generated per recipient at send time" appears below the footer in the preview iframe.
+- Previews show the actual final email structure so users see the footer before sending.
+- The footer is not stored inside `message_raw_html` or `design_json` — it is appended at render/send/preview time.
 
 ### 7.2 Opt-Out Redemption Endpoint (Implemented)
 

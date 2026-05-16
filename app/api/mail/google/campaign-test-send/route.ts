@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
   const { data: brandSettingsRow } = await serviceSupabase
     .from('communication_email_brand_settings')
     .select(
-      'organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_html, preference_center_url',
+      'organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_html, preference_center_url, footer_background_color, footer_text_color, footer_link_color, footer_font_size, footer_divider_enabled, footer_divider_color',
     )
     .eq('tenant_id', tenantId)
     .maybeSingle()

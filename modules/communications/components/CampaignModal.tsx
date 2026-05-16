@@ -16,6 +16,8 @@ import type {
 } from "../types";
 import type { EmailBuilderDesign } from "../email-builder-types";
 import { hasBuilderBlocks, parseDesign, renderEmailBuilderHtml } from "../email-builder-renderer";
+import { buildCampaignEmailFooter } from "@/lib/mail/campaign-email-footer";
+import type { BrandSettingsForFooter } from "@/lib/mail/campaign-email-footer";
 import BlockComposer from "./BlockComposer";
 import {
   CAMPAIGN_SEGMENT_OPTIONS,
@@ -473,6 +475,45 @@ function LiveReadinessItem({
       </div>
     </div>
   );
+}
+
+function buildPreviewWithFooter(
+  html: string,
+  brandSettings: EmailBrandSettings | null | undefined,
+): string {
+  const footerInput: BrandSettingsForFooter | null = brandSettings
+    ? {
+        organization_name: brandSettings.organization_name,
+        mailing_address: brandSettings.mailing_address,
+        city: brandSettings.city,
+        state: brandSettings.state,
+        zip: brandSettings.zip,
+        country: brandSettings.country,
+        phone: brandSettings.phone,
+        website_url: brandSettings.website_url,
+        unsubscribe_text: brandSettings.unsubscribe_text,
+        footer_html: brandSettings.footer_html,
+        preference_center_url: brandSettings.preference_center_url,
+        footer_background_color: brandSettings.footer_background_color,
+        footer_text_color: brandSettings.footer_text_color,
+        footer_link_color: brandSettings.footer_link_color,
+        footer_font_size: brandSettings.footer_font_size,
+        footer_divider_enabled: brandSettings.footer_divider_enabled,
+        footer_divider_color: brandSettings.footer_divider_color,
+      }
+    : null
+  const { html: footerHtml } = buildCampaignEmailFooter(footerInput, null)
+  const previewLabel =
+    `<div style="padding:6px 24px;font-family:Arial,sans-serif;font-size:11px;` +
+    `color:#9ca3af;text-align:center;background:#f9fafb;border-top:1px dashed #e5e7eb;">` +
+    `Required email footer · Unsubscribe link generated per recipient at send time` +
+    `</div>`
+  const suffix = footerHtml + previewLabel
+  const closeBodyIdx = html.toLowerCase().lastIndexOf('</body>')
+  if (closeBodyIdx !== -1) {
+    return html.slice(0, closeBodyIdx) + suffix + html.slice(closeBodyIdx)
+  }
+  return html + suffix
 }
 
 export default function CampaignModal({
@@ -1155,7 +1196,7 @@ export default function CampaignModal({
                       <iframe
                         title="Campaign HTML Preview"
                         sandbox=""
-                        srcDoc={viewCampaign.message_raw_html}
+                        srcDoc={buildPreviewWithFooter(viewCampaign.message_raw_html, brandSettings)}
                         style={{ width: "100%", height: Math.max(previewHeight, 5000), border: 0, display: "block", pointerEvents: "none" }}
                       />
                     ) : viewCampaign?.message ? (
@@ -1472,7 +1513,7 @@ export default function CampaignModal({
                   <div style={{ padding: "8px 12px 12px", overflowY: "auto", maxHeight: "calc(100vh - 260px)", minHeight: 200 }}>
                     <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
                       <iframe
-                        srcDoc={renderEmailBuilderHtml(parsedDesign, brandSettings ?? null)}
+                        srcDoc={buildPreviewWithFooter(renderEmailBuilderHtml(parsedDesign, brandSettings ?? null), brandSettings)}
                         sandbox=""
                         onLoad={handlePreviewLoad}
                         style={{ width: "100%", height: Math.max(previewHeight, 5000), border: 0, display: "block", pointerEvents: "none" }}
@@ -1662,7 +1703,7 @@ export default function CampaignModal({
                   <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
                     {rawHtmlPreviewDoc ? (
                       <iframe
-                        srcDoc={rawHtmlPreviewDoc}
+                        srcDoc={buildPreviewWithFooter(rawHtmlPreviewDoc, brandSettings)}
                         sandbox=""
                         style={{ width: "100%", height: Math.max(previewHeight, 5000), border: 0, display: "block", pointerEvents: "none" }}
                         title="HTML Preview"

@@ -713,6 +713,12 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | phone | text | nullable |
 | website_url | text | nullable |
 | unsubscribe_text | text | DEFAULT 'Unsubscribe or manage preferences' |
+| footer_background_color | text | NOT NULL DEFAULT '#f4f4f0' |
+| footer_text_color | text | NOT NULL DEFAULT '#6b7280' |
+| footer_link_color | text | NOT NULL DEFAULT '#3d5a80' |
+| footer_font_size | integer | NOT NULL DEFAULT 12 · CHECK (>= 11 AND <= 16) |
+| footer_divider_enabled | boolean | NOT NULL DEFAULT true |
+| footer_divider_color | text | NOT NULL DEFAULT '#e5e7eb' |
 | created_by | uuid | → auth.users.id SET NULL |
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
@@ -721,6 +727,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 **Indexes:** tenant_id  
 **RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
 **Logo fallback:** `logo_url` → `organization_branding.logo_url` → none  
+**Compliance footer:** System-enforced — cannot be removed. Organization identity and unsubscribe link always present. Footer style fields allow visual blending only. App enforces minimum font size (11) and prevents invisible text/background combinations. No field removes the unsubscribe link or organization identity.
 **Preference center:** Serenius-hosted at `/mail/preferences/{token}` by default; `preference_center_url` is an override  
 
 ---

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { buildCampaignEmailFooter } from "@/lib/mail/campaign-email-footer";
 import type { EmailBrandSettings } from "../types";
 
 interface Props {
@@ -37,6 +38,12 @@ type FormData = {
   unsubscribe_text: string;
   header_html: string;
   footer_html: string;
+  footer_background_color: string;
+  footer_text_color: string;
+  footer_link_color: string;
+  footer_font_size: string;
+  footer_divider_enabled: boolean;
+  footer_divider_color: string;
 };
 
 const DEFAULTS: FormData = {
@@ -65,6 +72,12 @@ const DEFAULTS: FormData = {
   unsubscribe_text: "If you no longer wish to receive these emails, you may unsubscribe at any time.",
   header_html: "",
   footer_html: "",
+  footer_background_color: "#f4f4f0",
+  footer_text_color: "#6b7280",
+  footer_link_color: "#3d5a80",
+  footer_font_size: "12",
+  footer_divider_enabled: true,
+  footer_divider_color: "#e5e7eb",
 };
 
 function settingsToForm(s: EmailBrandSettings): FormData {
@@ -94,7 +107,17 @@ function settingsToForm(s: EmailBrandSettings): FormData {
     unsubscribe_text: s.unsubscribe_text,
     header_html: s.header_html ?? "",
     footer_html: s.footer_html ?? "",
+    footer_background_color: s.footer_background_color || '#f4f4f0',
+    footer_text_color: s.footer_text_color || '#6b7280',
+    footer_link_color: s.footer_link_color || '#3d5a80',
+    footer_font_size: String(s.footer_font_size ?? 12),
+    footer_divider_enabled: s.footer_divider_enabled ?? true,
+    footer_divider_color: s.footer_divider_color || '#e5e7eb',
   };
+}
+
+function isValidHex(v: string): boolean {
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v.trim())
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -174,6 +197,56 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
       return;
     }
 
+    const footerFontSizeNum = parseInt(form.footer_font_size, 10);
+    if (Number.isNaN(footerFontSizeNum) || footerFontSizeNum < 11 || footerFontSizeNum > 16) {
+      setError("Footer font size must be between 11 and 16.");
+      setSaving(false);
+      return;
+    }
+
+    const fBg = form.footer_background_color.trim()
+    const fText = form.footer_text_color.trim()
+    const fLink = form.footer_link_color.trim()
+    const fDivider = form.footer_divider_color.trim()
+
+    if (!isValidHex(fBg)) {
+      setError("Footer background color is invalid. Use a hex color like #f4f4f0.")
+      setSaving(false)
+      return
+    }
+    if (!isValidHex(fText)) {
+      setError("Footer text color is invalid. Use a hex color like #6b7280.")
+      setSaving(false)
+      return
+    }
+    if (!isValidHex(fLink)) {
+      setError("Footer link color is invalid. Use a hex color like #3d5a80.")
+      setSaving(false)
+      return
+    }
+    if (form.footer_divider_enabled && !isValidHex(fDivider)) {
+      setError("Footer divider color is invalid. Use a hex color like #e5e7eb.")
+      setSaving(false)
+      return
+    }
+
+    const normHex = (v: string) => v.toLowerCase()
+    if (normHex(fText) === normHex(fBg)) {
+      setError("Footer text color and background color cannot be the same — text would be invisible.")
+      setSaving(false)
+      return
+    }
+    if (normHex(fLink) === normHex(fBg)) {
+      setError("Footer link color and background color cannot be the same — link would be invisible.")
+      setSaving(false)
+      return
+    }
+    if (form.footer_divider_enabled && normHex(fDivider) === normHex(fBg)) {
+      setError("Footer divider color and background color cannot be the same — divider would be invisible.")
+      setSaving(false)
+      return
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     const payload = {
@@ -203,10 +276,16 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
       unsubscribe_text: form.unsubscribe_text.trim() || "If you no longer wish to receive these emails, you may unsubscribe at any time.",
       header_html: form.header_html.trim() || null,
       footer_html: form.footer_html.trim() || null,
+      footer_background_color: form.footer_background_color,
+      footer_text_color: form.footer_text_color,
+      footer_link_color: form.footer_link_color,
+      footer_font_size: footerFontSizeNum,
+      footer_divider_enabled: form.footer_divider_enabled,
+      footer_divider_color: form.footer_divider_color,
     };
 
     const selectCols =
-      "id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, created_by, created_at, updated_at";
+      "id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_background_color, footer_text_color, footer_link_color, footer_font_size, footer_divider_enabled, footer_divider_color, created_by, created_at, updated_at";
 
     let saved: EmailBrandSettings | null = null;
 
@@ -247,13 +326,42 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
     onSaved(saved);
   }
 
-  const footerPreviewLines = [
-    form.organization_name,
-    [form.mailing_address, form.city, form.state, form.zip].filter(Boolean).join(", "),
-    form.country !== "US" ? form.country : null,
-    form.phone,
-    form.website_url,
-  ].filter(Boolean);
+  const footerPreviewDoc = useMemo(() => {
+    const { html } = buildCampaignEmailFooter(
+      {
+        organization_name: form.organization_name.trim() || null,
+        mailing_address: form.mailing_address.trim() || null,
+        city: form.city.trim() || null,
+        state: form.state.trim() || null,
+        zip: form.zip.trim() || null,
+        country: form.country.trim() || null,
+        phone: form.phone.trim() || null,
+        website_url: form.website_url.trim() || null,
+        unsubscribe_text: form.unsubscribe_text.trim() || null,
+        footer_html: null,
+        preference_center_url: form.preference_center_url.trim() || null,
+        footer_background_color: form.footer_background_color || null,
+        footer_text_color: form.footer_text_color || null,
+        footer_link_color: form.footer_link_color || null,
+        footer_font_size: Number(form.footer_font_size) || null,
+        footer_divider_enabled: form.footer_divider_enabled,
+        footer_divider_color: form.footer_divider_color || null,
+      },
+      '#', // placeholder — unique opt-out link generated per recipient at send time
+    )
+    const note =
+      '<div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;' +
+      'text-align:center;padding:4px 0 10px;">' +
+      'Unsubscribe link shown as placeholder &mdash; unique link generated per recipient at send time' +
+      '</div>'
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;">${html}${note}</body></html>`
+  }, [
+    form.organization_name, form.mailing_address, form.city, form.state, form.zip,
+    form.country, form.phone, form.website_url, form.unsubscribe_text,
+    form.preference_center_url, form.footer_background_color, form.footer_text_color,
+    form.footer_link_color, form.footer_font_size, form.footer_divider_enabled,
+    form.footer_divider_color,
+  ])
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 360px", gap: 16, alignItems: "start" }}>
@@ -525,20 +633,115 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
                 <div className="form-helper">If blank, defaults to the Serenius-hosted /mail/preferences/{"{token}"} page.</div>
               </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Unsubscribe Text</label>
-              <textarea
-                className="form-textarea"
-                value={form.unsubscribe_text}
-                onChange={(e) => field("unsubscribe_text", e.target.value)}
-                rows={2}
-                placeholder="If you no longer wish to receive these emails…"
-              />
-              <div className="form-helper">Displayed in the required footer of every campaign email.</div>
+          </div>
+
+          <SectionTitle>Required Email Footer</SectionTitle>
+          <div
+            style={{
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              borderRadius: 6,
+              padding: "8px 12px",
+              marginBottom: 16,
+              fontSize: 12,
+              color: "#15803d",
+              lineHeight: 1.5,
+            }}
+          >
+            <strong>System-enforced compliance footer.</strong>{" "}
+            This footer is automatically added to all campaign emails. Organization identity and unsubscribe access are required and cannot be removed.
+          </div>
+          <div className="form-group">
+            <label className="form-label">Unsubscribe Message</label>
+            <textarea
+              className="form-textarea"
+              value={form.unsubscribe_text}
+              onChange={(e) => field("unsubscribe_text", e.target.value)}
+              rows={2}
+              placeholder="If you no longer wish to receive these emails…"
+            />
+            <div className="form-helper">
+              You can adjust the wording, but Serenius will always include a working unsubscribe link in every campaign email.
             </div>
           </div>
 
-          <SectionTitle>HTML Overrides</SectionTitle>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 12 }}>Footer Appearance</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <ColorField
+                label="Background Color"
+                value={form.footer_background_color}
+                onChange={(v) => field("footer_background_color", v)}
+              />
+              <ColorField
+                label="Text Color"
+                value={form.footer_text_color}
+                onChange={(v) => field("footer_text_color", v)}
+              />
+              <ColorField
+                label="Link Color"
+                value={form.footer_link_color}
+                onChange={(v) => field("footer_link_color", v)}
+              />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 16, alignItems: "start" }}>
+              <div className="form-group">
+                <label className="form-label">Font Size (px)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={form.footer_font_size}
+                  onChange={(e) => field("footer_font_size", e.target.value)}
+                  min={11}
+                  max={16}
+                  placeholder="12"
+                />
+                <div className="form-helper">11–16 px</div>
+              </div>
+              <div>
+                <div className="form-group">
+                  <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={form.footer_divider_enabled}
+                      onChange={(e) => setForm((prev) => ({ ...prev, footer_divider_enabled: e.target.checked }))}
+                    />
+                    Show divider line
+                  </label>
+                </div>
+                {form.footer_divider_enabled && (
+                  <ColorField
+                    label="Divider Color"
+                    value={form.footer_divider_color}
+                    onChange={(v) => field("footer_divider_color", v)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 20, marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Footer Preview</div>
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+              <iframe
+                srcDoc={footerPreviewDoc}
+                title="Required email footer preview"
+                style={{ width: "100%", height: 0, border: "none", display: "block" }}
+                scrolling="no"
+                onLoad={(e) => {
+                  const body = e.currentTarget.contentWindow?.document?.body
+                  if (body) {
+                    e.currentTarget.style.height = `${Math.max(80, body.scrollHeight)}px`
+                  }
+                }}
+              />
+            </div>
+            <div className="form-helper" style={{ marginTop: 6 }}>
+              Live preview — updates as you change colors, font size, and divider settings above. Required compliance footer appended to every campaign email.
+            </div>
+          </div>
+
+          <SectionTitle>Email Header HTML</SectionTitle>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div className="form-group">
               <label className="form-label">Header HTML</label>
@@ -550,20 +753,7 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
                 style={{ fontFamily: "monospace", fontSize: 12 }}
                 placeholder="Optional HTML injected at the top of every email"
               />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Footer HTML</label>
-              <textarea
-                className="form-textarea"
-                value={form.footer_html}
-                onChange={(e) => field("footer_html", e.target.value)}
-                rows={4}
-                style={{ fontFamily: "monospace", fontSize: 12 }}
-                placeholder="Optional HTML override for the footer (replaces the auto-generated footer)"
-              />
-              <div className="form-helper">
-                If provided, this HTML replaces the auto-generated footer. Leave blank to use the standard footer built from your organization identity and unsubscribe text above.
-              </div>
+              <div className="form-helper">HTML injected before the campaign body. Leave blank for no header.</div>
             </div>
           </div>
 
@@ -587,44 +777,6 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
 
       <div>
         <div className="section-card">
-          <div className="section-header">
-            <span className="section-title">Footer Preview</span>
-          </div>
-          <div style={{ padding: "16px 20px 20px" }}>
-            <div
-              style={{
-                background: form.background_color || "#f9fafb",
-                border: "1px solid #e5e7eb",
-                borderRadius: 8,
-                padding: "16px 20px",
-                fontSize: 12,
-                color: form.text_color || "#6b7280",
-                lineHeight: 1.6,
-              }}
-            >
-              {footerPreviewLines.length > 0 ? (
-                footerPreviewLines.map((line, i) => (
-                  <div key={i}>{line}</div>
-                ))
-              ) : (
-                <div style={{ color: "#9ca3af" }}>Organization identity not set.</div>
-              )}
-              {form.unsubscribe_text ? (
-                <div style={{ marginTop: 10, borderTop: "1px solid #e5e7eb", paddingTop: 10 }}>
-                  {form.unsubscribe_text}{" "}
-                  <span style={{ color: form.primary_color || "#1a56db", textDecoration: "underline", cursor: "pointer" }}>
-                    Unsubscribe
-                  </span>
-                </div>
-              ) : null}
-            </div>
-            <div className="form-helper" style={{ marginTop: 8 }}>
-              This is a preview of the required email footer built from your brand settings. Opt-out links will be generated at send time.
-            </div>
-          </div>
-        </div>
-
-        <div className="section-card" style={{ marginTop: 12 }}>
           <div className="section-header">
             <span className="section-title">Color Preview</span>
           </div>
