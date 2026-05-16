@@ -335,34 +335,50 @@ export async function POST(request: NextRequest) {
     })
     .eq('id', job.id)
 
-  // Update campaign message_status only when all sends succeeded
-  if (recipientsSent > 0 && failedRecipients.length === 0) {
-    await serviceSupabase
-      .from('partner_emails')
-      .update({ message_status: 'Test Sent', updated_at: completedAt })
-      .eq('id', campaign.id)
-      .eq('tenant_id', tenantId)
-  }
-
-  const responseBody = {
-    ok: recipientsSent > 0,
-    job_id: job.id,
-    recipients_attempted: recipients.length,
-    recipients_sent: recipientsSent,
-    recipients_failed: failedRecipients.length,
-    failed_recipients: failedRecipients,
-  }
-
   if (recipientsSent === 0) {
     return NextResponse.json(
       {
-        ...responseBody,
         ok: false,
+        job_id: job.id,
+        recipients_attempted: recipients.length,
+        recipients_sent: 0,
+        recipients_failed: failedRecipients.length,
+        failed_recipients: failedRecipients,
         error: failedRecipients[0]?.error ?? 'Test send failed.',
       },
       { status: 400 },
     )
   }
 
-  return NextResponse.json(responseBody)
+  // Update campaign message_status only when all sends succeeded
+  if (failedRecipients.length === 0) {
+    const { error: statusUpdateError } = await serviceSupabase
+      .from('partner_emails')
+      .update({ message_status: 'Test Sent', updated_at: completedAt })
+      .eq('id', campaign.id)
+      .eq('tenant_id', tenantId)
+
+    if (statusUpdateError) {
+      console.error('[campaign-test-send] Failed to persist Test Sent status:', statusUpdateError.message)
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Test send was delivered but campaign status could not be updated. Contact support if this persists.',
+        },
+        { status: 500 },
+      )
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    job_id: job.id,
+    recipients_attempted: recipients.length,
+    recipients_sent: recipientsSent,
+    recipients_failed: failedRecipients.length,
+    failed_recipients: failedRecipients,
+    campaign_id: campaign.id,
+    message_status: 'Test Sent',
+    updated_at: completedAt,
+  })
 }

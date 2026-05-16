@@ -873,7 +873,13 @@ export default function CampaignModal({
       });
       const data = await res.json();
       if (data.ok) {
-        setCurrentCampaign((prev) => (prev ? { ...prev, message_status: "Test Sent" } : prev));
+        const updatedCampaign: PartnerEmailCampaign = {
+          ...currentCampaign!,
+          message_status: data.message_status ?? "Test Sent",
+          updated_at: data.updated_at ?? new Date().toISOString(),
+        };
+        setCurrentCampaign(updatedCampaign);
+        onSaved(updatedCampaign);
         setTestSendResult({
           ok: true,
           message: `Test sent to ${data.recipients_sent} recipient${data.recipients_sent === 1 ? "" : "s"}.`,
