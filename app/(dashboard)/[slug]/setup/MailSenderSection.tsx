@@ -229,17 +229,11 @@ export default function MailSenderSection({
     activeRecipientCount: activeRecipients.length,
   });
 
-  const sendModeOptions: { value: MailSenderFormState["send_mode"]; label: string; disabled?: boolean }[] =
-    settings?.send_mode === "live"
-      ? [
-          { value: "live", label: "Live (existing)", disabled: true },
-          { value: "disabled", label: "Disabled" },
-          { value: "test_only", label: "Test only" },
-        ]
-      : [
-          { value: "disabled", label: "Disabled" },
-          { value: "test_only", label: "Test only" },
-        ];
+  const sendModeOptions: { value: MailSenderFormState["send_mode"]; label: string }[] = [
+    { value: "disabled", label: "Disabled" },
+    { value: "test_only", label: "Test only" },
+    { value: "live", label: "Live" },
+  ];
 
   async function loadMailSender() {
     setLoading(true);
@@ -299,10 +293,6 @@ export default function MailSenderSection({
     setSettingsSuccess(null);
 
     try {
-      if (settings?.send_mode === "live" && settingsForm.send_mode !== "live") {
-        // allowed; live is only preserved if already present and unchanged
-      }
-
       const payload = {
         tenant_id: tenantId,
         provider: "google_workspace" as const,
@@ -595,7 +585,16 @@ export default function MailSenderSection({
             <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
               {humanizeMailStatus(settings?.connection_status ?? "disabled")}
             </span>
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+            <span
+              className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
+              style={
+                settings?.send_mode === "live"
+                  ? { background: "#dcfce7", color: "#15803d" }
+                  : settings?.send_mode === "test_only"
+                    ? { background: "#fef3c7", color: "#92400e" }
+                    : { background: "#f3f4f6", color: "#6b7280" }
+              }
+            >
               Send mode: {humanizeMailStatus(settings?.send_mode ?? "disabled")}
             </span>
             <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
@@ -660,19 +659,18 @@ export default function MailSenderSection({
                   }
                 >
                   {sendModeOptions.map((option) => (
-                    <option key={option.value} value={option.value} disabled={option.disabled}>
+                    <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
                 </select>
                 <p className="form-helper text-xs text-gray-500">
-                  Live sending will be enabled after Google Workspace test sending and suppression checks are verified.
+                  {settingsForm.send_mode === "disabled"
+                    ? "No emails will be sent."
+                    : settingsForm.send_mode === "test_only"
+                      ? "Only configured test recipients can receive emails."
+                      : "Live campaign sending is enabled. Campaigns still require readiness checks before sending."}
                 </p>
-                {settings?.send_mode === "live" && (
-                  <p className="form-helper text-xs" style={{ color: "#b45309" }}>
-                    Live sending is already configured for this tenant. It is shown here for reference only and cannot be newly selected in this slice.
-                  </p>
-                )}
               </div>
               <div className="flex items-center">
                 <label className="flex items-center gap-2 text-sm text-gray-700">

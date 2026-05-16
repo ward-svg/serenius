@@ -44,16 +44,27 @@ The following features are live in the application:
 | Test recipients list on Communications dashboard (read-only summary) | Live |
 | `partner_email_suppressions` table | Live (schema only — no UI yet) |
 | Campaign open tracking endpoint | **Not implemented** |
-| Live / final campaign send | **Not enabled** |
+| Live / final campaign send | **Controlled — Test Emails segment only, cap 10** |
 | Campaign template system | **Not implemented** |
 | Brand Kit / Email Studio | **Not implemented** |
-| Required footer renderer (`lib/mail/campaign-email-footer.ts`) | **Live — test sends only** |
+| Required footer renderer (`lib/mail/campaign-email-footer.ts`) | **Live — test and live sends** |
 | Footer org identity fields in Brand Kit | **Live — UI input + save** |
 | Opt-out redemption endpoint (`/mail/preferences/[token]`) | **Live — endpoint exists** |
-| Opt-out token generation at live send time | **Not implemented** |
-| Suppression pre-check at send time | **Not implemented** |
+| Opt-out token generation helper (`lib/mail/opt-out-tokens.ts`) | **Live** |
+| Controlled live campaign send route (`/api/mail/google/campaign-live-send`) | **Live — Test Emails segment only, cap 10** |
+| Suppression pre-check at live send time | **Live** |
 
 The test-send route (`/api/mail/google/test-send`) sends a basic plaintext + HTML verification message to active test recipients only. It does not send campaign content, does not append a footer, and does not exercise the opt-out system. It exists to validate OAuth credentials and connectivity.
+
+**Mail sender `send_mode` values** (configured in Setup → Integrations, stored in `organization_mail_settings`):
+
+| Value | Label | Behavior |
+|---|---|---|
+| `disabled` | Disabled | No emails of any kind will be sent. |
+| `test_only` | Test only | Only configured test recipients can receive emails. Required for campaign test sends. |
+| `live` | Live | Live campaign sending is enabled. Campaigns still require per-campaign readiness checks before sending. Controlled live send remains gated to the Test Emails segment (max 10 recipients) until broad sending is intentionally enabled. |
+
+The Send Mode dropdown in Setup → Integrations exposes all three values. Selecting Live does not bypass campaign readiness checks — the live send route independently validates `send_mode === 'live'`, `segment === 'Test Emails'`, suppression checks, and recipient cap before sending.
 
 ---
 
@@ -130,35 +141,41 @@ The following rules govern live send recipient resolution. These are not yet enf
 - `communication_prefs` on `partner_contacts` may be honored once reliability is confirmed. Not blocking for initial live send implementation.
 
 **Current state:**
-- The `RecipientEstimateCard` in `CampaignModal` already applies segment, version, and suppression logic for display purposes.
-- This estimate logic must be mirrored exactly in the server-side send route when live sending is implemented.
+- The `RecipientEstimateCard` in `CampaignModal` applies segment, version, and suppression logic for display purposes.
+- The live send route (`/api/mail/google/campaign-live-send`) mirrors this logic exactly at send time: segment containment, version filter, `Skip` exclusion, suppression set check.
+- Controlled live send is gated to the `Test Emails` segment only with a cap of 10 recipients.
 
 ---
 
-## 6. Campaign Live Send Readiness Checklist (Implemented)
+## 6. Campaign Live Send Readiness Checklist and Send Button (Implemented)
 
-The "Live Send Readiness" section card appears in Campaign View mode in `CampaignModal`. It is informational only — no live send button is present. It shows three status states:
+The "Live Send" section card appears in Campaign View mode in `CampaignModal`. It shows readiness state and — when the segment is `Test Emails` — a "Send to Test Emails Segment" button. Three status states:
 
 | Icon | State | Meaning |
 |---|---|---|
 | ✓ | Ready | Condition met |
 | ○ | Needs attention | Not yet done, user can address now |
-| — | Pending | Infrastructure not yet built — coming in a future slice |
+| — | Pending | Infrastructure not yet built |
 
 **Checklist items:**
 
 | Item | Field / Logic | State logic |
 |---|---|---|
 | Mail sender connected and enabled | `mailSettings.connection_status === 'connected' && is_enabled === true` | Ready / Needs |
+| Send mode set to Live | `mailSettings.send_mode === 'live'` | Ready / Needs |
 | Subject line present | `campaign.subject` non-empty | Ready / Needs |
 | Email content present | `message_raw_html` or `message` non-empty | Ready / Needs |
-| Recipient segment selected | `campaign.segment` non-empty | Ready / Needs |
-| Recipient estimate > 0 | Existing `estimate` useMemo (segment + version + suppression) | Ready / Needs |
+| Segment set to "Test Emails" | `campaign.segment === 'Test Emails'` | Ready / Needs |
+| Recipient estimate > 0 | `estimate` useMemo (segment + version + suppression) | Ready / Needs |
 | Test email sent and verified | `campaign.message_status === 'Test Sent'` | Ready / Needs |
 | Required footer / organization identity | `brandSettings.organization_name` + `mailing_address` both non-empty | Ready / Needs |
-| Opt-out workflow | Not yet implemented | Always Pending |
+| Opt-out workflow | Per-recipient token generation at send time | Always Ready |
 
-**Live send gate:** Final/live send will remain disabled until Required footer, Opt-out workflow, suppression pre-check, per-recipient token injection, and `email_send_jobs` live send pipeline are all implemented and verified. The checklist makes this visible to operators without implying the feature is available.
+**Live send button:** Visible only when `campaign.segment === 'Test Emails'`. Enabled when all conditions above are met and campaign is not locked. Clicking opens a confirmation modal (showing subject + recipient count) before posting to `/api/mail/google/campaign-live-send`.
+
+**On success:** Campaign `sending_status` → `Send Complete`, `message_status` → `Message Sent`, `email_sent_at` and `total_emails_sent` updated. Campaign becomes locked — no further edits or sends.
+
+**On partial failure:** Job status recorded as `completed` only if all recipients succeeded. Campaign status is not updated on any failure — partial sends do not lock the campaign.
 
 ---
 
@@ -263,9 +280,19 @@ This is a public Server Component page — no authentication required. The raw t
 - `preference_center_url` override from brand settings is deferred — the live send route will need to decide whether to use the Serenius-hosted path or a custom URL.
 
 **Wiring status:**
-- Helper is not called from any send route yet — live send route is still deferred.
-- Test send route does not call this helper (by design).
-- No unsubscribe links are injected into any email in the current codebase.
+- Called per-recipient in `/api/mail/google/campaign-live-send/route.ts`. Token generation failure for a contact aborts that recipient and records a `failed` audit row; the send loop continues for remaining contacts.
+- Test send route does not call this helper (by design — no opt-out links in test emails).
+- `baseUrl` is extracted from `request.url` in the live send route (`new URL(request.url)` → `${protocol}//${host}`).
+
+### 7.4 Live Email Content Builder (Implemented)
+
+`lib/mail/campaign-content.ts` exports `buildCampaignLiveEmailContent(input)`.
+
+- No test banner — live emails go directly to real recipients.
+- Inserts `brandFooter.html` before `</body>` if present, otherwise appends it.
+- `{firstname}` resolved per-recipient via `resolveTestFirstName`.
+- Plain text: `resolved + brandFooter.text`.
+- Footer includes the real opt-out link because `preferenceUrl` (from `createEmailOptOutToken`) is passed as `unsubscribeUrl` to `buildCampaignEmailFooter` before calling this function.
 
 ---
 
