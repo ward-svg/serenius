@@ -40,7 +40,7 @@ The following features are live in the application:
 | Google Workspace OAuth connect / disconnect | Live |
 | `organization_mail_settings` table and connection status display | Live |
 | `organization_mail_test_recipients` CRUD in Setup → Integrations | Live |
-| Test-only Gmail send (`/api/mail/google/test-send`) | Live — requires `send_mode = test_only` |
+| Test-only Gmail send (`/api/mail/google/test-send`) | Live — requires `send_mode = test_only` or `live` |
 | Test recipients list on Communications dashboard (read-only summary) | Live |
 | `partner_email_suppressions` table | Live (schema only — no UI yet) |
 | Campaign open tracking endpoint | **Not implemented** |
@@ -53,6 +53,8 @@ The following features are live in the application:
 | Opt-out token generation helper (`lib/mail/opt-out-tokens.ts`) | **Live** |
 | Controlled live campaign send route (`/api/mail/google/campaign-live-send`) | **Live — Test Emails segment only, cap 10** |
 | Suppression pre-check at live send time | **Live** |
+| `campaign_live_send_authorized` field on `organization_mail_settings` | **Live — DB column exists** |
+| Campaign live-send authorization UI (Communications → Delivery Setup) | **Live** |
 
 **Mail Sender is a tenant-wide email conduit.** It is not campaign-specific infrastructure. The connected Google Workspace sender may be used by communications campaigns today, and by workflow emails, notifications, receipts, or other system emails in the future. Feature-specific safeguards (campaign readiness checks, segment gating, suppression, opt-out) belong inside those features — not in the global Mail Sender setup.
 
@@ -63,8 +65,8 @@ The setup test-send route (`/api/mail/google/test-send`) sends a basic plaintext
 | Value | Label | Behavior |
 |---|---|---|
 | `disabled` | Disabled | Outbound email is disabled for this tenant. Setup test send is also blocked. |
-| `test_only` | Test only | Only configured test recipients can receive email through this sender. Required for campaign test sends via `CampaignModal`. |
-| `live` | Live | Production email is allowed through this sender. Individual features may still require their own readiness checks. Campaign live send remains gated to the Test Emails segment (max 10 recipients). Setup test send remains available. |
+| `test_only` | Test only | Only configured test recipients can receive email through this sender. Campaign test sends require `send_mode IN ('test_only', 'live')`. |
+| `live` | Live | Production email is allowed through this sender. Individual features may still require their own readiness checks. Campaign live send additionally requires `campaign_live_send_authorized = true`. Setup test send remains available. |
 
 **`send_mode` is the primary user-facing control.** `is_enabled` is internal — it is derived from `send_mode` at save time (`disabled` → `false`; `test_only`/`live` → `true`) and is not shown in the setup UI.
 
@@ -72,7 +74,7 @@ The setup test-send route (`/api/mail/google/test-send`) sends a basic plaintext
 
 The Send Mode dropdown in Setup → Integrations exposes all three values. Selecting Live does not bypass feature-level safeguards — the campaign live send route independently validates `send_mode === 'live'`, `segment === 'Test Emails'`, suppression checks, and recipient cap before sending.
 
-**Future:** Communications → Delivery Setup may add a campaign-specific acknowledgment separate from the global Mail Sender agreement. This would require the user to confirm they have tested campaign sending, reviewed the recipient list, and accept responsibility for campaign distribution — concerns that belong at the campaign feature level, not at the tenant email conduit level.
+**Campaign live-send authorization** (`campaign_live_send_authorized` on `organization_mail_settings`) is a separate, campaign-feature-level gate managed from **Communications → Delivery Setup** — not from the global Mail Sender setup page. It must be explicitly enabled by a `canManage` user via a confirmation checkbox before any campaign live send is permitted. It can also be revoked from that same screen. Test sends do not check this field — they require only `send_mode IN ('test_only', 'live')`.
 
 ---
 
@@ -178,8 +180,9 @@ The "Live Send" section card appears in Campaign View mode in `CampaignModal`. I
 | Test email sent and verified | `campaign.message_status === 'Test Sent'` | Ready / Needs |
 | Required footer / organization identity | `brandSettings.organization_name` + `mailing_address` both non-empty | Ready / Needs |
 | Opt-out workflow | Per-recipient token generation at send time | Always Ready |
+| Campaign live-send authorization | `mailSettings.campaign_live_send_authorized === true` | Ready / Needs — managed in Communications → Delivery Setup |
 
-**Live send button:** Visible only when `campaign.segment === 'Test Emails'`. Enabled when all conditions above are met and campaign is not locked. Clicking opens a confirmation modal (showing subject + recipient count) before posting to `/api/mail/google/campaign-live-send`.
+**Live send button:** Visible only when `campaign.segment === 'Test Emails'`. Enabled when all conditions above are met (including `campaign_live_send_authorized`) and campaign is not locked. Clicking opens a confirmation modal (showing subject + recipient count) before posting to `/api/mail/google/campaign-live-send`.
 
 **On success:** Campaign `sending_status` → `Send Complete`, `message_status` → `Message Sent`, `email_sent_at` and `total_emails_sent` updated. Campaign becomes locked — no further edits or sends.
 

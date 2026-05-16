@@ -2,13 +2,18 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { assertTenantAccess } from '@/lib/auth/tenant-access'
 import { createSupabaseServiceClient } from '@/lib/supabase-service'
-import { buildCampaignTestEmailContent, resolveTestFirstName } from '@/lib/mail/campaign-content'
+import { buildCampaignLiveEmailContent, resolveTestFirstName } from '@/lib/mail/campaign-content'
 import {
   buildGmailRawMessage,
   refreshGoogleMailAccessToken,
   sendGmailMessage,
 } from '@/lib/mail/google'
 import { buildCampaignEmailFooter } from '@/lib/mail/campaign-email-footer'
+import { createEmailOptOutToken } from '@/lib/mail/opt-out-tokens'
+
+// Controlled: only this segment is permitted for live sends in this build
+const LIVE_SEND_SEGMENT = 'Test Emails'
+const LIVE_SEND_CAP = 10
 
 function isGoogleTokenExpired(expiryDate: string | null) {
   if (!expiryDate) return false
@@ -44,10 +49,11 @@ export async function POST(request: NextRequest) {
 
   const serviceSupabase = createSupabaseServiceClient()
 
-  // Load campaign scoped by both id and tenant_id — never trust client-supplied tenant
   const { data: campaign, error: campaignError } = await serviceSupabase
     .from('partner_emails')
-    .select('id, tenant_id, subject, message_raw_html, message, sending_status, message_status')
+    .select(
+      'id, tenant_id, subject, message_raw_html, message, sending_status, message_status, email_sent_at, total_emails_sent, segment, campaign_version, deleted_at',
+    )
     .eq('id', campaignId)
     .eq('tenant_id', tenantId)
     .maybeSingle()
@@ -56,16 +62,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Campaign not found.' }, { status: 404 })
   }
 
+  if (campaign.deleted_at) {
+    return NextResponse.json({ ok: false, error: 'Campaign has been deleted.' }, { status: 400 })
+  }
+
+  if (campaign.segment !== LIVE_SEND_SEGMENT) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Live send is only available for the "${LIVE_SEND_SEGMENT}" segment in this build.`,
+      },
+      { status: 400 },
+    )
+  }
+
+  if (
+    (campaign.sending_status ?? '').toLowerCase() === 'send complete' ||
+    (campaign.message_status ?? '').toLowerCase() === 'message sent' ||
+    Number(campaign.total_emails_sent ?? 0) > 0 ||
+    campaign.email_sent_at
+  ) {
+    return NextResponse.json(
+      { ok: false, error: 'This campaign has already been sent.' },
+      { status: 400 },
+    )
+  }
+
   if (!campaign.subject?.trim()) {
     return NextResponse.json(
-      { ok: false, error: 'Campaign must have a subject before test sending.' },
+      { ok: false, error: 'Campaign must have a subject before sending.' },
       { status: 400 },
     )
   }
 
   if (!campaign.message_raw_html?.trim() && !campaign.message?.trim()) {
     return NextResponse.json(
-      { ok: false, error: 'Campaign must have HTML or message content before test sending.' },
+      { ok: false, error: 'Campaign must have HTML or message content before sending.' },
       { status: 400 },
     )
   }
@@ -73,7 +105,7 @@ export async function POST(request: NextRequest) {
   const { data: settings, error: settingsError } = await serviceSupabase
     .from('organization_mail_settings')
     .select(
-      'id, tenant_id, provider, display_name, from_name, from_email, reply_to, provider_account_email, provider_account_name, is_enabled, connection_status, send_mode',
+      'id, tenant_id, provider, display_name, from_name, from_email, reply_to, provider_account_email, provider_account_name, is_enabled, connection_status, send_mode, campaign_live_send_authorized',
     )
     .eq('tenant_id', tenantId)
     .eq('provider', 'google_workspace')
@@ -89,14 +121,26 @@ export async function POST(request: NextRequest) {
   if (
     settings.connection_status !== 'connected' ||
     settings.is_enabled !== true ||
-    settings.send_mode === 'disabled'
+    settings.send_mode !== 'live'
   ) {
     return NextResponse.json(
       {
         ok: false,
-        error: 'Mail sender must be connected, enabled, and in Test only or Live mode before test sending.',
+        error:
+          'Mail sender must be connected, enabled, and set to Live mode before live sending.',
       },
       { status: 400 },
+    )
+  }
+
+  if (!settings.campaign_live_send_authorized) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'Campaign live send is not authorized for this tenant. Enable campaign live-send authorization in Communications → Delivery Setup.',
+      },
+      { status: 403 },
     )
   }
 
@@ -108,22 +152,68 @@ export async function POST(request: NextRequest) {
     .eq('tenant_id', tenantId)
     .maybeSingle()
 
-  const brandFooter = buildCampaignEmailFooter(brandSettingsRow ?? null, null)
-
-  const { data: recipients, error: recipientsError } = await serviceSupabase
-    .from('organization_mail_test_recipients')
-    .select('id, email, display_name, is_active')
+  const { data: allContacts, error: contactsError } = await serviceSupabase
+    .from('partner_contacts')
+    .select('id, primary_email, display_name, email_segment, campaign_version')
     .eq('tenant_id', tenantId)
-    .eq('is_active', true)
-    .order('email', { ascending: true })
+    .is('deleted_at', null)
+    .not('primary_email', 'is', null)
 
-  if (recipientsError) {
-    return NextResponse.json({ ok: false, error: recipientsError.message }, { status: 400 })
+  if (contactsError) {
+    return NextResponse.json({ ok: false, error: contactsError.message }, { status: 400 })
   }
 
-  if (!recipients || recipients.length === 0) {
+  const { data: suppressionRows } = await serviceSupabase
+    .from('partner_email_suppressions')
+    .select('email')
+    .eq('tenant_id', tenantId)
+
+  const suppressedSet = new Set(
+    (suppressionRows ?? []).map((s) => s.email.trim().toLowerCase()),
+  )
+
+  const campaignVersion = campaign.campaign_version ?? 'A+B'
+
+  const eligibleContacts = (allContacts ?? []).filter((contact) => {
+    const segments: string[] = contact.email_segment ?? []
+    if (!segments.includes(LIVE_SEND_SEGMENT)) return false
+
+    const email = contact.primary_email?.trim() ?? ''
+    if (!email) return false
+
+    if (suppressedSet.has(email.toLowerCase())) return false
+
+    const version = contact.campaign_version ?? ''
+    if (version === 'Skip') return false
+
+    const versionAllowed =
+      campaignVersion === 'A+B'
+        ? version === 'A' || version === 'B'
+        : campaignVersion === 'A'
+          ? version === 'A'
+          : campaignVersion === 'B'
+            ? version === 'B'
+            : false
+
+    return versionAllowed
+  })
+
+  if (eligibleContacts.length === 0) {
     return NextResponse.json(
-      { ok: false, error: 'No active test recipients are configured.' },
+      {
+        ok: false,
+        error: `No eligible contacts found in the "${LIVE_SEND_SEGMENT}" segment after suppression checks.`,
+      },
+      { status: 400 },
+    )
+  }
+
+  if (eligibleContacts.length > LIVE_SEND_CAP) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Recipient count (${eligibleContacts.length}) exceeds the controlled send cap of ${LIVE_SEND_CAP}.`,
+      },
       { status: 400 },
     )
   }
@@ -194,7 +284,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
-        error: 'A connected Google Workspace account email is required before test sending.',
+        error: 'A connected Google Workspace account email is required before sending.',
       },
       { status: 400 },
     )
@@ -214,24 +304,28 @@ export async function POST(request: NextRequest) {
 
   const replyTo = settings.reply_to?.trim() || settings.from_email?.trim() || senderEmail
 
-  // Create audit job record
+  const requestUrl = new URL(request.url)
+  const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`
+
   const startedAt = new Date().toISOString()
   const { data: job, error: jobError } = await serviceSupabase
     .from('email_send_jobs')
     .insert({
       tenant_id: tenantId,
       partner_email_id: campaign.id,
-      job_type: 'test',
+      job_type: 'final',
       status: 'running',
       requested_by: accessCheck.userId,
       provider: 'google_workspace',
       sender_email: senderEmail,
       sender_name: senderName,
-      recipient_count: recipients.length,
+      recipient_count: eligibleContacts.length,
       sent_count: 0,
       failed_count: 0,
       suppressed_count: 0,
       skipped_count: 0,
+      segment_snapshot: campaign.segment,
+      campaign_version_snapshot: campaignVersion,
       started_at: startedAt,
     })
     .select('id')
@@ -253,6 +347,7 @@ export async function POST(request: NextRequest) {
     display_name: string | null
     recipient_type: string
     status: string
+    opt_out_token_id: string | null
     provider_message_id: string | null
     sent_at: string | null
     error: string | null
@@ -260,20 +355,56 @@ export async function POST(request: NextRequest) {
   const recipientRows: RecipientRow[] = []
   let recipientsSent = 0
 
-  for (const recipient of recipients) {
-    const firstName = resolveTestFirstName(recipient.display_name)
-    const subject = `[TEST] ${campaign.subject.replace(/\{firstname\}/gi, firstName)}`
+  for (const contact of eligibleContacts) {
+    const email = contact.primary_email!.trim()
+    const firstName = resolveTestFirstName(contact.display_name)
+    const subject = campaign.subject.replace(/\{firstname\}/gi, firstName)
 
-    const { html, text } = buildCampaignTestEmailContent({
+    let optOutTokenId: string | null = null
+    let preferenceUrl: string | null = null
+    try {
+      const tokenResult = await createEmailOptOutToken({
+        supabase: serviceSupabase,
+        tenantId,
+        email,
+        partnerContactId: contact.id ?? null,
+        partnerEmailId: campaign.id,
+        suppressionType: 'unsubscribed',
+        baseUrl,
+      })
+      optOutTokenId = tokenResult.tokenId
+      preferenceUrl = tokenResult.preferenceUrl
+    } catch (tokenError) {
+      const message =
+        tokenError instanceof Error ? tokenError.message : 'Failed to generate opt-out token.'
+      failedRecipients.push({ email, error: message })
+      recipientRows.push({
+        tenant_id: tenantId,
+        job_id: job.id,
+        partner_email_id: campaign.id,
+        email,
+        display_name: contact.display_name ?? null,
+        recipient_type: 'contact',
+        status: 'failed',
+        opt_out_token_id: null,
+        provider_message_id: null,
+        sent_at: null,
+        error: message,
+      })
+      continue
+    }
+
+    const brandFooter = buildCampaignEmailFooter(brandSettingsRow ?? null, preferenceUrl)
+
+    const { html, text } = buildCampaignLiveEmailContent({
       messageRawHtml: campaign.message_raw_html,
       messagePlain: campaign.message,
-      recipientDisplayName: recipient.display_name,
-      orgName: accessCheck.organization.name,
+      recipientDisplayName: contact.display_name,
       brandFooter,
     })
 
     const rawMessage = buildGmailRawMessage({
-      to: recipient.email,
+      to: email,
       subject,
       fromName: senderName,
       fromEmail: senderEmail,
@@ -289,25 +420,28 @@ export async function POST(request: NextRequest) {
         tenant_id: tenantId,
         job_id: job.id,
         partner_email_id: campaign.id,
-        email: recipient.email,
-        display_name: recipient.display_name ?? null,
-        recipient_type: 'test',
+        email,
+        display_name: contact.display_name ?? null,
+        recipient_type: 'contact',
         status: 'sent',
+        opt_out_token_id: optOutTokenId,
         provider_message_id: gmailResult.id ?? null,
         sent_at: new Date().toISOString(),
         error: null,
       })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to send message.'
-      failedRecipients.push({ email: recipient.email, error: message })
+    } catch (sendError) {
+      const message =
+        sendError instanceof Error ? sendError.message : 'Failed to send message.'
+      failedRecipients.push({ email, error: message })
       recipientRows.push({
         tenant_id: tenantId,
         job_id: job.id,
         partner_email_id: campaign.id,
-        email: recipient.email,
-        display_name: recipient.display_name ?? null,
-        recipient_type: 'test',
+        email,
+        display_name: contact.display_name ?? null,
+        recipient_type: 'contact',
         status: 'failed',
+        opt_out_token_id: optOutTokenId,
         provider_message_id: null,
         sent_at: null,
         error: message,
@@ -315,7 +449,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Insert per-recipient audit rows
   if (recipientRows.length > 0) {
     await serviceSupabase.from('email_send_recipients').insert(recipientRows)
   }
@@ -335,11 +468,16 @@ export async function POST(request: NextRequest) {
     })
     .eq('id', job.id)
 
-  // Update campaign message_status only when all sends succeeded
   if (recipientsSent > 0 && failedRecipients.length === 0) {
     await serviceSupabase
       .from('partner_emails')
-      .update({ message_status: 'Test Sent', updated_at: completedAt })
+      .update({
+        sending_status: 'Send Complete',
+        message_status: 'Message Sent',
+        email_sent_at: completedAt,
+        total_emails_sent: recipientsSent,
+        updated_at: completedAt,
+      })
       .eq('id', campaign.id)
       .eq('tenant_id', tenantId)
   }
@@ -347,7 +485,7 @@ export async function POST(request: NextRequest) {
   const responseBody = {
     ok: recipientsSent > 0,
     job_id: job.id,
-    recipients_attempted: recipients.length,
+    recipients_attempted: eligibleContacts.length,
     recipients_sent: recipientsSent,
     recipients_failed: failedRecipients.length,
     failed_recipients: failedRecipients,
@@ -358,7 +496,7 @@ export async function POST(request: NextRequest) {
       {
         ...responseBody,
         ok: false,
-        error: failedRecipients[0]?.error ?? 'Test send failed.',
+        error: failedRecipients[0]?.error ?? 'Live send failed.',
       },
       { status: 400 },
     )

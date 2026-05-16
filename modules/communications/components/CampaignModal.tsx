@@ -503,6 +503,9 @@ export default function CampaignModal({
   );
   const [testSending, setTestSending] = useState(false);
   const [testSendResult, setTestSendResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [liveSendConfirmOpen, setLiveSendConfirmOpen] = useState(false);
+  const [liveSending, setLiveSending] = useState(false);
+  const [liveSendResult, setLiveSendResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [campaignDetailsOpen, setCampaignDetailsOpen] = useState<boolean>(() =>
     mode === "create" || !(campaign?.communication_type && campaign?.segment && campaign?.subject)
   );
@@ -533,6 +536,7 @@ export default function CampaignModal({
     setError(null);
     setFormData(campaign ? mapCampaignToFormData(campaign) : buildDefaultFormData());
     setTestSendResult(null);
+    setLiveSendResult(null);
     setCampaignDetailsOpen(
       mode === "create" || !(campaign?.communication_type && campaign?.segment && campaign?.subject)
     );
@@ -791,6 +795,44 @@ export default function CampaignModal({
     }
   }
 
+  async function handleLiveSend() {
+    if (!currentCampaign?.id) return;
+    setLiveSending(true);
+    setLiveSendResult(null);
+    setLiveSendConfirmOpen(false);
+    try {
+      const res = await fetch(`/api/mail/google/campaign-live-send?tenantId=${tenantId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaign_id: currentCampaign.id }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setCurrentCampaign((prev) =>
+          prev
+            ? {
+                ...prev,
+                sending_status: "Send Complete",
+                message_status: "Message Sent",
+                email_sent_at: new Date().toISOString(),
+                total_emails_sent: data.recipients_sent,
+              }
+            : prev,
+        );
+        setLiveSendResult({
+          ok: true,
+          message: `Sent to ${data.recipients_sent} recipient${data.recipients_sent === 1 ? "" : "s"}.`,
+        });
+      } else {
+        setLiveSendResult({ ok: false, message: data.error || "Live send failed." });
+      }
+    } catch {
+      setLiveSendResult({ ok: false, message: "Network error. Please try again." });
+    } finally {
+      setLiveSending(false);
+    }
+  }
+
   const isReadOnlyCampaign = !isCreate && !canEdit
 
   if (!isCreate && currentMode === "view") {
@@ -802,9 +844,23 @@ export default function CampaignModal({
     const mailReady =
       mailSettings?.connection_status === "connected" &&
       mailSettings?.is_enabled === true &&
-      mailSettings?.send_mode === "test_only";
+      (mailSettings?.send_mode === "test_only" || mailSettings?.send_mode === "live");
     const hasTestRecipients = testRecipientCount > 0;
     const canTestSend = canManage && hasSubject && hasContent && !!mailReady && hasTestRecipients;
+    const mailLive =
+      mailSettings?.connection_status === "connected" &&
+      mailSettings?.is_enabled === true &&
+      mailSettings?.send_mode === "live";
+    const isTestEmailsSegment = viewCampaign?.segment === "Test Emails";
+    const liveAuthorized = !!mailSettings?.campaign_live_send_authorized;
+    const canLiveSend =
+      canManage &&
+      hasSubject &&
+      hasContent &&
+      !!mailLive &&
+      liveAuthorized &&
+      isTestEmailsSegment &&
+      !isLockedCampaign(viewCampaign);
 
     return (
       <SereniusModal
@@ -918,7 +974,7 @@ export default function CampaignModal({
                       ok={!!mailReady}
                       text={
                         mailSettings
-                          ? `Mail sender connected, enabled, and set to Test Only (current: ${mailSettings.send_mode ?? "not set"})`
+                          ? `Mail sender connected and enabled for test sends (current mode: ${mailSettings.send_mode ?? "not set"})`
                           : "Mail sender not configured — set up in Setup → Integrations"
                       }
                     />
@@ -958,12 +1014,14 @@ export default function CampaignModal({
               {/* Live Send Readiness Checklist */}
               <div className="section-card" style={{ marginBottom: 0 }}>
                 <div className="section-header">
-                  <span className="section-title">Live Send Readiness</span>
+                  <span className="section-title">Live Send</span>
                 </div>
                 <div style={{ padding: "16px 18px 18px", display: "grid", gap: 10 }}>
-                  <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5, margin: "0 0 2px" }}>
-                    Live sending is not enabled yet. This checklist shows what must be complete before live sends are available.
-                  </p>
+                  {!isTestEmailsSegment && (
+                    <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5, margin: "0 0 2px" }}>
+                      Live sending is available for the <strong>Test Emails</strong> segment only in this build. Select that segment to enable the send button.
+                    </p>
+                  )}
                   <LiveReadinessItem
                     status={
                       mailSettings?.connection_status === "connected" &&
@@ -979,6 +1037,15 @@ export default function CampaignModal({
                     }
                   />
                   <LiveReadinessItem
+                    status={mailLive ? "ready" : "needs"}
+                    text="Send mode set to Live"
+                    helper={
+                      mailLive
+                        ? undefined
+                        : `Current mode: ${mailSettings?.send_mode ?? "not set"} — change to Live in Setup → Integrations`
+                    }
+                  />
+                  <LiveReadinessItem
                     status={hasSubject ? "ready" : "needs"}
                     text="Subject line present"
                   />
@@ -987,8 +1054,9 @@ export default function CampaignModal({
                     text="Email content present (HTML or plain text)"
                   />
                   <LiveReadinessItem
-                    status={viewCampaign?.segment?.trim() ? "ready" : "needs"}
-                    text="Recipient segment selected"
+                    status={isTestEmailsSegment ? "ready" : "needs"}
+                    text='Segment set to "Test Emails"'
+                    helper={isTestEmailsSegment ? undefined : "Only the Test Emails segment is permitted for live sends in this build."}
                   />
                   <LiveReadinessItem
                     status={
@@ -1030,10 +1098,45 @@ export default function CampaignModal({
                     }
                   />
                   <LiveReadinessItem
-                    status="pending"
+                    status="ready"
                     text="Opt-out workflow"
-                    helper="Opt-out endpoint exists. Live send token generation and link injection are still pending."
+                    helper="Per-recipient opt-out tokens generated and injected at send time."
                   />
+                  <LiveReadinessItem
+                    status={liveAuthorized ? "ready" : "needs"}
+                    text="Campaign live-send authorization"
+                    helper={
+                      liveAuthorized
+                        ? undefined
+                        : "Enable campaign live-send authorization in Communications → Delivery Setup."
+                    }
+                  />
+
+                  {isTestEmailsSegment && (
+                    <div style={{ marginTop: 4, paddingTop: 12, borderTop: "1px solid #f3f4f6" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={!canLiveSend || liveSending}
+                          onClick={() => setLiveSendConfirmOpen(true)}
+                        >
+                          {liveSending ? "Sending…" : "Send to Test Emails Segment"}
+                        </button>
+                        {liveSendResult && (
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 500,
+                              color: liveSendResult.ok ? "#15803d" : "#b91c1c",
+                            }}
+                          >
+                            {liveSendResult.message}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1092,6 +1195,42 @@ export default function CampaignModal({
             </div>
           </div>
         </div>
+
+        {liveSendConfirmOpen && (
+          <SereniusModal
+            title="Confirm Live Send"
+            description={`Send "${viewCampaign?.subject}" to ${estimate.estimatedRecipients} contact${estimate.estimatedRecipients === 1 ? "" : "s"}?`}
+            onClose={() => setLiveSendConfirmOpen(false)}
+            maxWidth={480}
+            footer={
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setLiveSendConfirmOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleLiveSend}
+                >
+                  Send
+                </button>
+              </>
+            }
+          >
+            <div style={{ padding: "16px 24px" }}>
+              <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, margin: 0 }}>
+                This will send <strong>{viewCampaign?.subject}</strong> to{" "}
+                <strong>{estimate.estimatedRecipients}</strong> eligible contact
+                {estimate.estimatedRecipients === 1 ? "" : "s"} in the Test Emails segment
+                with real opt-out links. This action cannot be undone.
+              </p>
+            </div>
+          </SereniusModal>
+        )}
       </SereniusModal>
     );
   }

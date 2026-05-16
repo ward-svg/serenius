@@ -116,6 +116,7 @@
 | locked_at | timestamptz | nullable |
 | locked_by | uuid | → auth.users.id · nullable |
 | connected_at | timestamptz | nullable |
+| campaign_live_send_authorized | boolean | NOT NULL DEFAULT false — separate campaign-specific authorization; managed from Communications → Delivery Setup, not global Mail Sender setup |
 | connected_by | uuid | → auth.users.id · nullable |
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
@@ -976,6 +977,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | locked_at | timestamptz | nullable |
 | locked_by | uuid | → auth.users.id · nullable |
 | connected_at | timestamptz | nullable |
+| campaign_live_send_authorized | boolean | NOT NULL DEFAULT false — separate campaign-specific authorization; managed from Communications → Delivery Setup, not global Mail Sender setup |
 | connected_by | uuid | → auth.users.id · nullable |
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
@@ -985,6 +987,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 **Indexes:** tenant_id · provider  
 **RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
 **send_mode values:** disabled (no sends) · test_only (test recipients only) · live (real sends enabled)  
+**Campaign live send gate:** `send_mode = 'live'` AND `campaign_live_send_authorized = true` both required before app enables live campaign sends. Test sends require only `send_mode IN ('test_only', 'live')` — `campaign_live_send_authorized` not checked for test sends.
 **⚠️ Real sending not yet active in UI**  
 
 ---

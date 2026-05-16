@@ -128,6 +128,8 @@ export default function CommunicationsWorkspace(props: Props) {
       {activeTab === "delivery-setup" && (
         <DeliverySetupTab
           slug={props.slug}
+          orgId={props.orgId}
+          canManage={props.canManage}
           mailSettings={props.mailSettings}
           testRecipients={props.testRecipients}
         />

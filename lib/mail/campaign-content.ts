@@ -70,3 +70,42 @@ export function buildCampaignTestEmailContent(input: {
     text: `(No content.)${TEST_FOOTER_TEXT}${orgFooterText}`,
   }
 }
+
+export function buildCampaignLiveEmailContent(input: {
+  messageRawHtml: string | null
+  messagePlain: string | null
+  recipientDisplayName: string | null
+  brandFooter?: { html: string; text: string } | null
+}): { html: string; text: string } {
+  const firstName = resolveTestFirstName(input.recipientDisplayName)
+  const orgFooterHtml = input.brandFooter?.html ?? ''
+  const orgFooterText = input.brandFooter?.text ?? ''
+
+  if (input.messageRawHtml) {
+    const resolved = input.messageRawHtml.replace(/\{firstname\}/gi, firstName)
+    const closeBodyIdx = resolved.toLowerCase().lastIndexOf('</body>')
+    const html =
+      closeBodyIdx !== -1
+        ? resolved.slice(0, closeBodyIdx) + orgFooterHtml + resolved.slice(closeBodyIdx)
+        : resolved + orgFooterHtml
+    return {
+      html,
+      text: `(HTML email — view in your email client.)${orgFooterText}`,
+    }
+  }
+
+  if (input.messagePlain) {
+    const resolved = input.messagePlain.replace(/\{firstname\}/gi, firstName)
+    return {
+      html:
+        `<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#111827;white-space:pre-wrap;">${escapeHtml(resolved)}</div>` +
+        orgFooterHtml,
+      text: resolved + orgFooterText,
+    }
+  }
+
+  return {
+    html: `<p style="font-family:sans-serif;">(No content.)</p>${orgFooterHtml}`,
+    text: `(No content.)${orgFooterText}`,
+  }
+}

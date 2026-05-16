@@ -27,7 +27,7 @@ export async function getCommunicationsPageData(
     supabase
       .from('organization_mail_settings')
       .select(
-        'id, tenant_id, provider, display_name, from_name, from_email, reply_to, provider_account_email, provider_account_name, is_enabled, connection_status, send_mode',
+        'id, tenant_id, provider, display_name, from_name, from_email, reply_to, provider_account_email, provider_account_name, is_enabled, connection_status, send_mode, campaign_live_send_authorized',
       )
       .eq('tenant_id', tenant.org.id)
       .maybeSingle(),

@@ -11,6 +11,7 @@ export interface MailSettingsSummary {
   is_enabled: boolean | null
   connection_status: string | null
   send_mode: string | null
+  campaign_live_send_authorized: boolean | null
 }
 
 export interface MailTestRecipient {

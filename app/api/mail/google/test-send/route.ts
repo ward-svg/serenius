@@ -59,10 +59,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Mail sender settings are not configured.' }, { status: 400 })
   }
 
-  if (settings.connection_status !== 'connected' || settings.is_enabled !== true || settings.send_mode !== 'test_only') {
+  if (settings.connection_status !== 'connected' || settings.is_enabled !== true || settings.send_mode === 'disabled') {
     return NextResponse.json({
       ok: false,
-      error: 'Mail sender must be connected, enabled, and set to Test only before test sending.',
+      error: 'Mail sender must be connected, enabled, and in Test only or Live mode before test sending.',
     }, { status: 400 })
   }
 
