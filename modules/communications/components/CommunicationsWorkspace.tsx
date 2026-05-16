@@ -8,6 +8,7 @@ import type {
   CommunicationsPageData,
   EmailBrandSettings,
   EmailTemplate,
+  MailSettingsSummary,
 } from "../types";
 import CommunicationsDashboard from "./CommunicationsDashboard";
 import TemplatesTab from "./TemplatesTab";
@@ -26,6 +27,9 @@ export default function CommunicationsWorkspace(props: Props) {
     props.brandSettings,
   );
   const [emailAssets, setEmailAssets] = useState<CommunicationEmailAsset[]>(props.emailAssets);
+  const [mailSettings, setMailSettings] = useState<MailSettingsSummary | null>(
+    props.mailSettings,
+  );
 
   async function handleUseAsLogo(url: string) {
     if (!brandSettings) return;
@@ -92,6 +96,7 @@ export default function CommunicationsWorkspace(props: Props) {
       {activeTab === "campaigns" && (
         <CommunicationsDashboard
           {...props}
+          mailSettings={mailSettings}
           brandSettings={brandSettings}
           emailAssets={emailAssets}
           onAssetsChange={setEmailAssets}
@@ -131,8 +136,9 @@ export default function CommunicationsWorkspace(props: Props) {
           slug={props.slug}
           orgId={props.orgId}
           canManage={props.canManage}
-          mailSettings={props.mailSettings}
+          mailSettings={mailSettings}
           testRecipients={props.testRecipients}
+          onMailSettingsChange={setMailSettings}
         />
       )}
     </div>

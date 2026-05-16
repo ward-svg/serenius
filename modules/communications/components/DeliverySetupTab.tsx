@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import SortableHeader from "@/components/ui/SortableHeader";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   nextSortState,
   sortByValue,
@@ -18,6 +17,7 @@ interface Props {
   canManage: boolean;
   mailSettings: MailSettingsSummary | null;
   testRecipients: MailTestRecipient[];
+  onMailSettingsChange: (updated: MailSettingsSummary) => void;
 }
 
 type TestRecipientSortKey = "name" | "email" | "notes";
@@ -83,13 +83,11 @@ function StatusChip({ authorized }: { authorized: boolean }) {
   );
 }
 
-export default function DeliverySetupTab({ slug, orgId, canManage, mailSettings, testRecipients }: Props) {
+export default function DeliverySetupTab({ slug, orgId, canManage, mailSettings, testRecipients, onMailSettingsChange }: Props) {
   const [testRecipientSort, setTestRecipientSort] =
     useState<SortState<TestRecipientSortKey> | null>(null);
 
-  const [authorized, setAuthorized] = useState<boolean>(
-    mailSettings?.campaign_live_send_authorized ?? false,
-  );
+  const authorized = mailSettings?.campaign_live_send_authorized ?? false;
   const [agreementChecked, setAgreementChecked] = useState(false);
   const [revokeChecked, setRevokeChecked] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -111,17 +109,21 @@ export default function DeliverySetupTab({ slug, orgId, canManage, mailSettings,
     setSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase
-      .from("organization_mail_settings")
-      .update({ campaign_live_send_authorized: newValue })
-      .eq("id", mailSettings.id)
-      .eq("tenant_id", orgId);
+    const res = await fetch("/api/mail/google/authorize-live-send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenantId: orgId,
+        mailSettingsId: mailSettings.id,
+        authorized: newValue,
+      }),
+    });
+    const json = await res.json();
     setSaving(false);
-    if (error) {
-      setSaveError(error.message);
+    if (!res.ok || json.error) {
+      setSaveError(json.error ?? "Failed to save.");
     } else {
-      setAuthorized(newValue);
+      onMailSettingsChange({ ...mailSettings, campaign_live_send_authorized: json.campaign_live_send_authorized });
       setAgreementChecked(false);
       setRevokeChecked(false);
       setSaveSuccess(true);
