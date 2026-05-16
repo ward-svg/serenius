@@ -187,6 +187,11 @@ export interface EmailBrandSettings {
   footer_font_size: number
   footer_divider_enabled: boolean
   footer_divider_color: string
+  theme_color_1: string
+  theme_color_2: string
+  theme_color_3: string
+  theme_color_4: string
+  theme_color_5: string
   created_by: string | null
   created_at: string
   updated_at: string

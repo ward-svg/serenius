@@ -719,6 +719,11 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | footer_font_size | integer | NOT NULL DEFAULT 12 · CHECK (>= 11 AND <= 16) |
 | footer_divider_enabled | boolean | NOT NULL DEFAULT true |
 | footer_divider_color | text | NOT NULL DEFAULT '#e5e7eb' |
+| theme_color_1 | text | NOT NULL DEFAULT '#98C1D9' — extended palette for builder block color swatches |
+| theme_color_2 | text | NOT NULL DEFAULT '#3D5A80' |
+| theme_color_3 | text | NOT NULL DEFAULT '#293241' |
+| theme_color_4 | text | NOT NULL DEFAULT '#4C5253' |
+| theme_color_5 | text | NOT NULL DEFAULT '#E0FBFC' |
 | created_by | uuid | → auth.users.id SET NULL |
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |

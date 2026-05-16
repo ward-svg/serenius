@@ -35,6 +35,11 @@ function getBrandSwatches(b: EmailBrandSettings) {
     { hex: b.button_text_color, label: "Button Text" },
     { hex: b.background_color, label: "Background" },
     { hex: b.text_color, label: "Body Text" },
+    { hex: b.theme_color_1 || "#98C1D9", label: "Theme Color 1" },
+    { hex: b.theme_color_2 || "#3D5A80", label: "Theme Color 2" },
+    { hex: b.theme_color_3 || "#293241", label: "Theme Color 3" },
+    { hex: b.theme_color_4 || "#4C5253", label: "Theme Color 4" },
+    { hex: b.theme_color_5 || "#E0FBFC", label: "Theme Color 5" },
   ].filter((s): s is { hex: string; label: string } => !!s.hex);
 }
 

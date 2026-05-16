@@ -44,6 +44,11 @@ type FormData = {
   footer_font_size: string;
   footer_divider_enabled: boolean;
   footer_divider_color: string;
+  theme_color_1: string;
+  theme_color_2: string;
+  theme_color_3: string;
+  theme_color_4: string;
+  theme_color_5: string;
 };
 
 const DEFAULTS: FormData = {
@@ -78,6 +83,11 @@ const DEFAULTS: FormData = {
   footer_font_size: "12",
   footer_divider_enabled: true,
   footer_divider_color: "#e5e7eb",
+  theme_color_1: "#98C1D9",
+  theme_color_2: "#3D5A80",
+  theme_color_3: "#293241",
+  theme_color_4: "#4C5253",
+  theme_color_5: "#E0FBFC",
 };
 
 function settingsToForm(s: EmailBrandSettings): FormData {
@@ -113,6 +123,11 @@ function settingsToForm(s: EmailBrandSettings): FormData {
     footer_font_size: String(s.footer_font_size ?? 12),
     footer_divider_enabled: s.footer_divider_enabled ?? true,
     footer_divider_color: s.footer_divider_color || '#e5e7eb',
+    theme_color_1: s.theme_color_1 || '#98C1D9',
+    theme_color_2: s.theme_color_2 || '#3D5A80',
+    theme_color_3: s.theme_color_3 || '#293241',
+    theme_color_4: s.theme_color_4 || '#4C5253',
+    theme_color_5: s.theme_color_5 || '#E0FBFC',
   };
 }
 
@@ -247,6 +262,21 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
       return
     }
 
+    const themeColorEntries: Array<[keyof FormData, string]> = [
+      ["theme_color_1", "Theme Color 1"],
+      ["theme_color_2", "Theme Color 2"],
+      ["theme_color_3", "Theme Color 3"],
+      ["theme_color_4", "Theme Color 4"],
+      ["theme_color_5", "Theme Color 5"],
+    ]
+    for (const [key, label] of themeColorEntries) {
+      if (!isValidHex(form[key] as string)) {
+        setError(`${label} is invalid. Use a hex color like #98c1d9.`)
+        setSaving(false)
+        return
+      }
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     const payload = {
@@ -282,10 +312,15 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
       footer_font_size: footerFontSizeNum,
       footer_divider_enabled: form.footer_divider_enabled,
       footer_divider_color: form.footer_divider_color,
+      theme_color_1: form.theme_color_1,
+      theme_color_2: form.theme_color_2,
+      theme_color_3: form.theme_color_3,
+      theme_color_4: form.theme_color_4,
+      theme_color_5: form.theme_color_5,
     };
 
     const selectCols =
-      "id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_background_color, footer_text_color, footer_link_color, footer_font_size, footer_divider_enabled, footer_divider_color, created_by, created_at, updated_at";
+      "id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_background_color, footer_text_color, footer_link_color, footer_font_size, footer_divider_enabled, footer_divider_color, theme_color_1, theme_color_2, theme_color_3, theme_color_4, theme_color_5, created_by, created_at, updated_at";
 
     let saved: EmailBrandSettings | null = null;
 
@@ -549,6 +584,18 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
             <ColorField label="Button Text Color" value={form.button_text_color} onChange={(v) => field("button_text_color", v)} />
             <ColorField label="Background Color" value={form.background_color} onChange={(v) => field("background_color", v)} />
             <ColorField label="Text Color" value={form.text_color} onChange={(v) => field("text_color", v)} />
+          </div>
+
+          <SectionTitle>Theme Colors</SectionTitle>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+            <ColorField label="Theme Color 1" value={form.theme_color_1} onChange={(v) => field("theme_color_1", v)} />
+            <ColorField label="Theme Color 2" value={form.theme_color_2} onChange={(v) => field("theme_color_2", v)} />
+            <ColorField label="Theme Color 3" value={form.theme_color_3} onChange={(v) => field("theme_color_3", v)} />
+            <ColorField label="Theme Color 4" value={form.theme_color_4} onChange={(v) => field("theme_color_4", v)} />
+            <ColorField label="Theme Color 5" value={form.theme_color_5} onChange={(v) => field("theme_color_5", v)} />
+          </div>
+          <div className="form-helper" style={{ marginBottom: 8 }}>
+            Theme colors appear as reusable swatches in the email builder.
           </div>
 
           <SectionTitle>Typography</SectionTitle>
