@@ -1,3 +1,6 @@
+// Matches the centered content table width used in email-builder-renderer.ts
+const EMAIL_BODY_WIDTH = 600
+
 export type BrandSettingsForFooter = {
   organization_name: string | null
   mailing_address: string | null
@@ -104,12 +107,18 @@ export function buildCampaignEmailFooter(
     : ''
 
   const complianceBlock = identityHtml || unsubscribeHtml
-    ? `<div style="margin:32px 0 0;padding:16px 24px;${dividerTopStyle}` +
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">` +
+      `<tr><td align="center" style="padding:32px 10px 0;">` +
+      `<table role="presentation" width="${EMAIL_BODY_WIDTH}" cellpadding="0" cellspacing="0" border="0" style="max-width:${EMAIL_BODY_WIDTH}px;width:100%;">` +
+      `<tr><td style="padding:16px 24px;${dividerTopStyle}` +
       `background-color:${escapeHtml(bgColor)};` +
       `font-family:Arial,Helvetica,sans-serif;font-size:${fontSize}px;` +
       `color:${escapeHtml(textColor)};line-height:1.7;text-align:center;">` +
       identityHtml + unsubscribeHtml +
-      `</div>`
+      `</td></tr>` +
+      `</table>` +
+      `</td></tr>` +
+      `</table>`
     : ''
 
   // footer_html (if set) is an intro section prepended before the required compliance block.

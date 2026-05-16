@@ -47,7 +47,7 @@ The following features are live in the application:
 | Live / final campaign send | **Controlled — Test Emails segment only, cap 10** |
 | Campaign template system | **Not implemented** |
 | Brand Kit / Email Studio | **Not implemented** |
-| Required footer renderer (`lib/mail/campaign-email-footer.ts`) | **Live — test and live sends** |
+| Required footer renderer (`lib/mail/campaign-email-footer.ts`) | **Live — test and live sends; constrained to 600 px body width** |
 | Footer org identity fields in Brand Kit | **Live — UI input + save** |
 | Opt-out redemption endpoint (`/mail/preferences/[token]`) | **Live — endpoint exists** |
 | Opt-out token generation helper (`lib/mail/opt-out-tokens.ts`) | **Live** |
@@ -183,7 +183,13 @@ The "Live Send" section card appears in Campaign View mode in `CampaignModal`. I
 | Opt-out workflow | Per-recipient token generation at send time | Always Ready |
 | Campaign live-send authorization | `mailSettings.campaign_live_send_authorized === true` | Ready / Needs — managed in Communications → Delivery Setup |
 
-**Live send button:** Visible only when `campaign.segment === 'Test Emails'`. Enabled when all conditions above are met (including `campaign_live_send_authorized`) and campaign is not locked. Clicking opens a confirmation modal (showing subject + recipient count) before posting to `/api/mail/google/campaign-live-send`.
+**Live send button:** Visible only when `campaign.segment === 'Test Emails'`. Enabled when all conditions above are met (including `campaign_live_send_authorized` **and** `message_status === 'Test Sent'`) and campaign is not locked. Clicking opens a confirmation modal (showing subject + recipient count) before posting to `/api/mail/google/campaign-live-send`.
+
+**Test send required — hard gate (UI + server):** A successful campaign test send (`message_status === 'Test Sent'`) is required before live send. This is enforced in both the UI (`canLiveSend` boolean in `CampaignModal`) and the server route (`campaign-live-send` returns HTTP 400 `"Send a test email before live sending this campaign."` if not met). The checklist item "Test email sent and verified" is a hard gate, not a suggestion.
+
+**Test-sent field:** `partner_emails.message_status` is set to `'Test Sent'` by the campaign-test-send route only when all test recipients succeed (`recipientsSent > 0 && failedRecipients.length === 0`). Partial test failures do not set the field.
+
+**Edit-after-test-send reset:** When a user saves an edit to a campaign whose `message_status === 'Test Sent'`, the save automatically resets `message_status` to `'Building'`. This invalidates the previous test and requires a new test send before live send is re-enabled. This prevents live-sending stale or changed content.
 
 **On success:** Campaign `sending_status` → `Send Complete`, `message_status` → `Message Sent`, `email_sent_at` and `total_emails_sent` updated. Campaign becomes locked — no further edits or sends.
 
@@ -240,6 +246,10 @@ Every campaign email sent to real recipients must include a required footer befo
 **Footer styling:** Six style columns on `communication_email_brand_settings` control visual presentation within system guardrails: `footer_background_color`, `footer_text_color`, `footer_link_color` (all hex strings), `footer_font_size` (integer 11–16, DB CHECK constraint), `footer_divider_enabled` (boolean), `footer_divider_color` (hex). These are configurable in Brand Kit under "Required Email Footer → Footer Appearance."
 
 **Safe defaults:** The renderer always falls back to safe defaults when style fields are null or empty: background `#f4f4f0`, text `#6b7280`, link `#3d5a80`, font size 12, divider enabled with color `#e5e7eb`. Brand Kit `settingsToForm` also applies these same defaults when reading DB values — null or blank values never fall through to black (`#000000`). This prevents invisible-on-invisible footer rendering.
+
+**System-appended block width alignment:** The required compliance footer, test-send warning banner, and campaign preview label are all wrapped in a `<table width="100%"><tr><td align="center"><table width="600">` centering structure — the same pattern used by the Serenius Builder email body. This constrains system blocks to the 600 px campaign body width in all email clients including Gmail. Without this, system `<div>` blocks would stretch to the full viewport width regardless of campaign body width. The canonical body width (`600`) is declared as `EMAIL_BODY_WIDTH` in each `lib/mail` file. Both test and live sends and all campaign previews use the same constrained structure. Raw HTML campaigns also benefit — the footer/banner are always at 600 px regardless of the HTML author's own container choice.
+
+**CTA button URL fallback:** CTA blocks resolve `buttonUrl` at render time as `block.buttonUrl || brand?.default_donation_url || '#'`. If `block.buttonUrl` is empty and the Brand Kit `default_donation_url` is set, the button href uses the Brand Kit URL. This is applied in `renderCta` in `email-builder-renderer.ts` — no mutation of block JSON occurs. `applyBrandDefaultsToDesign` also pre-fills `buttonUrl` when applying brand defaults to the design, but the renderer-level fallback ensures correct behavior independently.
 
 **Brand Kit theme colors:** `communication_email_brand_settings` has five extended palette columns — `theme_color_1` through `theme_color_5` — with DB defaults `#98C1D9`, `#3D5A80`, `#293241`, `#4C5253`, `#E0FBFC`. These are editable in Brand Kit under a "Theme Colors" section (after Core Colors). Helper copy: "Theme colors appear as reusable swatches in the email builder." Null/empty values fall back to the DB defaults in `settingsToForm`.
 

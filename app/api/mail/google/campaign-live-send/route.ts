@@ -102,6 +102,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  if (campaign.message_status !== 'Test Sent') {
+    return NextResponse.json(
+      { ok: false, error: 'Send a test email before live sending this campaign.' },
+      { status: 400 },
+    )
+  }
+
   const { data: settings, error: settingsError } = await serviceSupabase
     .from('organization_mail_settings')
     .select(

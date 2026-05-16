@@ -1,8 +1,17 @@
+// Matches the centered content table width used in email-builder-renderer.ts
+const EMAIL_BODY_WIDTH = 600
+
 const TEST_FOOTER_HTML =
-  '<div style="margin:32px 0 0;padding:14px 20px;border-top:3px solid #f59e0b;background:#fffbeb;font-family:sans-serif;font-size:12px;color:#78350f;line-height:1.6;">' +
-  '<strong>&#9888; This is a test email.</strong> Sent only to configured test recipients — not to campaign contacts.<br>' +
-  'Opt-out links are not active. No suppression records are written for test sends.' +
-  '</div>'
+  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">` +
+  `<tr><td align="center" style="padding:32px 10px 0;">` +
+  `<table role="presentation" width="${EMAIL_BODY_WIDTH}" cellpadding="0" cellspacing="0" border="0" style="max-width:${EMAIL_BODY_WIDTH}px;width:100%;">` +
+  `<tr><td style="padding:14px 20px;border-top:3px solid #f59e0b;background:#fffbeb;font-family:sans-serif;font-size:12px;color:#78350f;line-height:1.6;">` +
+  `<strong>&#9888; This is a test email.</strong> Sent only to configured test recipients — not to campaign contacts.<br>` +
+  `Opt-out links are not active. No suppression records are written for test sends.` +
+  `</td></tr>` +
+  `</table>` +
+  `</td></tr>` +
+  `</table>`
 
 const TEST_FOOTER_TEXT =
   '\n\n---\nTHIS IS A TEST EMAIL\n' +

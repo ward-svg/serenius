@@ -505,10 +505,16 @@ function buildPreviewWithFooter(
     : null
   const { html: footerHtml } = buildCampaignEmailFooter(footerInput, null)
   const previewLabel =
-    `<div style="padding:6px 24px;font-family:Arial,sans-serif;font-size:11px;` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">` +
+    `<tr><td align="center" style="padding:0 10px 24px;">` +
+    `<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">` +
+    `<tr><td style="padding:6px 24px;font-family:Arial,sans-serif;font-size:11px;` +
     `color:#9ca3af;text-align:center;background:#f9fafb;border-top:1px dashed #e5e7eb;">` +
     `Required email footer · Unsubscribe link generated per recipient at send time` +
-    `</div>`
+    `</td></tr>` +
+    `</table>` +
+    `</td></tr>` +
+    `</table>`
   const suffix = footerHtml + previewLabel
   const closeBodyIdx = html.toLowerCase().lastIndexOf('</body>')
   if (closeBodyIdx !== -1) {
@@ -774,6 +780,8 @@ export default function CampaignModal({
           .from("partner_emails")
           .update({
             ...payloadBase,
+            // If the campaign was test-sent, editing content requires a new test send.
+            ...(currentCampaign.message_status === "Test Sent" ? { message_status: "Building" } : {}),
             updated_at: new Date().toISOString(),
           })
           .eq("id", currentCampaign.id)
@@ -935,6 +943,7 @@ export default function CampaignModal({
       mailSettings?.send_mode === "live";
     const isTestEmailsSegment = viewCampaign?.segment === "Test Emails";
     const liveAuthorized = !!mailSettings?.campaign_live_send_authorized;
+    const hasTestSent = viewCampaign?.message_status === "Test Sent";
     const canLiveSend =
       canManage &&
       hasSubject &&
@@ -942,6 +951,7 @@ export default function CampaignModal({
       !!mailLive &&
       liveAuthorized &&
       isTestEmailsSegment &&
+      hasTestSent &&
       !isLockedCampaign(viewCampaign);
 
     return (
