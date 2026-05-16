@@ -17,7 +17,7 @@ async function redeemToken(rawToken: string): Promise<Outcome> {
 
   const { data: token, error: lookupError } = await supabase
     .from('email_opt_out_tokens')
-    .select('id, tenant_id, partner_contact_id, email, expires_at, used_at, suppression_type')
+    .select('id, tenant_id, partner_contact_id, partner_email_id, email, expires_at, used_at, suppression_type')
     .eq('token_hash', tokenHash)
     .maybeSingle()
 
@@ -39,6 +39,7 @@ async function redeemToken(rawToken: string): Promise<Outcome> {
     .eq('tenant_id', token.tenant_id)
     .ilike('email', email)
     .eq('suppression_type', token.suppression_type ?? 'unsubscribed')
+    .is('restored_at', null)
     .maybeSingle()
 
   if (!existing) {
@@ -47,6 +48,7 @@ async function redeemToken(rawToken: string): Promise<Outcome> {
       .insert({
         tenant_id: token.tenant_id,
         partner_contact_id: token.partner_contact_id ?? null,
+        partner_email_id: token.partner_email_id ?? null,
         email,
         suppression_type: token.suppression_type ?? 'unsubscribed',
         source: 'email_opt_out',

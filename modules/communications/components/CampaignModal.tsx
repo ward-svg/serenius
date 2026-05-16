@@ -646,7 +646,9 @@ export default function CampaignModal({
     const segment = formData.segment.trim();
     const campaignVersion = formData.campaign_version.trim() || "A+B";
     const suppressedEmailSet = new Set(
-      suppressions.map((item) => item.email.trim().toLowerCase()),
+      suppressions
+        .filter((item) => !item.restored_at)
+        .map((item) => item.email.trim().toLowerCase()),
     );
 
     if (!segment) {
@@ -713,7 +715,9 @@ export default function CampaignModal({
     const ver = (formData.campaign_version || "A+B").trim();
     if (!seg) return null;
 
-    const suppressedSet = new Set(suppressions.map((s) => s.email.trim().toLowerCase()));
+    const suppressedSet = new Set(
+      suppressions.filter((s) => !s.restored_at).map((s) => s.email.trim().toLowerCase()),
+    );
     const eligible: Array<{ id: string | null; displayName: string | null; email: string; version: string }> = [];
     let suppressedCount = 0;
     let noEmailCount = 0;

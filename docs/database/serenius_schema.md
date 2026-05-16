@@ -732,7 +732,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 **Indexes:** tenant_id  
 **RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
 **Logo fallback:** `logo_url` → `organization_branding.logo_url` → none  
-**Compliance footer:** System-enforced — cannot be removed. Organization identity and unsubscribe link always present. Footer style fields allow visual blending only. App enforces minimum font size (11) and prevents invisible text/background combinations. No field removes the unsubscribe link or organization identity.
+**Compliance footer:** System-enforced — cannot be removed. Organization identity and unsubscribe link always present. Footer style fields allow visual blending only. App enforces minimum font size (11) and prevents invisible text/background combinations. No field removes the unsubscribe link or organization identity.  
 **Preference center:** Serenius-hosted at `/mail/preferences/{token}` by default; `preference_center_url` is an override  
 
 ---
@@ -999,7 +999,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 **Indexes:** tenant_id · provider  
 **RLS:** SELECT — all tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
 **send_mode values:** disabled (no sends) · test_only (test recipients only) · live (real sends enabled)  
-**Campaign live send gate:** `send_mode = 'live'` AND `campaign_live_send_authorized = true` both required before app enables live campaign sends. Test sends require only `send_mode IN ('test_only', 'live')` — `campaign_live_send_authorized` not checked for test sends.
+**Campaign live send gate:** `send_mode = 'live'` AND `campaign_live_send_authorized = true` both required before app enables live campaign sends. Test sends require only `send_mode IN ('test_only', 'live')` — `campaign_live_send_authorized` not checked for test sends.  
 **⚠️ Real sending not yet active in UI**  
 
 ---
@@ -1063,19 +1063,27 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | id | uuid | PRIMARY KEY |
 | tenant_id | uuid | NOT NULL → organizations.id CASCADE DELETE |
 | partner_contact_id | uuid | → partner_contacts.id SET NULL (nullable) |
+| partner_email_id | uuid | → partner_emails.id SET NULL (nullable) — campaign context; preserved even if campaign is later deleted |
 | email | text | NOT NULL |
 | suppression_type | suppression_type_enum | NOT NULL |
-| source | text | nullable (e.g. 'user_request', 'bounce_webhook', 'manual') |
+| source | text | nullable (e.g. 'user_request', 'bounce_webhook', 'manual', 'campaign_unsubscribe') |
 | reason | text | nullable |
 | suppressed_at | timestamptz | NOT NULL DEFAULT now() |
 | created_by | uuid | → auth.users.id SET NULL |
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
+| restored_at | timestamptz | nullable — set when admin restores an accidental opt-out |
+| restored_by | uuid | → auth.users.id SET NULL — admin who performed the restore |
+| restore_reason | text | nullable — reason for restoration |
 
 **Record Count:** 0  
-**Indexes:** tenant_id · (tenant_id, lower(email)) · partner_contact_id (partial, not null)  
+**Indexes:** tenant_id · (tenant_id, lower(email)) · partner_contact_id (partial, not null) · partner_email_id (partial, not null) · (tenant_id, lower(email)) WHERE restored_at IS NULL (active suppressions only)  
 **RLS:** SELECT — tenant members + superadmin · INSERT/UPDATE/DELETE — tenant_admin + superadmin  
 **suppression_type values:** unsubscribed · bounced · complained · manually_suppressed · invalid_email  
+**Active suppression check:** `WHERE restored_at IS NULL` — restored rows are retained as audit history but excluded from send suppression checks  
+**Opt-out flow:** token lookup → read partner_contact_id + partner_email_id + email from email_opt_out_tokens → insert suppression row with campaign context → set token.used_at = now()  
+**Restore flow:** admin sets restored_at = now(), restored_by = auth.uid(), restore_reason = reason — row retained, suppression no longer active  
+**Opt-outs grid join:** `partner_email_suppressions.partner_email_id → partner_emails.subject` for campaign column  
 
 ---
 

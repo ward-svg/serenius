@@ -14,6 +14,7 @@ import CommunicationsDashboard from "./CommunicationsDashboard";
 import TemplatesTab from "./TemplatesTab";
 import ImageGalleryTab from "./ImageGalleryTab";
 import BrandKitTab from "./BrandKitTab";
+import OptOutsTab from "./OptOutsTab";
 import DeliverySetupTab from "./DeliverySetupTab";
 
 interface Props extends CommunicationsPageData {
@@ -86,6 +87,13 @@ export default function CommunicationsWorkspace(props: Props) {
         </button>
         <button
           type="button"
+          className={`tab${activeTab === "opt-outs" ? " active" : ""}`}
+          onClick={() => setActiveTab("opt-outs")}
+        >
+          Opt-Outs
+        </button>
+        <button
+          type="button"
           className={`tab${activeTab === "delivery-setup" ? " active" : ""}`}
           onClick={() => setActiveTab("delivery-setup")}
         >
@@ -130,6 +138,9 @@ export default function CommunicationsWorkspace(props: Props) {
           canManage={props.canManage}
           onSaved={setBrandSettings}
         />
+      )}
+      {activeTab === "opt-outs" && (
+        <OptOutsTab tenantId={props.orgId} canManage={props.canManage} />
       )}
       {activeTab === "delivery-setup" && (
         <DeliverySetupTab

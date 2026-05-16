@@ -59,7 +59,7 @@ export async function getCommunicationsPageData(
     supabase
       .from('partner_email_suppressions')
       .select(
-        'id, tenant_id, partner_contact_id, email, suppression_type, source, reason, suppressed_at',
+        'id, tenant_id, partner_contact_id, partner_email_id, email, suppression_type, source, reason, suppressed_at, restored_at, restored_by, restore_reason',
       )
       .eq('tenant_id', tenant.org.id),
     supabase

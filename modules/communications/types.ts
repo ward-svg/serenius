@@ -84,11 +84,15 @@ export interface PartnerEmailSuppression {
   id: string
   tenant_id: string
   partner_contact_id: string | null
+  partner_email_id: string | null
   email: string
   suppression_type: string
   source: string | null
   reason: string | null
   suppressed_at: string
+  restored_at: string | null
+  restored_by: string | null
+  restore_reason: string | null
 }
 
 export interface CommunicationEmailAsset {
@@ -197,4 +201,4 @@ export interface EmailBrandSettings {
   updated_at: string
 }
 
-export type CommWorkspaceTab = 'campaigns' | 'templates' | 'image-gallery' | 'brandkit' | 'delivery-setup'
+export type CommWorkspaceTab = 'campaigns' | 'templates' | 'image-gallery' | 'brandkit' | 'opt-outs' | 'delivery-setup'

@@ -185,6 +185,7 @@ export async function POST(request: NextRequest) {
     .from('partner_email_suppressions')
     .select('email')
     .eq('tenant_id', tenantId)
+    .is('restored_at', null)
 
   const suppressedSet = new Set(
     (suppressionRows ?? []).map((s) => s.email.trim().toLowerCase()),
