@@ -726,10 +726,10 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | theme_color_5 | text | NOT NULL DEFAULT '#E0FBFC' |
 | preference_page_background_color | text | nullable — public preference page background; fallback: background_color → #f9fafb |
 | preference_card_background_color | text | nullable — preference page card; fallback: #ffffff |
-| preference_text_color | text | nullable — preference page text; fallback: text_color → #333333 |
-| preference_button_color | text | nullable — preference page button; fallback: button_color → primary_color |
+| preference_text_color | text | nullable — preference page text; fallback: text_color → #111827 |
+| preference_button_color | text | nullable — preference page button; fallback: button_color → primary_color → #3d5a80 |
 | preference_button_text_color | text | nullable — preference page button text; fallback: button_text_color → #ffffff |
-| preference_logo_background_color | text | nullable — logo area background on preference page; fallback: transparent |
+| preference_logo_background_color | text | nullable — logo area background on preference page; fallback: #111827 |
 | created_by | uuid | → auth.users.id SET NULL |
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |
@@ -747,7 +747,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 ### `public.email_opt_out_tokens`
 **Module:** Communications
 **Security:** ⚠️ SENSITIVE — hash-only token storage. Raw token never persisted. Service role + superadmin only.
-**Description:** Per-recipient opt-out tokens for campaign footer unsubscribe links. On receipt: sha256(raw_token) → lookup token_hash → mark used_at → write partner_email_suppressions.
+**Description:** Per-recipient opt-out tokens for campaign footer unsubscribe links. On receipt: sha256(raw_token) → lookup token_hash → write partner_email_suppressions → mark used_at.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -766,7 +766,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 **Indexes:** token_hash · tenant_id · partner_contact_id (partial) · token_hash WHERE used_at IS NULL (active lookups)
 **RLS:** superadmin-only policy. API route uses service role for token lookup and suppression write.
 **Do NOT expose via:** client queries · views · generated public types
-**Flow:** Raw token in URL → server hashes → lookup token_hash → mark used_at → insert partner_email_suppressions
+**Flow:** Raw token in URL → server hashes → lookup token_hash → insert partner_email_suppressions → mark used_at
 
 ---
 

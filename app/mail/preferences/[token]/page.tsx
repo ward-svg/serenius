@@ -297,7 +297,7 @@ function StaticMessage({
       >
         {heading}
       </h1>
-      <p style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.65, margin: 0 }}>{body}</p>
+      <p style={{ fontSize: 14, color: textColor, lineHeight: 1.65, margin: 0 }}>{body}</p>
     </>
   )
 }

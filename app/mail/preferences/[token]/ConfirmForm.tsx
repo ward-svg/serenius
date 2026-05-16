@@ -40,7 +40,7 @@ export default function ConfirmForm({
         >
           You have been unsubscribed.
         </h1>
-        <p style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.65, margin: 0 }}>
+        <p style={{ fontSize: 14, color: textColor, lineHeight: 1.65, margin: 0 }}>
           Your request has been processed. You will no longer receive campaign emails from{' '}
           {orgName}.
         </p>
@@ -61,12 +61,12 @@ export default function ConfirmForm({
       >
         Confirm unsubscribe
       </h1>
-      <p style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.65, marginBottom: 8 }}>
+      <p style={{ fontSize: 14, color: textColor, lineHeight: 1.65, marginBottom: 8 }}>
         You&rsquo;re unsubscribing from campaign emails from{' '}
-        <strong style={{ color: '#374151' }}>{orgName}</strong> at{' '}
-        <strong style={{ color: '#374151' }}>{recipientEmail}</strong>.
+        <strong style={{ color: textColor }}>{orgName}</strong> at{' '}
+        <strong style={{ color: textColor }}>{recipientEmail}</strong>.
       </p>
-      <p style={{ fontSize: 13, color: '#9ca3af', lineHeight: 1.6, marginBottom: 24 }}>
+      <p style={{ fontSize: 13, color: textColor, lineHeight: 1.6, marginBottom: 24 }}>
         You may still receive essential administrative or personal messages when appropriate.
       </p>
       <form action={formAction}>

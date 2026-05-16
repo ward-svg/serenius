@@ -322,7 +322,15 @@ Every campaign email sent to real recipients must include a required footer befo
 
 This is a **public** Server Component page — no Serenius authentication required. The raw token in the URL is the credential. Recipients must never be redirected to the login screen to complete an unsubscribe; the token itself is the authorization.
 
-**Middleware exemption:** `middleware.ts` explicitly lists `/mail/preferences/` as a public path. Unauthenticated visitors reach the page directly. Valid, expired, already-used, and invalid tokens each produce a distinct friendly outcome message. No dashboard data is exposed.
+**Proxy exemption:** `proxy.ts` explicitly lists `/mail/preferences/` as a public path. Unauthenticated visitors reach the page directly. Valid, expired, already-used, and invalid tokens each produce a distinct friendly outcome message. No dashboard data is exposed.
+
+**Public preference page branding:** The page loads tenant branding only after a token hashes to a real token row. Fake or invalid tokens use the generic Serenius card only. Preference-specific color fields take priority over email colors:
+- Page background: `preference_page_background_color` → `background_color` → `#f9fafb`
+- Card background: `preference_card_background_color` → `#ffffff`
+- Main text: `preference_text_color` → `text_color` → `#111827`
+- Button background: `preference_button_color` → `button_color` → `primary_color` → `#3d5a80`
+- Button text: `preference_button_text_color` → `button_text_color` → `#ffffff`
+- Logo tile background: `preference_logo_background_color` → `#111827`
 
 **Token redemption flow:**
 1. Raw token extracted from URL param `[token]`.
@@ -333,20 +341,20 @@ This is a **public** Server Component page — no Serenius authentication requir
    - **Not found** → "Invalid link." — no DB writes.
    - **Already used** (`used_at` is set) → idempotent "Already unsubscribed." — no DB writes.
    - **Expired** (`expires_at` is set and in the past) → "This link has expired." — no DB writes.
-   - **Valid** → proceed with suppression write.
+   - **Valid** → render the confirmation form. GET is read-only; no suppression row is written and `used_at` is not set until the recipient explicitly confirms.
 
-**Valid token behavior:**
+**Confirm action behavior:**
+- On form submit, re-hash the submitted raw token and revalidate the token row server-side.
 - Check for existing `partner_email_suppressions` row (same `tenant_id` + `email` case-insensitive + `suppression_type`) to avoid duplicates on crash recovery.
-- If no existing suppression: insert `partner_email_suppressions` with `source = 'email_opt_out'`, `reason = 'Recipient opted out via email link'`, `suppression_type` from token (default `unsubscribed`), `partner_contact_id` from token (nullable).
+- If no existing suppression: insert `partner_email_suppressions` with `source = 'email_opt_out'`, `reason = 'Recipient opted out via email link'`, `suppression_type` from token (default `unsubscribed`), `partner_contact_id` from token (nullable), and `partner_email_id` from token (nullable campaign attribution).
 - Email address comes from `email_opt_out_tokens.email` (NOT NULL in schema) — no missing email issue.
-- `partner_email_id` is NOT stored in `partner_email_suppressions` (no such column in schema).
 - After suppression is written: mark `token.used_at = now()`. Suppression is written first — it is the safety-critical record.
 
 **Security:**
 - `noindex, nofollow` metadata — page not indexed by search engines.
 - Raw token never appears in logs, DB selects, or responses.
 - `token_hash` is not selected back from the DB.
-- Recipient email is not displayed on the confirmation page.
+- Recipient email is displayed only for a valid token before confirmation so the recipient can verify which address is being unsubscribed. Invalid, expired, and already-used states do not display the token email.
 - All four outcome messages are intentionally generic — no internal details exposed.
 
 **What is still deferred:**
@@ -467,7 +475,7 @@ If update fails: inline error shown, no optimistic state change.
 
 ### Opt-out route duplicate-check
 
-The duplicate suppression check in `preferences/[token]/page.tsx` now scopes to active suppressions only (`.is('restored_at', null)`). A restored historical row for the same email will NOT block a new opt-out insertion, preserving full history while allowing re-subscription/re-opt-out cycles.
+The duplicate suppression check in `preferences/[token]/actions.ts` now scopes to active suppressions only (`.is('restored_at', null)`). A restored historical row for the same email will NOT block a new opt-out insertion, preserving full history while allowing re-subscription/re-opt-out cycles.
 
 ---
 
