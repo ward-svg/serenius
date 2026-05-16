@@ -42,6 +42,7 @@ interface Props {
   onAssetsChange?: (assets: CommunicationEmailAsset[]) => void;
   onClose: () => void;
   onSaved: (campaign: PartnerEmailCampaign) => void;
+  onCloned?: (campaign: PartnerEmailCampaign) => void;
 }
 
 type FormData = {
@@ -532,6 +533,7 @@ export default function CampaignModal({
   slug,
   onClose,
   onSaved,
+  onCloned,
 }: Props) {
   const supabase = createSupabaseBrowserClient();
   const isCreate = mode === "create";
@@ -542,6 +544,8 @@ export default function CampaignModal({
   const [formData, setFormData] = useState<FormData>(
     campaign ? mapCampaignToFormData(campaign) : buildDefaultFormData(),
   );
+  const [cloning, setCloning] = useState(false);
+  const [cloneError, setCloneError] = useState<string | null>(null);
   const [testSending, setTestSending] = useState(false);
   const [testSendResult, setTestSendResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [liveSendConfirmOpen, setLiveSendConfirmOpen] = useState(false);
@@ -874,6 +878,43 @@ export default function CampaignModal({
     }
   }
 
+  async function handleClone() {
+    if (!currentCampaign) return;
+    setCloning(true);
+    setCloneError(null);
+    const { data: authResult } = await supabase.auth.getUser();
+    const { data: cloned, error } = await supabase
+      .from("partner_emails")
+      .insert({
+        tenant_id: tenantId,
+        communication_type: currentCampaign.communication_type ?? null,
+        email_style: currentCampaign.email_style ?? null,
+        segment: currentCampaign.segment ?? null,
+        campaign_version: currentCampaign.campaign_version ?? null,
+        subject: currentCampaign.subject ? `Copy of ${currentCampaign.subject}` : "Copy",
+        message: currentCampaign.message ?? null,
+        message_raw_html: currentCampaign.message_raw_html ?? null,
+        design_json: currentCampaign.design_json ?? {},
+        template_id: currentCampaign.template_id ?? null,
+        sending_status: "Draft",
+        message_status: "Building",
+        total_emails_sent: 0,
+        original_opens: 0,
+        total_touches: 0,
+        email_sent_at: null,
+        deleted_at: null,
+        created_by: authResult.user?.id ?? null,
+      })
+      .select("*")
+      .single();
+    setCloning(false);
+    if (error || !cloned) {
+      setCloneError(error?.message ?? "Failed to duplicate campaign.");
+      return;
+    }
+    onCloned?.(cloned as PartnerEmailCampaign);
+  }
+
   const isReadOnlyCampaign = !isCreate && !canEdit
 
   if (!isCreate && currentMode === "view") {
@@ -911,15 +952,30 @@ export default function CampaignModal({
         maxWidth={1440}
         contentPadding={0}
         headerActions={
-          canEdit ? (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setCurrentMode("edit")}
-            >
-              Edit Campaign
-            </button>
-          ) : null
+          <>
+            {cloneError && (
+              <span style={{ fontSize: 12, color: "#b91c1c", alignSelf: "center" }}>{cloneError}</span>
+            )}
+            {canManage && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={cloning}
+                onClick={handleClone}
+              >
+                {cloning ? "Duplicating…" : "Duplicate Campaign"}
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setCurrentMode("edit")}
+              >
+                Edit Campaign
+              </button>
+            )}
+          </>
         }
       >
         <div style={{ padding: "24px 24px 128px" }}>

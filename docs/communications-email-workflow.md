@@ -55,6 +55,7 @@ The following features are live in the application:
 | Suppression pre-check at live send time | **Live** |
 | `campaign_live_send_authorized` field on `organization_mail_settings` | **Live — DB column exists** |
 | Campaign live-send authorization UI (Communications → Delivery Setup) | **Live** |
+| Campaign duplication / clone workflow | **Live** |
 
 **Mail Sender is a tenant-wide email conduit.** It is not campaign-specific infrastructure. The connected Google Workspace sender may be used by communications campaigns today, and by workflow emails, notifications, receipts, or other system emails in the future. Feature-specific safeguards (campaign readiness checks, segment gating, suppression, opt-out) belong inside those features — not in the global Mail Sender setup.
 
@@ -187,6 +188,40 @@ The "Live Send" section card appears in Campaign View mode in `CampaignModal`. I
 **On success:** Campaign `sending_status` → `Send Complete`, `message_status` → `Message Sent`, `email_sent_at` and `total_emails_sent` updated. Campaign becomes locked — no further edits or sends.
 
 **On partial failure:** Job status recorded as `completed` only if all recipients succeeded. Campaign status is not updated on any failure — partial sends do not lock the campaign.
+
+---
+
+## 6b. Campaign Duplication / Clone (Implemented)
+
+Sent campaigns are permanently locked — they cannot be re-edited or resent. To create a new send from a completed campaign, users **duplicate** it into a fresh draft.
+
+**UI entry point:** "Duplicate Campaign" button in the Campaign View modal header (next to "Edit Campaign"). Available for sent and unsent campaigns. Visible to any `canManage` user.
+
+**Clone behavior:**
+
+| Field | Clone action |
+|---|---|
+| `subject` | Prefixed with `"Copy of "` |
+| `communication_type`, `email_style`, `segment`, `campaign_version` | Copied as-is |
+| `message`, `message_raw_html`, `design_json`, `template_id` | Copied as-is |
+| `sending_status` | Reset to `Draft` |
+| `message_status` | Reset to `Building` |
+| `total_emails_sent`, `original_opens`, `total_touches` | Reset to `0` |
+| `email_sent_at`, `deleted_at` | Reset to `null` |
+| `delivery_datetime`, `scheduled_at` | Not copied — reset to `null` |
+| `sender_*`, `readiness_status`, `rendered_*_snapshot`, `brand_settings_snapshot` | Not copied — DB defaults (`null` / `{}`) |
+| `knack_id`, `knack_email_id` | Not copied — `null` |
+| `created_by`, `created_at`, `updated_at` | Set to current user + now |
+
+**Attachments:** `record_attachments` rows are NOT copied. They are keyed to the original `record_id`. The cloned campaign starts with an empty files list. Users should add files in the edit view before sending if needed.
+
+**Legacy media fields** (`html_file_name`, `html_file_url`, `media_attachments`, `number_of_attachments`): Not copied — reset to null / 0 / `[]`.
+
+**Email send jobs and recipients:** NOT copied. `email_send_jobs` and `email_send_recipients` rows belong exclusively to the original campaign's send history.
+
+**After clone:** The cloned campaign is prepended to the campaign list and immediately opened in edit mode. The original campaign remains unchanged and locked (if sent).
+
+**Implementation:** Browser Supabase insert — same RLS pattern as campaign create. No server route needed. On error, an inline message is shown in the modal header.
 
 ---
 

@@ -442,6 +442,14 @@ export default function CommunicationsDashboard({
     setShowCampaignModal(true);
   }
 
+  function handleClonedCampaign(cloned: PartnerEmailCampaign) {
+    setCampaigns((prev) => [cloned, ...prev]);
+    setSelectedCampaign(cloned);
+    setModalMode("edit");
+    setModalForcedReadOnly(false);
+    setShowCampaignModal(true);
+  }
+
   async function handleTrashCampaign(campaign: PartnerEmailCampaign) {
     setTrashingId(campaign.id);
     try {
@@ -897,6 +905,7 @@ export default function CommunicationsDashboard({
             setShowCampaignModal(false);
           }}
           onSaved={handleSavedCampaign}
+          onCloned={handleClonedCampaign}
         />
       ) : null}
 
