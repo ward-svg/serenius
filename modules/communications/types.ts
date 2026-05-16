@@ -191,6 +191,12 @@ export interface EmailBrandSettings {
   footer_font_size: number
   footer_divider_enabled: boolean
   footer_divider_color: string
+  preference_page_background_color: string | null
+  preference_card_background_color: string | null
+  preference_text_color: string | null
+  preference_button_color: string | null
+  preference_button_text_color: string | null
+  preference_logo_background_color: string | null
   theme_color_1: string
   theme_color_2: string
   theme_color_3: string

@@ -49,6 +49,12 @@ type FormData = {
   theme_color_3: string;
   theme_color_4: string;
   theme_color_5: string;
+  preference_page_background_color: string;
+  preference_card_background_color: string;
+  preference_text_color: string;
+  preference_button_color: string;
+  preference_button_text_color: string;
+  preference_logo_background_color: string;
 };
 
 const DEFAULTS: FormData = {
@@ -88,6 +94,12 @@ const DEFAULTS: FormData = {
   theme_color_3: "#293241",
   theme_color_4: "#4C5253",
   theme_color_5: "#E0FBFC",
+  preference_page_background_color: "",
+  preference_card_background_color: "",
+  preference_text_color: "",
+  preference_button_color: "",
+  preference_button_text_color: "",
+  preference_logo_background_color: "",
 };
 
 function settingsToForm(s: EmailBrandSettings): FormData {
@@ -128,6 +140,12 @@ function settingsToForm(s: EmailBrandSettings): FormData {
     theme_color_3: s.theme_color_3 || '#293241',
     theme_color_4: s.theme_color_4 || '#4C5253',
     theme_color_5: s.theme_color_5 || '#E0FBFC',
+    preference_page_background_color: s.preference_page_background_color ?? "",
+    preference_card_background_color: s.preference_card_background_color ?? "",
+    preference_text_color: s.preference_text_color ?? "",
+    preference_button_color: s.preference_button_color ?? "",
+    preference_button_text_color: s.preference_button_text_color ?? "",
+    preference_logo_background_color: s.preference_logo_background_color ?? "",
   };
 }
 
@@ -183,6 +201,54 @@ function ColorField({
           placeholder="#000000"
         />
       </div>
+    </div>
+  );
+}
+
+function OptionalColorField({
+  label,
+  value,
+  onChange,
+  helperText,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  helperText?: string;
+}) {
+  const hasValue = value.trim() !== "";
+  return (
+    <div className="form-group">
+      <label className="form-label">{label}</label>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {hasValue && (
+          <input
+            type="color"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}
+          />
+        )}
+        <input
+          type="text"
+          className="form-input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ flex: 1, fontFamily: "monospace", fontSize: 13 }}
+          placeholder="Use default"
+        />
+        {hasValue && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ fontSize: 12, padding: "4px 8px", whiteSpace: "nowrap", flexShrink: 0 }}
+            onClick={() => onChange("")}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      {helperText && <div className="form-helper">{helperText}</div>}
     </div>
   );
 }
@@ -317,10 +383,16 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
       theme_color_3: form.theme_color_3,
       theme_color_4: form.theme_color_4,
       theme_color_5: form.theme_color_5,
+      preference_page_background_color: form.preference_page_background_color.trim() || null,
+      preference_card_background_color: form.preference_card_background_color.trim() || null,
+      preference_text_color: form.preference_text_color.trim() || null,
+      preference_button_color: form.preference_button_color.trim() || null,
+      preference_button_text_color: form.preference_button_text_color.trim() || null,
+      preference_logo_background_color: form.preference_logo_background_color.trim() || null,
     };
 
     const selectCols =
-      "id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_background_color, footer_text_color, footer_link_color, footer_font_size, footer_divider_enabled, footer_divider_color, theme_color_1, theme_color_2, theme_color_3, theme_color_4, theme_color_5, created_by, created_at, updated_at";
+      "id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_background_color, footer_text_color, footer_link_color, footer_font_size, footer_divider_enabled, footer_divider_color, preference_page_background_color, preference_card_background_color, preference_text_color, preference_button_color, preference_button_text_color, preference_logo_background_color, theme_color_1, theme_color_2, theme_color_3, theme_color_4, theme_color_5, created_by, created_at, updated_at";
 
     let saved: EmailBrandSettings | null = null;
 
@@ -786,6 +858,49 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
             <div className="form-helper" style={{ marginTop: 6 }}>
               Live preview — updates as you change colors, font size, and divider settings above. Required compliance footer appended to every campaign email.
             </div>
+          </div>
+
+          <SectionTitle>Public Preference Page</SectionTitle>
+          <div className="form-helper" style={{ marginBottom: 14 }}>
+            These colors are used on public unsubscribe and email preference pages. Leave any field blank to inherit from your main brand settings.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+            <OptionalColorField
+              label="Page Background"
+              value={form.preference_page_background_color}
+              onChange={(v) => field("preference_page_background_color", v)}
+              helperText="Fallback: Background Color → #f9fafb"
+            />
+            <OptionalColorField
+              label="Card Background"
+              value={form.preference_card_background_color}
+              onChange={(v) => field("preference_card_background_color", v)}
+              helperText="Fallback: #ffffff"
+            />
+            <OptionalColorField
+              label="Text Color"
+              value={form.preference_text_color}
+              onChange={(v) => field("preference_text_color", v)}
+              helperText="Fallback: Text Color → #111827"
+            />
+            <OptionalColorField
+              label="Button Color"
+              value={form.preference_button_color}
+              onChange={(v) => field("preference_button_color", v)}
+              helperText="Fallback: Button Color → Primary Color → #3d5a80"
+            />
+            <OptionalColorField
+              label="Button Text Color"
+              value={form.preference_button_text_color}
+              onChange={(v) => field("preference_button_text_color", v)}
+              helperText="Fallback: Button Text Color → #ffffff"
+            />
+            <OptionalColorField
+              label="Logo Background"
+              value={form.preference_logo_background_color}
+              onChange={(v) => field("preference_logo_background_color", v)}
+              helperText="Fallback: #111827"
+            />
           </div>
 
           <SectionTitle>Email Header HTML</SectionTitle>
