@@ -167,11 +167,11 @@ export async function POST(request: NextRequest) {
     .from('partner_contacts')
     .select('id, primary_email, display_name, email_segment, campaign_version')
     .eq('tenant_id', tenantId)
-    .is('deleted_at', null)
     .not('primary_email', 'is', null)
 
   if (contactsError) {
-    return NextResponse.json({ ok: false, error: contactsError.message }, { status: 400 })
+    console.error('[campaign-live-send] contacts query failed:', contactsError.message)
+    return NextResponse.json({ ok: false, error: 'Failed to load recipient list. Contact support if this persists.' }, { status: 500 })
   }
 
   const { data: suppressionRows } = await serviceSupabase
