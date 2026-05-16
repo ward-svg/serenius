@@ -325,6 +325,7 @@ This is a **public** Server Component page — no Serenius authentication requir
 **Proxy exemption:** `proxy.ts` explicitly lists `/mail/preferences/` as a public path. Unauthenticated visitors reach the page directly. Valid, expired, already-used, and invalid tokens each produce a distinct friendly outcome message. No dashboard data is exposed.
 
 **Public preference page branding:** The page loads tenant branding only after a token hashes to a real token row. Fake or invalid tokens use the generic Serenius card only. Preference-specific color fields take priority over email colors:
+- Logo: `preference_page_logo_url` → `logo_url` → `organization_branding.logo_url` → none
 - Page background: `preference_page_background_color` → `background_color` → `#f9fafb`
 - Card background: `preference_card_background_color` → `#ffffff`
 - Main text: `preference_text_color` → `text_color` → `#111827`

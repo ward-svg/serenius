@@ -160,6 +160,7 @@ export interface EmailBrandSettings {
   id: string
   tenant_id: string
   logo_url: string | null
+  preference_page_logo_url: string | null
   logo_width: number | null
   header_html: string | null
   footer_html: string | null

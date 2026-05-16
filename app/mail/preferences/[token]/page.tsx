@@ -78,15 +78,16 @@ async function loadTenantContext(
 ): Promise<TenantContext> {
   const supabase = createSupabaseServiceClient()
 
-  const [orgResult, brandResult, contactResult, campaignResult] = await Promise.all([
+  const [orgResult, brandResult, appBrandResult, contactResult, campaignResult] = await Promise.all([
     supabase.from('organizations').select('name').eq('id', tenantId).maybeSingle(),
     supabase
       .from('communication_email_brand_settings')
       .select(
-        'organization_name, logo_url, background_color, text_color, primary_color, button_color, button_text_color, preference_page_background_color, preference_card_background_color, preference_text_color, preference_button_color, preference_button_text_color, preference_logo_background_color',
+        'organization_name, logo_url, preference_page_logo_url, background_color, text_color, primary_color, button_color, button_text_color, preference_page_background_color, preference_card_background_color, preference_text_color, preference_button_color, preference_button_text_color, preference_logo_background_color',
       )
       .eq('tenant_id', tenantId)
       .maybeSingle(),
+    supabase.from('organization_branding').select('logo_url').eq('tenant_id', tenantId).maybeSingle(),
     partnerContactId
       ? supabase
           .from('partner_contacts')
@@ -135,7 +136,11 @@ async function loadTenantContext(
 
   return {
     orgName,
-    logoUrl: b?.logo_url ?? null,
+    logoUrl:
+      b?.preference_page_logo_url?.trim() ||
+      b?.logo_url?.trim() ||
+      appBrandResult.data?.logo_url?.trim() ||
+      null,
     pageBackground,
     cardBackground,
     textColor,

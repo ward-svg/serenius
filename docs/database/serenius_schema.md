@@ -730,6 +730,7 @@ On hit: increment `open_count`, set `first_opened` if null, update `last_opened`
 | preference_button_color | text | nullable — preference page button; fallback: button_color → primary_color → #3d5a80 |
 | preference_button_text_color | text | nullable — preference page button text; fallback: button_text_color → #ffffff |
 | preference_logo_background_color | text | nullable — logo area background on preference page; fallback: primary_color → #111827 |
+| preference_page_logo_url | text | nullable — logo override for public preference page; fallback: logo_url → organization_branding.logo_url → none |
 | created_by | uuid | → auth.users.id SET NULL |
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | updated_at | timestamptz | NOT NULL DEFAULT now() |

@@ -22,6 +22,7 @@ type FormData = {
   phone: string;
   website_url: string;
   logo_url: string;
+  preference_page_logo_url: string;
   logo_width: string;
   primary_color: string;
   accent_color: string;
@@ -67,6 +68,7 @@ const DEFAULTS: FormData = {
   phone: "",
   website_url: "",
   logo_url: "",
+  preference_page_logo_url: "",
   logo_width: "",
   primary_color: "#1a56db",
   accent_color: "#e8f0fe",
@@ -113,6 +115,7 @@ function settingsToForm(s: EmailBrandSettings): FormData {
     phone: s.phone ?? "",
     website_url: s.website_url ?? "",
     logo_url: s.logo_url ?? "",
+    preference_page_logo_url: s.preference_page_logo_url ?? "",
     logo_width: s.logo_width != null ? String(s.logo_width) : "",
     primary_color: s.primary_color,
     accent_color: s.accent_color,
@@ -221,6 +224,10 @@ function resolvePreferencePageColors(form: FormData): ResolvedPreferenceColors {
 
 function hasPreferenceColorOverrides(form: FormData): boolean {
   return PREFERENCE_COLOR_KEYS.some((key) => form[key].trim() !== "");
+}
+
+function resolvePreferenceLogoUrl(form: FormData): string {
+  return form.preference_page_logo_url.trim() || form.logo_url.trim();
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -347,15 +354,20 @@ function PreferencePagePreview({
   colors,
   orgName,
   logoUrl,
+  logoStatus,
 }: {
   colors: ResolvedPreferenceColors;
   orgName: string;
   logoUrl: string;
+  logoStatus: string;
 }) {
   return (
     <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
         Preference Page Preview
+      </div>
+      <div className="form-helper" style={{ marginBottom: 8 }}>
+        {logoStatus}
       </div>
       <div
         style={{
@@ -454,6 +466,13 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
 
   const preferenceColors = useMemo(() => resolvePreferencePageColors(form), [form]);
   const hasPreferenceOverrides = hasPreferenceColorOverrides(form);
+  const resolvedPreferenceLogoUrl = resolvePreferenceLogoUrl(form);
+  const hasPreferenceLogoOverride = form.preference_page_logo_url.trim() !== "";
+  const preferenceLogoStatus = hasPreferenceLogoOverride
+    ? "Using custom preference page logo."
+    : form.logo_url.trim()
+      ? "Inheriting main email logo."
+      : "No logo configured; the page will show the organization name only.";
 
   useEffect(() => {
     if (preferenceColorsOpen && !hasPreferenceOverrides) {
@@ -592,6 +611,7 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
       phone: form.phone.trim() || null,
       website_url: form.website_url.trim() || null,
       logo_url: form.logo_url.trim() || null,
+      preference_page_logo_url: form.preference_page_logo_url.trim() || null,
       logo_width: logoWidth,
       primary_color: form.primary_color,
       accent_color: form.accent_color,
@@ -628,7 +648,7 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
     };
 
     const selectCols =
-      "id, tenant_id, logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_background_color, footer_text_color, footer_link_color, footer_font_size, footer_divider_enabled, footer_divider_color, preference_page_background_color, preference_card_background_color, preference_text_color, preference_button_color, preference_button_text_color, preference_logo_background_color, theme_color_1, theme_color_2, theme_color_3, theme_color_4, theme_color_5, created_by, created_at, updated_at";
+      "id, tenant_id, logo_url, preference_page_logo_url, logo_width, header_html, footer_html, primary_color, accent_color, button_color, button_text_color, background_color, text_color, default_font, heading_font, body_font, default_signature, default_donation_url, preference_center_url, social_links, organization_name, mailing_address, city, state, zip, country, phone, website_url, unsubscribe_text, footer_background_color, footer_text_color, footer_link_color, footer_font_size, footer_divider_enabled, footer_divider_color, preference_page_background_color, preference_card_background_color, preference_text_color, preference_button_color, preference_button_text_color, preference_logo_background_color, theme_color_1, theme_color_2, theme_color_3, theme_color_4, theme_color_5, created_by, created_at, updated_at";
 
     let saved: EmailBrandSettings | null = null;
 
@@ -1103,6 +1123,63 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
 
           <div
             style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 8,
+              padding: 14,
+              marginBottom: 16,
+              background: "#fafafa",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>
+                  Preference Page Logo
+                </div>
+                <div className="form-helper">{preferenceLogoStatus}</div>
+              </div>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: hasPreferenceLogoOverride ? "#1d4ed8" : "#6b7280",
+                  background: hasPreferenceLogoOverride ? "#dbeafe" : "#f3f4f6",
+                  borderRadius: 999,
+                  padding: "2px 7px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  flexShrink: 0,
+                }}
+              >
+                {hasPreferenceLogoOverride ? "Custom" : "Inherited"}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="text"
+                className="form-input"
+                value={form.preference_page_logo_url}
+                onChange={(e) => field("preference_page_logo_url", e.target.value)}
+                placeholder={form.logo_url.trim() || "https://.../logo.png"}
+                style={{ flex: 1, minWidth: 0 }}
+              />
+              {hasPreferenceLogoOverride ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}
+                  onClick={() => field("preference_page_logo_url", "")}
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+            <div className="form-helper" style={{ marginTop: 6 }}>
+              Paste a public image URL, or copy one from Image Gallery. Blank inherits the main email logo.
+            </div>
+          </div>
+
+          <div
+            style={{
               display: "grid",
               gridTemplateColumns: "minmax(0, 1fr) 320px",
               gap: 18,
@@ -1243,7 +1320,8 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
             <PreferencePagePreview
               colors={preferenceColors}
               orgName={form.organization_name.trim() || "Your organization"}
-              logoUrl={form.logo_url.trim()}
+              logoUrl={resolvedPreferenceLogoUrl}
+              logoStatus={preferenceLogoStatus}
             />
           </div>
 
