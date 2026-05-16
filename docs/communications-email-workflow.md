@@ -197,7 +197,31 @@ The "Live Send" section card appears in Campaign View mode in `CampaignModal`. I
 
 ---
 
-## 6b. Campaign Duplication / Clone (Implemented)
+## 6b. Recipient Preview Modal (Implemented)
+
+The Recipient Preview modal lets a `canManage` user inspect exactly which contacts will receive a campaign before sending.
+
+**Entry points:**
+- A "Preview recipient list" link appears in the Live Send section of Campaign View (below the "Recipient estimate" checklist item), visible whenever a segment is set on the saved campaign. Available regardless of test-send status or live-send authorization.
+- A "View recipient list" link appears in the Live Send confirmation modal body, opening the preview modal (and closing the confirmation dialog).
+
+**Modal content:**
+
+A summary chip row at the top shows all classified counts:
+- `N Eligible` (green) — contacts that will receive this send
+- `N Suppressed` (amber) — in-segment, version-allowed, but suppressed
+- `N Version skipped` (gray) — in-segment but campaign_version filter excluded them
+- `N Missing email` (gray) — in-segment and version-allowed but no primary_email
+
+Below the chips, a table lists all eligible contacts: Name, Email, Version, Status. Excluded categories are summarized in a note block below the table with plain-text explanations.
+
+**Resolution logic** (same as `estimate` useMemo): for each contact — segment containment check → version filter (A/B/A+B/Skip) → email present check → suppression set check → Eligible. Contacts not in the segment at all are silently excluded (not counted separately, as they are out of scope for this campaign targeting view).
+
+**Access:** `canManage` only. Computed client-side from the `contacts` and `suppressions` arrays already in `CampaignModal` props — no additional query.
+
+---
+
+## 6c. Campaign Duplication / Clone (Implemented)
 
 Sent campaigns are permanently locked — they cannot be re-edited or resent. To create a new send from a completed campaign, users **duplicate** it into a fresh draft.
 
