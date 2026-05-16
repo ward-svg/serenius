@@ -709,8 +709,8 @@ export default function CampaignModal({
   }, [contacts, formData.campaign_version, formData.segment, suppressions]);
 
   const recipientPreviewData = useMemo(() => {
-    const seg = (currentCampaign?.segment ?? "").trim();
-    const ver = (currentCampaign?.campaign_version ?? "A+B").trim();
+    const seg = formData.segment.trim();
+    const ver = (formData.campaign_version || "A+B").trim();
     if (!seg) return null;
 
     const suppressedSet = new Set(suppressions.map((s) => s.email.trim().toLowerCase()));
@@ -741,7 +741,7 @@ export default function CampaignModal({
     }
 
     return { eligible, suppressedCount, noEmailCount, skippedCount };
-  }, [contacts, currentCampaign?.segment, currentCampaign?.campaign_version, suppressions]);
+  }, [contacts, formData.segment, formData.campaign_version, suppressions]);
 
   function handleChange(field: keyof FormData, value: string) {
     setFormData((prev) => ({
@@ -961,6 +961,97 @@ export default function CampaignModal({
 
   const isReadOnlyCampaign = !isCreate && !canEdit
 
+  const previewSegment = formData.segment || "";
+  const previewVersion = formData.campaign_version || "A+B";
+
+  const recipientPreviewModal = showRecipientPreview && recipientPreviewData ? (
+    <SereniusModal
+      title="Recipient Preview"
+      description={`${previewSegment || "—"} segment · Version ${previewVersion}`}
+      onClose={() => setShowRecipientPreview(false)}
+      maxWidth={740}
+    >
+      <div style={{ padding: "16px 24px 24px" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, background: "#dcfce7", color: "#15803d", padding: "3px 10px", borderRadius: 99 }}>
+            {recipientPreviewData.eligible.length} Eligible
+          </span>
+          {recipientPreviewData.suppressedCount > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 500, background: "#fef3c7", color: "#92400e", padding: "3px 10px", borderRadius: 99 }}>
+              {recipientPreviewData.suppressedCount} Suppressed
+            </span>
+          )}
+          {recipientPreviewData.skippedCount > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 500, background: "#f3f4f6", color: "#6b7280", padding: "3px 10px", borderRadius: 99 }}>
+              {recipientPreviewData.skippedCount} Version skipped
+            </span>
+          )}
+          {recipientPreviewData.noEmailCount > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 500, background: "#f3f4f6", color: "#6b7280", padding: "3px 10px", borderRadius: 99 }}>
+              {recipientPreviewData.noEmailCount} Missing email
+            </span>
+          )}
+        </div>
+
+        {recipientPreviewData.eligible.length === 0 ? (
+          <div style={{ padding: "24px 0", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+            No eligible contacts after suppression and version checks.
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 6 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#f9fafb" }}>
+                  <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb", fontSize: 12 }}>Name</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb", fontSize: 12 }}>Email</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb", fontSize: 12 }}>Version</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb", fontSize: 12 }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recipientPreviewData.eligible.map((row, idx) => (
+                  <tr key={row.id ?? idx} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                    <td style={{ padding: "8px 12px", color: "#111827" }}>
+                      {row.displayName || <span style={{ color: "#9ca3af" }}>—</span>}
+                    </td>
+                    <td style={{ padding: "8px 12px", color: "#374151", fontFamily: "monospace", fontSize: 12 }}>
+                      {row.email}
+                    </td>
+                    <td style={{ padding: "8px 12px" }}>
+                      <span style={{ background: "#ede9fe", color: "#5b21b6", fontSize: 11, padding: "2px 7px", borderRadius: 99 }}>
+                        {row.version || "—"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "8px 12px" }}>
+                      <span style={{ background: "#dcfce7", color: "#15803d", fontSize: 11, fontWeight: 500, padding: "2px 7px", borderRadius: 99 }}>
+                        Eligible
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {(recipientPreviewData.suppressedCount > 0 || recipientPreviewData.skippedCount > 0 || recipientPreviewData.noEmailCount > 0) && (
+          <div style={{ marginTop: 14, padding: "12px 14px", background: "#f9fafb", borderRadius: 6, fontSize: 12, color: "#6b7280", lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>Excluded from this send</div>
+            {recipientPreviewData.suppressedCount > 0 && (
+              <div><strong>{recipientPreviewData.suppressedCount}</strong> suppressed — opted out or manually suppressed</div>
+            )}
+            {recipientPreviewData.skippedCount > 0 && (
+              <div><strong>{recipientPreviewData.skippedCount}</strong> version skipped — contact version does not match campaign version ({previewVersion})</div>
+            )}
+            {recipientPreviewData.noEmailCount > 0 && (
+              <div><strong>{recipientPreviewData.noEmailCount}</strong> missing email — no primary email on file</div>
+            )}
+          </div>
+        )}
+      </div>
+    </SereniusModal>
+  ) : null;
+
   if (!isCreate && currentMode === "view") {
     const viewCampaign = currentCampaign
 
@@ -1066,6 +1157,23 @@ export default function CampaignModal({
                       <span className="badge" style={campaignBadgeStyle(viewCampaign.message_status)}>{viewCampaign.message_status}</span>
                     )}
                   </div>
+
+                  {viewCampaign?.segment && canManage && recipientPreviewData && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setShowRecipientPreview(true)}
+                      >
+                        Preview Recipients
+                      </button>
+                      {recipientPreviewData.eligible.length > 0 && (
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>
+                          {recipientPreviewData.eligible.length} eligible
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Compact metadata grid */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
@@ -1226,10 +1334,10 @@ export default function CampaignModal({
                     <div style={{ paddingLeft: 19 }}>
                       <button
                         type="button"
+                        className="btn btn-ghost btn-sm"
                         onClick={() => setShowRecipientPreview(true)}
-                        style={{ background: "none", border: "none", padding: 0, fontSize: 12, color: "#3d5a80", cursor: "pointer", textDecoration: "underline" }}
                       >
-                        Preview recipient list
+                        Preview Recipients
                       </button>
                     </div>
                   )}
@@ -1397,93 +1505,7 @@ export default function CampaignModal({
           </SereniusModal>
         )}
 
-        {showRecipientPreview && recipientPreviewData && (
-          <SereniusModal
-            title="Recipient Preview"
-            description={`${viewCampaign?.segment ?? "—"} segment · Version ${viewCampaign?.campaign_version ?? "A+B"}`}
-            onClose={() => setShowRecipientPreview(false)}
-            maxWidth={740}
-          >
-            <div style={{ padding: "16px 24px 24px" }}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, background: "#dcfce7", color: "#15803d", padding: "3px 10px", borderRadius: 99 }}>
-                  {recipientPreviewData.eligible.length} Eligible
-                </span>
-                {recipientPreviewData.suppressedCount > 0 && (
-                  <span style={{ fontSize: 12, fontWeight: 500, background: "#fef3c7", color: "#92400e", padding: "3px 10px", borderRadius: 99 }}>
-                    {recipientPreviewData.suppressedCount} Suppressed
-                  </span>
-                )}
-                {recipientPreviewData.skippedCount > 0 && (
-                  <span style={{ fontSize: 12, fontWeight: 500, background: "#f3f4f6", color: "#6b7280", padding: "3px 10px", borderRadius: 99 }}>
-                    {recipientPreviewData.skippedCount} Version skipped
-                  </span>
-                )}
-                {recipientPreviewData.noEmailCount > 0 && (
-                  <span style={{ fontSize: 12, fontWeight: 500, background: "#f3f4f6", color: "#6b7280", padding: "3px 10px", borderRadius: 99 }}>
-                    {recipientPreviewData.noEmailCount} Missing email
-                  </span>
-                )}
-              </div>
-
-              {recipientPreviewData.eligible.length === 0 ? (
-                <div style={{ padding: "24px 0", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
-                  No eligible contacts after suppression and version checks.
-                </div>
-              ) : (
-                <div style={{ overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 6 }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: "#f9fafb" }}>
-                        <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb", fontSize: 12 }}>Name</th>
-                        <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb", fontSize: 12 }}>Email</th>
-                        <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb", fontSize: 12 }}>Version</th>
-                        <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb", fontSize: 12 }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recipientPreviewData.eligible.map((row, idx) => (
-                        <tr key={row.id ?? idx} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                          <td style={{ padding: "8px 12px", color: "#111827" }}>
-                            {row.displayName || <span style={{ color: "#9ca3af" }}>—</span>}
-                          </td>
-                          <td style={{ padding: "8px 12px", color: "#374151", fontFamily: "monospace", fontSize: 12 }}>
-                            {row.email}
-                          </td>
-                          <td style={{ padding: "8px 12px" }}>
-                            <span style={{ background: "#ede9fe", color: "#5b21b6", fontSize: 11, padding: "2px 7px", borderRadius: 99 }}>
-                              {row.version || "—"}
-                            </span>
-                          </td>
-                          <td style={{ padding: "8px 12px" }}>
-                            <span style={{ background: "#dcfce7", color: "#15803d", fontSize: 11, fontWeight: 500, padding: "2px 7px", borderRadius: 99 }}>
-                              Eligible
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {(recipientPreviewData.suppressedCount > 0 || recipientPreviewData.skippedCount > 0 || recipientPreviewData.noEmailCount > 0) && (
-                <div style={{ marginTop: 14, padding: "12px 14px", background: "#f9fafb", borderRadius: 6, fontSize: 12, color: "#6b7280", lineHeight: 1.7 }}>
-                  <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>Excluded from this send</div>
-                  {recipientPreviewData.suppressedCount > 0 && (
-                    <div><strong>{recipientPreviewData.suppressedCount}</strong> suppressed — opted out or manually suppressed</div>
-                  )}
-                  {recipientPreviewData.skippedCount > 0 && (
-                    <div><strong>{recipientPreviewData.skippedCount}</strong> version skipped — contact version does not match campaign version ({viewCampaign?.campaign_version ?? "A+B"})</div>
-                  )}
-                  {recipientPreviewData.noEmailCount > 0 && (
-                    <div><strong>{recipientPreviewData.noEmailCount}</strong> missing email — no primary email on file</div>
-                  )}
-                </div>
-              )}
-            </div>
-          </SereniusModal>
-        )}
+        {recipientPreviewModal}
       </SereniusModal>
     );
   }
@@ -1665,6 +1687,22 @@ export default function CampaignModal({
                         </span>
                       )}
                     </div>
+                    {canManage && estimate.ready && recipientPreviewData && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setShowRecipientPreview(true)}
+                        >
+                          Preview Recipients
+                        </button>
+                        {recipientPreviewData.eligible.length > 0 && (
+                          <span style={{ fontSize: 12, color: "#6b7280" }}>
+                            {recipientPreviewData.eligible.length} eligible
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <div className="form-group">
                       <label className="form-label">Subject</label>
                       <input
@@ -1841,6 +1879,22 @@ export default function CampaignModal({
                       </span>
                     )}
                   </div>
+                  {canManage && estimate.ready && recipientPreviewData && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setShowRecipientPreview(true)}
+                      >
+                        Preview Recipients
+                      </button>
+                      {recipientPreviewData.eligible.length > 0 && (
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>
+                          {recipientPreviewData.eligible.length} eligible
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="form-group">
                     <label className="form-label">Subject</label>
                     <input
@@ -1932,6 +1986,7 @@ export default function CampaignModal({
           </div>
         )}
       </div>
+      {recipientPreviewModal}
     </SereniusModal>
   );
 }
