@@ -602,8 +602,8 @@ function HeaderEditor({
             type="number"
             className="form-input"
             value={block.taglineSize ?? 13}
-            min={10}
-            max={24}
+            min={2}
+            max={120}
             step={1}
             onChange={(e) => onPatch({ taglineSize: Number(e.target.value) })}
             disabled={disabled}
@@ -701,8 +701,8 @@ function HeroEditor({
             type="number"
             className="form-input"
             value={block.eyebrowSize ?? 11}
-            min={9}
-            max={18}
+            min={2}
+            max={120}
             step={1}
             onChange={(e) => onPatch({ eyebrowSize: Number(e.target.value) })}
             disabled={disabled}
@@ -762,8 +762,8 @@ function HeroEditor({
             type="number"
             className="form-input"
             value={block.headlineSize ?? 28}
-            min={20}
-            max={56}
+            min={2}
+            max={120}
             step={2}
             onChange={(e) => onPatch({ headlineSize: Number(e.target.value) })}
             disabled={disabled}
@@ -810,8 +810,8 @@ function HeroEditor({
             type="number"
             className="form-input"
             value={block.subtitleSize ?? 16}
-            min={12}
-            max={32}
+            min={2}
+            max={120}
             step={1}
             onChange={(e) => onPatch({ subtitleSize: Number(e.target.value) })}
             disabled={disabled}
@@ -913,8 +913,8 @@ function StoryEditor({
             type="number"
             className="form-input"
             value={block.textSize ?? 15}
-            min={12}
-            max={24}
+            min={2}
+            max={120}
             step={1}
             onChange={(e) => onPatch({ textSize: Number(e.target.value) })}
             disabled={disabled}
@@ -1053,8 +1053,8 @@ function HighlightEditor({
             type="number"
             className="form-input"
             value={block.headingSize ?? 18}
-            min={14}
-            max={32}
+            min={2}
+            max={120}
             step={1}
             onChange={(e) => onPatch({ headingSize: Number(e.target.value) })}
             disabled={disabled}
@@ -1078,8 +1078,8 @@ function HighlightEditor({
             type="number"
             className="form-input"
             value={block.bodySize ?? 15}
-            min={12}
-            max={24}
+            min={2}
+            max={120}
             step={1}
             onChange={(e) => onPatch({ bodySize: Number(e.target.value) })}
             disabled={disabled}
@@ -1224,7 +1224,7 @@ function CtaEditor({
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
         <div className="form-group" style={{ margin: 0, flex: "0 0 64px" }}>
           <label className="form-label">H. Size</label>
-          <input type="number" className="form-input" value={block.headingSize ?? 18} min={14} max={36} step={1} onChange={(e) => onPatch({ headingSize: Number(e.target.value) })} disabled={disabled} />
+          <input type="number" className="form-input" value={block.headingSize ?? 18} min={2} max={120} step={1} onChange={(e) => onPatch({ headingSize: Number(e.target.value) })} disabled={disabled} />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
           <label className="form-label">H. Font</label>
@@ -1235,7 +1235,7 @@ function CtaEditor({
         </div>
         <div className="form-group" style={{ margin: 0, flex: "0 0 64px" }}>
           <label className="form-label">B. Size</label>
-          <input type="number" className="form-input" value={block.bodySize ?? 14} min={12} max={24} step={1} onChange={(e) => onPatch({ bodySize: Number(e.target.value) })} disabled={disabled} />
+          <input type="number" className="form-input" value={block.bodySize ?? 14} min={2} max={120} step={1} onChange={(e) => onPatch({ bodySize: Number(e.target.value) })} disabled={disabled} />
         </div>
         <div className="form-group" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
           <label className="form-label">B. Font</label>
