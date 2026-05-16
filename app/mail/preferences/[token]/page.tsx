@@ -128,7 +128,10 @@ async function loadTenantContext(
     b?.preference_button_text_color,
     safeHex(b?.button_text_color, '#ffffff'),
   )
-  const logoBackground = safeHex(b?.preference_logo_background_color, '#111827')
+  const logoBackground = safeHex(
+    b?.preference_logo_background_color,
+    safeHex(b?.primary_color, '#111827'),
+  )
 
   return {
     orgName,
@@ -156,22 +159,24 @@ function LogoArea({
   return (
     <div
       style={{
-        display: 'inline-flex',
+        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         background: logoBackground,
-        borderRadius: 8,
-        padding: '10px 16px',
-        minWidth: 72,
-        minHeight: 52,
-        marginBottom: 8,
+        borderRadius: 10,
+        padding: '18px 24px',
+        width: '100%',
+        maxWidth: 348,
+        minHeight: 126,
+        boxSizing: 'border-box' as const,
+        marginBottom: 12,
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={logoUrl}
         alt={orgName}
-        style={{ maxHeight: 36, maxWidth: 160, objectFit: 'contain', display: 'block' }}
+        style={{ maxHeight: 90, maxWidth: '100%', objectFit: 'contain', display: 'block' }}
       />
     </div>
   )

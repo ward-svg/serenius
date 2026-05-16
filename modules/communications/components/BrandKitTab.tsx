@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { buildCampaignEmailFooter } from "@/lib/mail/campaign-email-footer";
 import type { EmailBrandSettings } from "../types";
@@ -153,6 +153,76 @@ function isValidHex(v: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v.trim())
 }
 
+const PREFERENCE_COLOR_KEYS = [
+  "preference_page_background_color",
+  "preference_card_background_color",
+  "preference_text_color",
+  "preference_button_color",
+  "preference_button_text_color",
+  "preference_logo_background_color",
+] as const;
+
+type PreferenceColorKey = (typeof PREFERENCE_COLOR_KEYS)[number];
+
+type ResolvedPreferenceColors = {
+  pageBackground: string;
+  cardBackground: string;
+  textColor: string;
+  buttonColor: string;
+  buttonTextColor: string;
+  logoBackground: string;
+};
+
+function resolveHexColor(value: string | null | undefined, fallback: string): string {
+  const trimmed = value?.trim() ?? "";
+  return trimmed && isValidHex(trimmed) ? trimmed : fallback;
+}
+
+function colorInputValue(value: string): string {
+  const resolved = resolveHexColor(value, "#000000").toLowerCase();
+  if (/^#[0-9a-f]{3}$/.test(resolved)) {
+    return `#${resolved[1]}${resolved[1]}${resolved[2]}${resolved[2]}${resolved[3]}${resolved[3]}`;
+  }
+  return /^#[0-9a-f]{6}$/.test(resolved) ? resolved : "#000000";
+}
+
+function resolvePreferencePageColors(form: FormData): ResolvedPreferenceColors {
+  const pageBackground = resolveHexColor(
+    form.preference_page_background_color,
+    resolveHexColor(form.background_color, "#f9fafb"),
+  );
+  const cardBackground = resolveHexColor(form.preference_card_background_color, "#ffffff");
+  const textColor = resolveHexColor(
+    form.preference_text_color,
+    resolveHexColor(form.text_color, "#111827"),
+  );
+  const buttonColor = resolveHexColor(
+    form.preference_button_color,
+    resolveHexColor(form.button_color, resolveHexColor(form.primary_color, "#3d5a80")),
+  );
+  const buttonTextColor = resolveHexColor(
+    form.preference_button_text_color,
+    resolveHexColor(form.button_text_color, "#ffffff"),
+  );
+  const logoBackground = resolveHexColor(
+    form.preference_logo_background_color,
+    resolveHexColor(form.primary_color, "#111827"),
+  );
+
+  return {
+    pageBackground,
+    cardBackground,
+    textColor,
+    buttonColor,
+    buttonTextColor,
+    logoBackground,
+  };
+}
+
+function hasPreferenceColorOverrides(form: FormData): boolean {
+  return PREFERENCE_COLOR_KEYS.some((key) => form[key].trim() !== "");
+}
+
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -205,37 +275,55 @@ function ColorField({
   );
 }
 
-function OptionalColorField({
+function PreferenceColorField({
   label,
   value,
+  resolvedValue,
+  inheritedLabel,
   onChange,
-  helperText,
 }: {
   label: string;
   value: string;
+  resolvedValue: string;
+  inheritedLabel: string;
   onChange: (v: string) => void;
-  helperText?: string;
 }) {
   const hasValue = value.trim() !== "";
+  const displayValue = hasValue ? value : resolvedValue;
   return (
     <div className="form-group">
-      <label className="form-label">{label}</label>
+      <label className="form-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span>{label}</span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: hasValue ? "#1d4ed8" : "#6b7280",
+            background: hasValue ? "#dbeafe" : "#f3f4f6",
+            borderRadius: 999,
+            padding: "2px 7px",
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            flexShrink: 0,
+          }}
+        >
+          {hasValue ? "Custom" : "Inherited"}
+        </span>
+      </label>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {hasValue && (
-          <input
-            type="color"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}
-          />
-        )}
+        <input
+          type="color"
+          value={colorInputValue(displayValue)}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ width: 36, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}
+        />
         <input
           type="text"
           className="form-input"
-          value={value}
+          value={displayValue}
           onChange={(e) => onChange(e.target.value)}
           style={{ flex: 1, fontFamily: "monospace", fontSize: 13 }}
-          placeholder="Use default"
+          placeholder={resolvedValue}
         />
         {hasValue && (
           <button
@@ -248,7 +336,107 @@ function OptionalColorField({
           </button>
         )}
       </div>
-      {helperText && <div className="form-helper">{helperText}</div>}
+      <div className="form-helper">
+        {hasValue ? `Fallback: ${inheritedLabel} (${resolvedValue})` : `Inheriting ${inheritedLabel} (${resolvedValue})`}
+      </div>
+    </div>
+  );
+}
+
+function PreferencePagePreview({
+  colors,
+  orgName,
+  logoUrl,
+}: {
+  colors: ResolvedPreferenceColors;
+  orgName: string;
+  logoUrl: string;
+}) {
+  return (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
+        Preference Page Preview
+      </div>
+      <div
+        style={{
+          background: colors.pageBackground,
+          border: "1px solid #e5e7eb",
+          borderRadius: 8,
+          padding: 16,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 300,
+            margin: "0 auto",
+            background: colors.cardBackground,
+            border: "1px solid #e5e7eb",
+            borderRadius: 10,
+            padding: 18,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            fontFamily: "Arial, Helvetica, sans-serif",
+          }}
+        >
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
+            Email Preferences
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                maxWidth: 188,
+                minHeight: 72,
+                background: colors.logoBackground,
+                borderRadius: 7,
+                padding: "10px 14px",
+                boxSizing: "border-box",
+                marginBottom: 8,
+                color: "#ffffff",
+                fontSize: 10,
+                fontWeight: 700,
+              }}
+            >
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt={orgName}
+                  style={{ maxWidth: "100%", maxHeight: 52, objectFit: "contain", display: "block" }}
+                />
+              ) : (
+                "Logo"
+              )}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: colors.textColor }}>{orgName}</div>
+          </div>
+          <div style={{ fontSize: 18, lineHeight: 1.25, fontWeight: 700, color: colors.textColor, marginBottom: 9 }}>
+            Confirm unsubscribe
+          </div>
+          <div style={{ fontSize: 12, lineHeight: 1.55, color: colors.textColor, marginBottom: 14 }}>
+            You&rsquo;re unsubscribing from campaign emails from {orgName}.
+          </div>
+          <button
+            type="button"
+            style={{
+              background: colors.buttonColor,
+              color: colors.buttonTextColor,
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 14px",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            Yes, unsubscribe me
+          </button>
+          <div style={{ borderTop: "1px solid #f3f4f6", marginTop: 18, paddingTop: 10, textAlign: "center", fontSize: 10, color: "#d1d5db" }}>
+            Powered by Serenius
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -257,12 +445,60 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
   const [form, setForm] = useState<FormData>(() =>
     brandSettings ? settingsToForm(brandSettings) : { ...DEFAULTS },
   );
+  const [preferenceColorsOpen, setPreferenceColorsOpen] = useState<boolean>(() =>
+    brandSettings ? hasPreferenceColorOverrides(settingsToForm(brandSettings)) : false,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const preferenceColors = useMemo(() => resolvePreferencePageColors(form), [form]);
+  const hasPreferenceOverrides = hasPreferenceColorOverrides(form);
+
+  useEffect(() => {
+    if (preferenceColorsOpen && !hasPreferenceOverrides) {
+      setPreferenceColorsOpen(false);
+    }
+  }, [hasPreferenceOverrides, preferenceColorsOpen]);
+
   function field(key: keyof FormData, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setSaveSuccess(false);
+  }
+
+  function preferenceField(key: PreferenceColorKey, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setSaveSuccess(false);
+  }
+
+  function startPreferenceCustomization() {
+    setForm((prev) => {
+      const colors = resolvePreferencePageColors(prev);
+      return {
+        ...prev,
+        preference_page_background_color: prev.preference_page_background_color.trim() || colors.pageBackground,
+        preference_card_background_color: prev.preference_card_background_color.trim() || colors.cardBackground,
+        preference_text_color: prev.preference_text_color.trim() || colors.textColor,
+        preference_button_color: prev.preference_button_color.trim() || colors.buttonColor,
+        preference_button_text_color: prev.preference_button_text_color.trim() || colors.buttonTextColor,
+        preference_logo_background_color: prev.preference_logo_background_color.trim() || colors.logoBackground,
+      };
+    });
+    setPreferenceColorsOpen(true);
+    setSaveSuccess(false);
+  }
+
+  function clearPreferenceColors() {
+    setForm((prev) => ({
+      ...prev,
+      preference_page_background_color: "",
+      preference_card_background_color: "",
+      preference_text_color: "",
+      preference_button_color: "",
+      preference_button_text_color: "",
+      preference_logo_background_color: "",
+    }));
+    setPreferenceColorsOpen(false);
     setSaveSuccess(false);
   }
 
@@ -862,44 +1098,152 @@ export default function BrandKitTab({ tenantId, brandSettings, canManage, onSave
 
           <SectionTitle>Public Preference Page</SectionTitle>
           <div className="form-helper" style={{ marginBottom: 14 }}>
-            These colors are used on public unsubscribe and email preference pages. Leave any field blank to inherit from your main brand settings.
+            These colors are used on public unsubscribe and email preference pages.
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-            <OptionalColorField
-              label="Page Background"
-              value={form.preference_page_background_color}
-              onChange={(v) => field("preference_page_background_color", v)}
-              helperText="Fallback: Background Color → #f9fafb"
-            />
-            <OptionalColorField
-              label="Card Background"
-              value={form.preference_card_background_color}
-              onChange={(v) => field("preference_card_background_color", v)}
-              helperText="Fallback: #ffffff"
-            />
-            <OptionalColorField
-              label="Text Color"
-              value={form.preference_text_color}
-              onChange={(v) => field("preference_text_color", v)}
-              helperText="Fallback: Text Color → #111827"
-            />
-            <OptionalColorField
-              label="Button Color"
-              value={form.preference_button_color}
-              onChange={(v) => field("preference_button_color", v)}
-              helperText="Fallback: Button Color → Primary Color → #3d5a80"
-            />
-            <OptionalColorField
-              label="Button Text Color"
-              value={form.preference_button_text_color}
-              onChange={(v) => field("preference_button_text_color", v)}
-              helperText="Fallback: Button Text Color → #ffffff"
-            />
-            <OptionalColorField
-              label="Logo Background"
-              value={form.preference_logo_background_color}
-              onChange={(v) => field("preference_logo_background_color", v)}
-              helperText="Fallback: #111827"
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) 320px",
+              gap: 18,
+              alignItems: "start",
+              marginBottom: 20,
+            }}
+          >
+            <div>
+              {!preferenceColorsOpen ? (
+                <div
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    padding: 14,
+                    background: "#fafafa",
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 4 }}>
+                    Currently inheriting from your main Brand Kit colors.
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5, marginBottom: 12 }}>
+                    The hosted preference page will use your existing background, text, button, and primary colors unless you customize it here.
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                    {[
+                      ["Page Background", preferenceColors.pageBackground],
+                      ["Card Background", preferenceColors.cardBackground],
+                      ["Text Color", preferenceColors.textColor],
+                      ["Button Color", preferenceColors.buttonColor],
+                      ["Button Text", preferenceColors.buttonTextColor],
+                      ["Logo Background", preferenceColors.logoBackground],
+                    ].map(([label, value]) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                        <span
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 4,
+                            border: "1px solid #d1d5db",
+                            background: value,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span style={{ fontSize: 11, color: "#6b7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {label}: <span style={{ fontFamily: "monospace" }}>{value}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={startPreferenceCustomization}
+                    disabled={!canManage}
+                  >
+                    Customize preference page colors
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>
+                        Custom preference page colors
+                      </div>
+                      <div className="form-helper">
+                        Fields marked Inherited still follow your main Brand Kit colors.
+                      </div>
+                    </div>
+                    {hasPreferenceOverrides ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ fontSize: 12, whiteSpace: "nowrap" }}
+                        onClick={clearPreferenceColors}
+                        disabled={!canManage}
+                      >
+                        Clear custom preference colors
+                      </button>
+                    ) : null}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                    <PreferenceColorField
+                      label="Page Background"
+                      value={form.preference_page_background_color}
+                      resolvedValue={preferenceColors.pageBackground}
+                      inheritedLabel="Background Color"
+                      onChange={(v) => preferenceField("preference_page_background_color", v)}
+                    />
+                    <PreferenceColorField
+                      label="Card Background"
+                      value={form.preference_card_background_color}
+                      resolvedValue={preferenceColors.cardBackground}
+                      inheritedLabel="white"
+                      onChange={(v) => preferenceField("preference_card_background_color", v)}
+                    />
+                    <PreferenceColorField
+                      label="Text Color"
+                      value={form.preference_text_color}
+                      resolvedValue={preferenceColors.textColor}
+                      inheritedLabel="Text Color"
+                      onChange={(v) => preferenceField("preference_text_color", v)}
+                    />
+                    <PreferenceColorField
+                      label="Button Color"
+                      value={form.preference_button_color}
+                      resolvedValue={preferenceColors.buttonColor}
+                      inheritedLabel="Button Color / Primary Color"
+                      onChange={(v) => preferenceField("preference_button_color", v)}
+                    />
+                    <PreferenceColorField
+                      label="Button Text Color"
+                      value={form.preference_button_text_color}
+                      resolvedValue={preferenceColors.buttonTextColor}
+                      inheritedLabel="Button Text Color"
+                      onChange={(v) => preferenceField("preference_button_text_color", v)}
+                    />
+                    <PreferenceColorField
+                      label="Logo Background"
+                      value={form.preference_logo_background_color}
+                      resolvedValue={preferenceColors.logoBackground}
+                      inheritedLabel="Primary Color"
+                      onChange={(v) => preferenceField("preference_logo_background_color", v)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <PreferencePagePreview
+              colors={preferenceColors}
+              orgName={form.organization_name.trim() || "Your organization"}
+              logoUrl={form.logo_url.trim()}
             />
           </div>
 

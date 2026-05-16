@@ -330,7 +330,7 @@ This is a **public** Server Component page — no Serenius authentication requir
 - Main text: `preference_text_color` → `text_color` → `#111827`
 - Button background: `preference_button_color` → `button_color` → `primary_color` → `#3d5a80`
 - Button text: `preference_button_text_color` → `button_text_color` → `#ffffff`
-- Logo tile background: `preference_logo_background_color` → `#111827`
+- Logo tile background: `preference_logo_background_color` → `primary_color` → `#111827`
 
 **Token redemption flow:**
 1. Raw token extracted from URL param `[token]`.
